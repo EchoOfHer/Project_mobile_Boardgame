@@ -63,7 +63,7 @@ class _CheckrequestState extends State<Checkrequest> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Image.asset("image/Castle_Panic.jpeg", width: 70, height: 90, fit: BoxFit.cover),
+            Image.asset("image/Castle_Panic.webp", width: 70, height: 90, fit: BoxFit.cover),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -106,7 +106,7 @@ class _CheckrequestState extends State<Checkrequest> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Image.asset("image/Champions_of_Hara.jpeg", width: 70, height: 90, fit: BoxFit.cover),
+            Image.asset("image/Champions_of_Hara.webp", width: 70, height: 90, fit: BoxFit.cover),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
