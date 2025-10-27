@@ -1,3 +1,4 @@
+import 'package:boardgame_app/Staff_screens/Add_New_Game.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 // Note: Ensure your 'staff_main.dart' file is in the correct directory
@@ -481,7 +482,16 @@ class _StaffDashboardState extends State<StaffDashboard> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: FloatingActionButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      // You need to replace 'Add_New_Game()' with the actual
+                      // constructor of your new screen widget.
+                      builder: (context) => AddNewGame(),
+                    ),
+                  );
+                },
                 shape: const CircleBorder(),
                 backgroundColor: colour_main,
                 child: const Icon(Icons.add, color: Colors.white),
