@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'see_request.dart'; 
+import '/login/login.dart';
+
+// === หน้าจอหลัก ===
 class BrowseLender extends StatefulWidget {
   const BrowseLender({super.key});
 
@@ -8,23 +11,25 @@ class BrowseLender extends StatefulWidget {
 }
 
 class _BrowseLenderState extends State<BrowseLender> {
-  // ข้อมูลจำลองสำหรับเกม
-final List<Map<String, String>> games = [
-  {'title': 'Exploding Kittens', 'image': 'image/Exploding_Kitten.webp'},
-  {'title': 'One Week Werewolf', 'image': 'image/One_Week_Werewolf.webp'},
-  {'title': 'Catan', 'image': 'image/Catan.jpg'},
-  {'title': 'Splendor', 'image': 'image/Splendor.jpg'},
-  {'title': 'Avalon', 'image': 'image/Avalon.jpg'},
-];
-
-
-
-  // หมวดหมู่จำลอง
-  final List<String> categories = ['Family', 'Party', 'Bluffing', 'Abstract', 'Dice'];
+  // ... (โค้ดข้อมูลเกมและหมวดหมู่ของคุณ เหมือนเดิม) ...
+  final List<Map<String, String>> games = [
+    {'title': 'Exploding Kittens', 'image': 'image/Exploding_Kitten.webp'},
+    {'title': 'One Week Werewolf', 'image': 'image/One_Week_Werewolf.webp'},
+    {'title': 'Catan', 'image': 'image/Catan.jpg'},
+    {'title': 'Splendor', 'image': 'image/Splendor.jpg'},
+    {'title': 'Avalon', 'image': 'image/Avalon.jpg'},
+  ];
+  final List<String> categories = [
+    'Family',
+    'Party',
+    'Bluffing',
+    'Abstract',
+    'Dice'
+  ];
   String selectedCategory = 'Family';
 
 
-  // ⬇️ 2. เพิ่มฟังก์ชันสำหรับจัดการการกด Bottom Nav Bar ⬇️
+  // ⬇️ 2. แก้ไขฟังก์ชันสำหรับจัดการการกด Bottom Nav Bar ⬇️
   void _onNavItemTapped(int index) {
     switch (index) {
       case 0:
@@ -32,7 +37,7 @@ final List<Map<String, String>> games = [
         break;
       case 1:
         // (Stats/Requests) - ⭐️ นี่คือส่วนที่ไปหน้า See Requests ⭐️
-        Navigator.push(
+        Navigator.push( // ใช้ push เพื่อให้ย้อนกลับมาหน้านี้ได้
           context,
           MaterialPageRoute(builder: (context) => const Seelender_requests()),
         );
@@ -43,13 +48,79 @@ final List<Map<String, String>> games = [
           const SnackBar(content: Text('Navigate to Bookings (Not Implemented)')),
         );
         break;
+      // ⬇️ 3. แก้ไข case 3: Logout
       case 3:
-        // (Logout) - TODO: ใส่ Logic การ Logout
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logout Tapped (Not Implemented)')),
-        );
+        _showLogoutDialog(); // เรียก Dialog ยืนยัน
         break;
+      // ⬆️ จบส่วนที่แก้ไข
     }
+  }
+  
+  // ⬇️ 4. เพิ่มฟังก์ชันสำหรับแสดง Dialog (ใช้สี #FF7C7C)
+  void _showLogoutDialog() {
+    // สร้างตัวแปรสี #FF7C7C
+    const Color logoutColor = Color(0xFFFF7C7C);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) { 
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.logout, size: 60, color: logoutColor),
+              const SizedBox(height: 16),
+              Text(
+                "Log Out",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: logoutColor, // ใช้สีที่กำหนด
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Are you sure you want to log out of your account?",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300], 
+                      foregroundColor: Colors.black54, 
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogContext); // ปิด Dialog
+                    },
+                    child: const Text("Cancle"), // สะกด "Cancle" ตามในรูป
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: logoutColor, // ใช้สีที่กำหนด
+                      foregroundColor: Colors.white, 
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogContext); 
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const Login()),
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    child: const Text("Confirm"),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
   // ⬆️ จบส่วนที่เพิ่ม ⬆️
 
@@ -58,9 +129,9 @@ final List<Map<String, String>> games = [
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        // ... (โค้ด body ของคุณ เหมือนเดิม) ...
         decoration: const BoxDecoration(
           color: Colors.white,
-          
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -104,7 +175,7 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Search Bar ===
+  // ... (โค้ด _buildSearchBar, _buildCategoryFilters, _buildGameGrid, _buildBottomNav เหมือนเดิม) ...
   Widget _buildSearchBar() {
     return TextField(
       decoration: InputDecoration(
@@ -128,7 +199,6 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Filter หมวดหมู่ ===
   Widget _buildCategoryFilters() {
     return SizedBox(
       height: 40,
@@ -168,7 +238,6 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Grid ของเกม ===
   Widget _buildGameGrid() {
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -190,10 +259,8 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Bottom Navigation ===
   Widget _buildBottomNav() {
     return BottomNavigationBar(
-      // ⬇️ 3. เพิ่ม onTap ตรงนี้ ⬇️
       onTap: _onNavItemTapped, 
       items: const [
         BottomNavigationBarItem(
@@ -207,17 +274,17 @@ final List<Map<String, String>> games = [
           label: 'Stats',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined), // ไอคอนปฏิทิน (ตรงกับภาพ screenshot)
+          icon: Icon(Icons.calendar_today_outlined), 
           activeIcon: Icon(Icons.calendar_today),
           label: 'Bookings',
-        ),  
+        ), 
         BottomNavigationBarItem(
         icon: Icon(Icons.logout), 
           activeIcon: Icon(Icons.logout),
           label: 'Logout',
         ),
       ],
-      currentIndex: 0, // ⭐️ หน้านี้คือ index 0 (Games)
+      currentIndex: 0, 
       selectedItemColor: Colors.orange[800],
       unselectedItemColor: Colors.grey[600],
       showSelectedLabels: false,
@@ -227,7 +294,7 @@ final List<Map<String, String>> games = [
   }
 }
 
-// === Widget ของการ์ดเกมแต่ละใบ ===
+// ... (โค้ด class GameCard เหมือนเดิม) ...
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
