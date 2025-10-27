@@ -1,65 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-// Note: Consolidating multiple 'show' imports for the same file is cleaner.
-// For this example, I'll assume your staff_main.dart provides these colors.
+// Note: Ensure your 'staff_main.dart' file is in the correct directory
+// and exports these color constants.
 import 'staff_main.dart'
     show colour_available, colour_borrow, colour_disable, colour_main;
 
-// The original list of game data - kept the original name 'game'
-int Borrowed = 0;
-int Available = 0;
-int Disabled = 0;
-List<Map<String, dynamic>> game = [
-  {
-    'game_name': 'Castle Panic',
-    'game_group': 'Castle Panic',
-    'game_id': 1,
-    'status': 'Borrowed',
-    'pic_path': 'image/Castle_Panic.webp',
-  },
-  {
-    'game_name': 'Castle Panic',
-    'game_group': 'Castle Panic',
-    'game_id': 2,
-    'status': 'Disabled',
-    'pic_path': 'image/Castle_Panic.webp',
-  },
-  {
-    'game_name': 'Champions of Hara',
-    'game_group': 'Champions of Hara',
-    'game_id': 3,
-    'status': 'Borrowing',
-    'pic_path': 'image/Champions_of_Hara.webp',
-  },
-  {
-    'game_name': 'Defenders of the Wild',
-    'game_group': 'Defenders of the Wild',
-    'game_id': 4,
-    'status': 'Disabled',
-    'pic_path': 'image/Defenders_of_the_Wild.webp',
-  },
-  {
-    'game_name': 'Roll Player Adventures',
-    'game_group': 'Roll Player Adventures',
-    'game_id': 5,
-    'status': 'Available',
-    'pic_path': 'image/Roll_Player_Adventures.webp',
-  },
-  {
-    'game_name': 'The Captain is Dead',
-    'game_group': 'The Captain is Dead',
-    'game_id': 6,
-    'status': 'Disabled',
-    'pic_path': 'image/The_Captain_is_Dead.webp',
-  },
-  {
-    'game_name': 'The Grizzled',
-    'game_group': 'The Grizzled',
-    'game_id': 7,
-    'status': 'Disabled',
-    'pic_path': 'image/The_Grizzled.webp',
-  },
-];
+// -----------------------------------------------------------------------------
+// Helper Widgets (Built outside the State Class)
+// -----------------------------------------------------------------------------
 
 Widget _buildGameCard(Map<String, dynamic> currentGame) {
   final gameStatus = currentGame['status'];
@@ -94,6 +42,7 @@ Widget _buildGameCard(Map<String, dynamic> currentGame) {
               width: 100,
               height: 100,
               fit: BoxFit.cover,
+              // Fallback if image path is invalid
               errorBuilder: (context, error, stackTrace) => Container(
                 width: 100,
                 height: 100,
@@ -152,20 +101,38 @@ Widget _buildGameCard(Map<String, dynamic> currentGame) {
   );
 }
 
-Widget showgame() {
+// -----------------------------------------------------------------------------
+// Dynamic Game List Widget (MODIFIED to accept the list)
+// -----------------------------------------------------------------------------
+Widget showgame({required List<Map<String, dynamic>> listToShow}) {
   final List<Widget> widgets = [];
   String? lastGameGroup;
 
-  for (int i = 0; i < game.length; i++) {
-    final currentGame = game[i];
+  // Handles the case where the list is empty after filtering
+  if (listToShow.isEmpty) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 30),
+      child: Center(
+        child: Text(
+          'No games found matching your search.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      ),
+    );
+  }
+
+  for (int i = 0; i < listToShow.length; i++) {
+    final currentGame = listToShow[i];
+    final nextGameGroup = i + 1 < listToShow.length
+        ? listToShow[i + 1]['game_group']
+        : null;
+
     final isNewGroup = lastGameGroup != currentGame['game_group'];
-
-    // Check if the next item has a different group or if it's the last item
     final isLastInGroup =
-        i + 1 == game.length ||
-        game[i + 1]['game_group'] != currentGame['game_group'];
+        i + 1 == listToShow.length ||
+        nextGameGroup != currentGame['game_group'];
 
-    // 1. Conditional Group Header
+    // 1. Conditional Group Header (Title and Edit button)
     if (isNewGroup) {
       widgets.add(
         Padding(
@@ -200,26 +167,28 @@ Widget showgame() {
     // 2. The Game Card Widget
     widgets.add(_buildGameCard(currentGame));
 
-    // 3. Conditional Divider
+    // 3. Conditional Divider (at the end of a group)
     if (isLastInGroup) {
       widgets.add(
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 10.0),
-          child: Divider(height: 1, thickness: 1),
+          child: Divider(height: 1, thickness: 1, color: colour_main),
         ),
       );
     }
 
-    // Update the last group for the next iteration
     lastGameGroup = currentGame['game_group'];
   }
 
-  // Returns a Column containing all the dynamic elements
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: widgets,
   );
 }
+
+// -----------------------------------------------------------------------------
+// StaffDashboard StatefulWidget and State Class
+// -----------------------------------------------------------------------------
 
 class StaffDashboard extends StatefulWidget {
   const StaffDashboard({super.key});
@@ -229,10 +198,70 @@ class StaffDashboard extends StatefulWidget {
 }
 
 class _StaffDashboardState extends State<StaffDashboard> {
+  // 🌟 STATE VARIABLES (MUST BE INSIDE State Class)
+  int Borrowed = 0;
+  int Available = 0;
+  int Disabled = 0;
+  List<Map<String, dynamic>> _filteredGameList = [];
+
+  // The static game data list
+  final List<Map<String, dynamic>> game = const [
+    {
+      'game_name': 'Castle Panic',
+      'game_group': 'Castle Panic',
+      'game_id': 1,
+      'status': 'Borrowed',
+      'pic_path': 'image/Castle_Panic.webp',
+    },
+    {
+      'game_name': 'Castle Panic',
+      'game_group': 'Castle Panic',
+      'game_id': 2,
+      'status': 'Disabled',
+      'pic_path': 'image/Castle_Panic.webp',
+    },
+    {
+      'game_name': 'Champions of Hara',
+      'game_group': 'Champions of Hara',
+      'game_id': 3,
+      'status': 'Borrowing',
+      'pic_path': 'image/Champions_of_Hara.webp',
+    },
+    {
+      'game_name': 'Defenders of the Wild',
+      'game_group': 'Defenders of the Wild',
+      'game_id': 4,
+      'status': 'Disabled',
+      'pic_path': 'image/Defenders_of_the_Wild.webp',
+    },
+    {
+      'game_name': 'Roll Player Adventures',
+      'game_group': 'Roll Player Adventures',
+      'game_id': 5,
+      'status': 'Available',
+      'pic_path': 'image/Roll_Player_Adventures.webp',
+    },
+    {
+      'game_name': 'The Captain is Dead',
+      'game_group': 'The Captain is Dead',
+      'game_id': 6,
+      'status': 'Disabled',
+      'pic_path': 'image/The_Captain_is_Dead.webp',
+    },
+    {
+      'game_name': 'The Grizzled',
+      'game_group': 'The Grizzled',
+      'game_id': 7,
+      'status': 'Disabled',
+      'pic_path': 'image/The_Grizzled.webp',
+    },
+  ];
+
+  // 🌟 AUTOMATIC STATUS CALCULATION
   @override
   void initState() {
     super.initState();
-    // เรียกฟังก์ชันคำนวณสถานะทันทีที่ Widget ถูกสร้าง
+    _filteredGameList = game;
     calculate_status();
   }
 
@@ -240,8 +269,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
     int tempBorrowed = 0;
     int tempDisabled = 0;
     int tempAvailable = 0;
+
+    // Calculates status based on the FULL list
     for (int i = 0; i < game.length; i++) {
-      if (game[i]['status'] == 'Borrowed') {
+      if (game[i]['status'] == 'Borrowed' || game[i]['status'] == 'Borrowing') {
         tempBorrowed += 1;
       } else if (game[i]['status'] == 'Disabled') {
         tempDisabled += 1;
@@ -249,6 +280,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
         tempAvailable += 1;
       }
     }
+
+    // Updates the state variables and refreshes the UI
     setState(() {
       Borrowed = tempBorrowed;
       Disabled = tempDisabled;
@@ -256,16 +289,30 @@ class _StaffDashboardState extends State<StaffDashboard> {
     });
   }
 
+  // 🌟 SEARCH FILTERING LOGIC
+  void _filterGameList(String query) {
+    final filteredList = game.where((item) {
+      final gameName = item['game_name'].toString().toLowerCase();
+      final searchTerm = query.toLowerCase();
+
+      // If query is empty, it returns true for all items (show all)
+      return gameName.contains(searchTerm);
+    }).toList();
+
+    setState(() {
+      _filteredGameList = filteredList;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Stack(
-        // The Stack allows the FAB to float over the scrollable content.
         children: [
-          // FIX: Wrap the entire content area in a SingleChildScrollView to enable scrolling.
+          // Makes the content scrollable
           SingleChildScrollView(
             child: Padding(
-              padding: EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -278,9 +325,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Row of Status Containers (Unchanged)
+
+                  // Status Containers (Linked to state variables)
                   Row(
                     children: [
+                      // BORROWED
                       Container(
                         width: 115,
                         height: 115,
@@ -293,14 +342,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              '$Borrowed',
-                              style: TextStyle(
+                              Borrowed.toString(), // 🌟 Dynamic value
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 50,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text(
+                            const Text(
                               'Borrowed',
                               style: TextStyle(
                                 color: Colors.white,
@@ -312,6 +361,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                         ),
                       ),
                       const Spacer(),
+                      // AVAILABLE
                       Container(
                         width: 115,
                         height: 115,
@@ -324,14 +374,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              '$Available',
-                              style: TextStyle(
+                              Available.toString(), // 🌟 Dynamic value
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 50,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text(
+                            const Text(
                               'Available',
                               style: TextStyle(
                                 color: Colors.white,
@@ -343,6 +393,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                         ),
                       ),
                       const Spacer(),
+                      // DISABLED
                       Container(
                         width: 115,
                         height: 115,
@@ -355,14 +406,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              Disabled.toString(),
-                              style: TextStyle(
+                              Disabled.toString(), // 🌟 Dynamic value
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 50,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text(
+                            const Text(
                               'Disabled',
                               style: TextStyle(
                                 color: Colors.white,
@@ -378,7 +429,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
                   const SizedBox(height: 10),
 
-                  // Manage Board Title (Unchanged)
+                  // Manage Board Title
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 15.0),
                     child: Text(
@@ -391,8 +442,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     ),
                   ),
 
-                  // Search TextField (Unchanged)
+                  // Search TextField
                   TextField(
+                    onChanged: _filterGameList, // 🌟 Calls filter logic
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.white,
@@ -414,24 +466,22 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     ),
                   ),
 
-                  // const SizedBox(height: 10),
+                  const SizedBox(height: 20),
 
-                  // The dynamic game list widget is placed here.
-                  showgame(),
+                  // Dynamic Game List (Uses the filtered list)
+                  showgame(listToShow: _filteredGameList),
                 ],
               ),
             ),
           ),
 
-          // FloatingActionButton (Unchanged, remains at the bottom right)
+          // FloatingActionButton
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: FloatingActionButton(
-                onPressed: () {
-                  print('$Disabled');
-                },
+                onPressed: () {},
                 shape: const CircleBorder(),
                 backgroundColor: colour_main,
                 child: const Icon(Icons.add, color: Colors.white),
