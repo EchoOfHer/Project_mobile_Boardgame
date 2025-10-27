@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'register.dart';
-// import 'package:boardgame_app/Student/student_browse_list.dart';
-// import 'package:boardgame_app/Lender/lender_browse_list.dart';
-// import 'package:boardgame_app/Staff/staff_browse_list.dart';
+import 'package:boardgame_app/Student/student_browse_list.dart';
+import 'package:boardgame_app/Lender/lender_browse_list.dart';
+import 'package:boardgame_app/Staff/staff_browse_list.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -32,31 +32,31 @@ class _LoginState extends State<Login> {
 
       // 3. ตรวจสอบว่าตรงกับ "student" และ "123456"
 
-    //   if (username == "student" && password == "123456") {
-    //     Navigator.pushReplacement(
-    //       // context,
-    //       // MaterialPageRoute(builder: (context) => const BrowseStudent()),
-    //     // );
-    //   } else if (username == "lender" && password == "456789") {
-    //     Navigator.pushReplacement(
-    //       context,
-    //       // MaterialPageRoute(builder: (context) => const BrowseLender()),
-    //     );
-    //   } else if (username == "staff" && password == "123789") {
-    //     Navigator.pushReplacement(
-    //       context,
-    //       // MaterialPageRoute(builder: (context) => const BrowseStaff()),
-    //     );
-    //   } else {
-    //     // --- ล็อกอินไม่สำเร็จ ---
-    //     // แสดง SnackBar แจ้งเตือน
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //       const SnackBar(
-    //         content: Text('Username หรือ Password ไม่ถูกต้อง'),
-    //         backgroundColor: Colors.red, // สีพื้นหลังแจ้งเตือน
-    //       ),
-    //     );
-    //   }
+      if (username == "student" && password == "123456") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const BrowseStudent()),
+        );
+      } else if (username == "lender" && password == "456789") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const BrowseLender()),
+        );
+      } else if (username == "staff" && password == "123789") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const BrowseStaff()),
+        );
+      } else {
+        // --- ล็อกอินไม่สำเร็จ ---
+        // แสดง SnackBar แจ้งเตือน
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Username หรือ Password ไม่ถูกต้อง'),
+            backgroundColor: Colors.red, // สีพื้นหลังแจ้งเตือน
+          ),
+        );
+      }
     
     }
   }
