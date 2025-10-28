@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class BorrowGamePage extends StatefulWidget {
+class RequestBorrowingLenderPage extends StatefulWidget {
   final String gameName;
   final String imageAssetPath;
   final String gameStyle;
@@ -8,7 +8,7 @@ class BorrowGamePage extends StatefulWidget {
   final String time;
   final int remaining;
 
-  const BorrowGamePage({
+  const RequestBorrowingLenderPage({
     super.key,
     required this.gameName,
     required this.imageAssetPath,
@@ -19,10 +19,10 @@ class BorrowGamePage extends StatefulWidget {
   });
 
   @override
-  State<BorrowGamePage> createState() => _BorrowGamePageState();
+  State<RequestBorrowingLenderPage> createState() => _RequestBorrowingLenderPageState();
 }
 
-class _BorrowGamePageState extends State<BorrowGamePage> {
+class _RequestBorrowingLenderPageState extends State<RequestBorrowingLenderPage> {
   bool isBorrowed = false;
   bool showRequestPopup = false;
   late int currentRemaining;
@@ -125,45 +125,12 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                     'How to play : ',
                     'Official website',
                     isLink: true,
-                  ),
-
-                  // ⬇️ ⬇️ ⬇️ 2. ลบ const Spacer() ออก ⬇️ ⬇️ ⬇️
-                  // const Spacer(), 
-
-                  // ⬇️ ⬇️ ⬇️ 3. เพิ่ม SizedBox เพื่อสร้างช่องว่างแทน ⬇️ ⬇️ ⬇️
-                  const SizedBox(height: 30), 
-
-                  // Borrow button
-                  Center(
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: (isBorrowed || currentRemaining <= 0)
-                            ? null
-                            : handleBorrow,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: (isBorrowed || currentRemaining <= 0)
-                              ? Colors.grey
-                              : Colors.orangeAccent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Borrow',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
+                  ),                
+                  const SizedBox(height: 30),                  
                 ],
               ),
             ),
           ),
-          // ⬆️ ⬆️ ⬆️ จบส่วนที่แก้ไข ⬆️ ⬆️ ⬆️
-
-          // --- ส่วน Popup ไม่ต้องแก้ไข ---
           if (showRequestPopup)
             GestureDetector(
               onTap: () {},

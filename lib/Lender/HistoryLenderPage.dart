@@ -1,18 +1,22 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'lender_browse_list.dart'; 
+import 'see_request.dart';        
+import '/login/login.dart';       
 
-class HistoryLanderPage extends StatefulWidget {
-  const HistoryLanderPage({super.key});
+class HistoryLenderPage extends StatefulWidget {
+  const HistoryLenderPage({super.key});
 
   @override
-  State<HistoryLanderPage> createState() => _HistoryLanderPageState();
+  State<HistoryLenderPage> createState() => _HistoryLenderPageState();
 }
 
-class _HistoryLanderPageState extends State<HistoryLanderPage> {
+class _HistoryLenderPageState extends State<HistoryLenderPage> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
 
   // ----- mock data -----
+  // ... (โค้ด _all data ของคุณเหมือนเดิม) ...
   final List<Map<String, String>> _all = [
     {
       'game': 'Exploding Kitten',
@@ -42,8 +46,10 @@ class _HistoryLanderPageState extends State<HistoryLanderPage> {
       'returnedDate': '14 Oct 2025',
     },
   ];
-
   late List<Map<String, String>> _filtered;
+
+  // ⬇️⬇️⬇️ 2. กำหนด INDEX ของหน้านี้ (0=Games, 1=Stats, 2=Bookings) ⬇️⬇️⬇️
+  final int _selectedIndex = 2; // 2 คือ "Bookings" (History)
 
   @override
   void initState() {
@@ -59,6 +65,7 @@ class _HistoryLanderPageState extends State<HistoryLanderPage> {
     super.dispose();
   }
 
+  // ... (โค้ด _onSearchChange, _clearSearch ของคุณเหมือนเดิม) ...
   void _onSearchChange() {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 200), () {
@@ -84,6 +91,134 @@ class _HistoryLanderPageState extends State<HistoryLanderPage> {
     FocusScope.of(context).unfocus();
   }
 
+
+  // ⬇️⬇️⬇️ 3. เพิ่มฟังก์ชันสำหรับ BOTTOM NAV BAR ⬇️⬇️⬇️
+
+  void _onNavItemTapped(int index) {
+    if (index == _selectedIndex) return; // ไม่ต้องทำอะไรถ้ากดปุ่มของหน้าปัจจุบัน
+
+    switch (index) {
+      case 0: // Games
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const BrowseLender()),
+        );
+        break;
+      case 1: // Stats/Requests
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SeeLenderRequests()),
+        );
+        break;
+      case 2: // Bookings (หน้านี้)
+        // ไม่ต้องทำอะไร
+        break;
+      case 3: // Logout
+        _showLogoutDialog();
+        break;
+    }
+  }
+
+  void _showLogoutDialog() {
+    const Color logoutColor = Color(0xFFFF7C7C);
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.logout, size: 60, color: logoutColor),
+              const SizedBox(height: 16),
+              Text(
+                "Log Out",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: logoutColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Are you sure you want to log out of your account?",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.black54,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                    },
+                    child: const Text("Cancle"),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: logoutColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const Login()),
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    child: const Text("Confirm"),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return BottomNavigationBar(
+      onTap: _onNavItemTapped,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.style_outlined),
+          activeIcon: Icon(Icons.style),
+          label: 'Games',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.pie_chart_outline),
+          activeIcon: Icon(Icons.pie_chart),
+          label: 'Stats',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today_outlined),
+          activeIcon: Icon(Icons.calendar_today),
+          label: 'Bookings',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.logout),
+          activeIcon: Icon(Icons.logout),
+          label: 'Logout',
+        ),
+      ],
+      currentIndex: _selectedIndex, // ใช้ตัวแปรที่ตั้งค่าไว้ (2)
+      selectedItemColor: Colors.orange[800],
+      unselectedItemColor: Colors.grey[600],
+      showSelectedLabels: false,
+      showUnselectedLabels: false,
+      type: BottomNavigationBarType.fixed,
+    );
+  }
+  // ⬆️⬆️⬆️ จบส่วน Bottom Nav Bar ⬆️⬆️⬆️
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,6 +229,7 @@ class _HistoryLanderPageState extends State<HistoryLanderPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ... (โค้ด Title, Search Bar ของคุณเหมือนเดิม) ...
               const Text(
                 'History',
                 style: TextStyle(
@@ -143,7 +279,6 @@ class _HistoryLanderPageState extends State<HistoryLanderPage> {
                       width: 2.5,
                     ),
                   ),
-
                   hintStyle: const TextStyle(color: Colors.black45),
                 ),
               ),
@@ -168,11 +303,17 @@ class _HistoryLanderPageState extends State<HistoryLanderPage> {
           ),
         ),
       ),
+
+      // ⬇️⬇️⬇️ 4. เพิ่ม Bottom Nav Bar เข้าไปใน SCAFFOLD ⬇️⬇️⬇️
+      bottomNavigationBar: _buildBottomNav(),
+      // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
     );
   }
 }
 
+// ... (คลาส HistoryCard ไม่ต้องแก้ไข) ...
 class HistoryCard extends StatelessWidget {
+// ... (โค้ดเดิม) ...
   final Map<String, String> item;
   const HistoryCard({super.key, required this.item});
 
