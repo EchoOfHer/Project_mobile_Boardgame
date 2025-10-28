@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'student_browse_list.dart';
-import '/login/login.dart';
+import 'HistoryStudentPage.dart';
+import 'package:boardgame_app/login/login.dart';
 
 class Checkrequest extends StatefulWidget {
   const Checkrequest({super.key});
@@ -29,7 +30,10 @@ class _CheckrequestState extends State<Checkrequest> {
       case 1: // Stats
         break;
       case 2: // Bookings
-        print("Navigate to Bookings");
+       Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HistoryStudentPage()), // ไปหน้า History
+        );
         break;
       case 3: // Logout
         _showLogoutDialog(); // เรียก Dialog ยืนยัน

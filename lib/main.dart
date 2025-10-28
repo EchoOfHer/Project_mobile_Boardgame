@@ -1,7 +1,6 @@
 import 'package:boardgame_app/login/login.dart';
 // import 'package:boardgame_app/Student/Chaeckrequest.dart';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 
 void main() {
   runApp(MyApp());
@@ -17,17 +16,4 @@ class MyApp extends StatelessWidget {
       // home: Checkrequest()
     );
   }
-=======
-// import 'HistoryStaffPage.dart';
-// import 'HistoryStudentPage.dart';
-import 'HistoryLanderPage.dart';
-
-void main() {
-  runApp(
-    const MaterialApp(
-      home: HistoryLanderPage(),
-      debugShowCheckedModeBanner: false,
-    ),
-  );
->>>>>>> feature/borrow-history
 }
