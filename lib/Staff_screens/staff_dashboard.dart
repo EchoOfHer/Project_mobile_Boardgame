@@ -206,7 +206,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   List<Map<String, dynamic>> _filteredGameList = [];
 
   // The static game data list
-  final List<Map<String, dynamic>> game = const [
+  final List<Map<String, dynamic>> game = [
     {
       'game_name': 'Castle Panic',
       'game_group': 'Castle Panic',
@@ -303,6 +303,34 @@ class _StaffDashboardState extends State<StaffDashboard> {
     setState(() {
       _filteredGameList = filteredList;
     });
+  }
+
+  // 🌟 FUNCTION TO HANDLE RECEIVED DATA AND UPDATE LIST 🌟
+  void _handleNewGame(Map newGameData) {
+    // Safely parse the number of copies to add
+    int count = int.tryParse(newGameData['game_count'] ?? '1') ?? 1;
+
+    List<Map<String, dynamic>> newItems = [];
+
+    for (int i = 0; i < count; i++) {
+      newItems.add({
+        'game_name': newGameData['game_name'],
+        'game_group': newGameData['game_name'],
+        'game_id': game.length + i + 1,
+        'status': 'Available', // New games are available by default
+        // Use the selected file name for the pic_path (assumes local asset structure)
+        'pic_path': 'image/${newGameData['game_imageP']}',
+      });
+    }
+
+    setState(() {
+      game.addAll(newItems);
+      _filteredGameList = game; // Refresh the display list
+      calculate_status(); // Recalculate dashboard counters
+    });
+    debugPrint(
+      'SUCCESS: Added $count copies of ${newGameData['game_name']} to list.',
+    );
   }
 
   @override
@@ -482,15 +510,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: FloatingActionButton(
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  // 🌟 ASYNC
+                  // Await the Map returned from the AddNewGame screen
+                  final Map? newGameData = await Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      // You need to replace 'Add_New_Game()' with the actual
-                      // constructor of your new screen widget.
-                      builder: (context) => AddNewGame(),
-                    ),
+                    MaterialPageRoute(builder: (context) => const AddNewGame()),
                   );
+
+                  // Check if a Map was returned and if the game name is valid
+                  if (newGameData != null &&
+                      (newGameData['game_name'] as String).isNotEmpty) {
+                    _handleNewGame(newGameData);
+                  }
                 },
                 shape: const CircleBorder(),
                 backgroundColor: colour_main,
