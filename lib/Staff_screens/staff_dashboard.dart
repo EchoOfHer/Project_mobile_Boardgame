@@ -1,336 +1,468 @@
+// file: staff_dashboard.dart
+
 import 'package:boardgame_app/Staff_screens/Add_New_Game.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-// Note: Ensure your 'staff_main.dart' file is in the correct directory
-// and exports these color constants.
+import 'EditGame.dart';
 import 'staff_main.dart'
     show colour_available, colour_borrow, colour_disable, colour_main;
+// 👇 1. Import the data model and the mutable global list
+import 'game_data.dart';
 
 // -----------------------------------------------------------------------------
-// Helper Widgets (Built outside the State Class)
+// STATUS CARD (No changes needed)
 // -----------------------------------------------------------------------------
+class StatusCard extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+  const StatusCard({
+    super.key,
+    required this.label,
+    required this.count,
+    required this.color,
+  });
 
-Widget _buildGameCard(Map<String, dynamic> currentGame) {
-  final gameStatus = currentGame['status'];
-  late Color statusColor;
-  late IconData statusIcon;
-
-  // Logic for color and icon based on status
-  if (gameStatus == 'Available') {
-    statusColor = colour_available;
-    statusIcon = Icons.play_disabled;
-  } else if (gameStatus == 'Disabled') {
-    statusColor = colour_disable;
-    statusIcon = FontAwesomeIcons.play;
-  } else {
-    // Borrowed/Borrowing
-    statusColor = colour_borrow;
-    statusIcon = FontAwesomeIcons.dice;
-  }
-
-  return Card(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-    child: Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 115,
+      height: 115,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: color,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 1. The Image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8.0),
-            child: Image.asset(
-              currentGame['pic_path'],
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
-              // Fallback if image path is invalid
-              errorBuilder: (context, error, stackTrace) => Container(
+          Text(
+            count.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 50,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// GAME CARD (No changes needed)
+// -----------------------------------------------------------------------------
+class GameCard extends StatelessWidget {
+  final GameItem game;
+  final VoidCallback? onStatusTap;
+  const GameCard({super.key, required this.game, required this.onStatusTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isBorrowed = game.status == 'Borrowed' || game.status == 'Borrowing';
+    final config = _getStatusConfig(game.status, isBorrowed);
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                game.picPath,
                 width: 100,
                 height: 100,
-                color: Colors.grey.shade300,
-                child: const Icon(
-                  Icons.broken_image,
-                  size: 40,
-                  color: Colors.grey,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 100,
+                  height: 100,
+                  color: Colors.grey.shade300,
+                  child: const Icon(
+                    Icons.broken_image,
+                    size: 40,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
-          ),
-
-          const SizedBox(width: 16),
-
-          // 2. The Text Column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  currentGame['game_name'],
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    game.gameName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                  Text(
+                    'ID: ${game.gameId}',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Status: ${game.status}',
+                    style: TextStyle(
+                      color: config.color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: isBorrowed ? null : onStatusTap,
+              icon: Icon(config.icon, color: config.color, size: 40),
+              tooltip: isBorrowed
+                  ? 'Cannot change while borrowed'
+                  : 'Toggle Available/Disabled',
+            ),
+            const SizedBox(width: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  ({Color color, IconData icon}) _getStatusConfig(
+    String status,
+    bool isBorrowed,
+  ) {
+    if (isBorrowed)
+      return (color: Colors.grey.shade400, icon: Icons.lock_outline);
+    return switch (status) {
+      'Available' => (color: colour_available, icon: Icons.play_disabled),
+      'Disabled' => (color: colour_disable, icon: FontAwesomeIcons.play),
+      _ => (color: Colors.grey, icon: Icons.help),
+    };
+  }
+}
+
+// -----------------------------------------------------------------------------
+// GROUPED GAME LIST (No changes needed)
+// -----------------------------------------------------------------------------
+class GroupedGameList extends StatelessWidget {
+  final List<GameItem> games;
+  final Function(int gameId) onStatusToggle;
+
+  const GroupedGameList({
+    super.key,
+    required this.games,
+    required this.onStatusToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (games.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 30),
+        child: Center(
+          child: Text('No games found.', style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    final List<Widget> children = [];
+    String? lastGroup;
+
+    for (int i = 0; i < games.length; i++) {
+      final game = games[i];
+      final isNewGroup = lastGroup != game.gameGroup;
+      // Note: This logic relies entirely on the 'games' list being pre-sorted by gameGroup.
+      final isLastInGroup =
+          i == games.length - 1 || games[i + 1].gameGroup != game.gameGroup;
+
+      if (isNewGroup) {
+        final group = games
+            .where((g) => g.gameGroup == game.gameGroup)
+            .toList();
+        final groupCount = group.length;
+
+        children.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
                 Text(
-                  'ID: ${currentGame['game_id']}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                  game.gameGroup,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Status: $gameStatus',
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.w700,
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () async {
+                    final updatedGame = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditGame(
+                          game: game,
+                          groupCount: groupCount,
+                          onCountChanged: (newCount) {
+                            final parent = context
+                                .findAncestorStateOfType<
+                                  _StaffDashboardState
+                                >();
+                            parent?.adjustGroupCount(game.gameGroup, newCount);
+                          },
+                        ),
+                      ),
+                    );
+                    if (updatedGame != null && context.mounted) {
+                      final parent = context
+                          .findAncestorStateOfType<_StaffDashboardState>();
+                      parent?.updateGame(updatedGame);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colour_borrow,
+                  ),
+                  child: const Text(
+                    'Edit',
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],
             ),
           ),
+        );
+      } else if (i > 0) {
+        children.add(const SizedBox(height: 8));
+      }
 
-          // 3. The Trailing Icon
-          IconButton(
-            onPressed: () {},
-            icon: Icon(statusIcon, color: statusColor, size: 40),
-          ),
-          const SizedBox(width: 20),
-        ],
-      ),
-    ),
-  );
-}
-
-// -----------------------------------------------------------------------------
-// Dynamic Game List Widget (MODIFIED to accept the list)
-// -----------------------------------------------------------------------------
-Widget showgame({required List<Map<String, dynamic>> listToShow}) {
-  final List<Widget> widgets = [];
-  String? lastGameGroup;
-
-  // Handles the case where the list is empty after filtering
-  if (listToShow.isEmpty) {
-    return const Padding(
-      padding: EdgeInsets.only(top: 30),
-      child: Center(
-        child: Text(
-          'No games found matching your search.',
-          style: TextStyle(color: Colors.grey),
+      children.add(
+        GameCard(
+          key: ValueKey(game.gameId),
+          game: game,
+          onStatusTap: () => onStatusToggle(game.gameId),
         ),
-      ),
+      );
+
+      if (isLastInGroup) {
+        children.add(
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10.0),
+            child: Divider(height: 1, thickness: 1, color: colour_main),
+          ),
+        );
+      }
+      lastGroup = game.gameGroup;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
     );
   }
-
-  for (int i = 0; i < listToShow.length; i++) {
-    final currentGame = listToShow[i];
-    final nextGameGroup = i + 1 < listToShow.length
-        ? listToShow[i + 1]['game_group']
-        : null;
-
-    final isNewGroup = lastGameGroup != currentGame['game_group'];
-    final isLastInGroup =
-        i + 1 == listToShow.length ||
-        nextGameGroup != currentGame['game_group'];
-
-    // 1. Conditional Group Header (Title and Edit button)
-    if (isNewGroup) {
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 8.0),
-          child: Row(
-            children: [
-              Text(
-                currentGame['game_group'],
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(backgroundColor: colour_borrow),
-                child: const Text(
-                  'Edit',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      // Small spacer between cards of the same group
-      widgets.add(const SizedBox(height: 8));
-    }
-
-    // 2. The Game Card Widget
-    widgets.add(_buildGameCard(currentGame));
-
-    // 3. Conditional Divider (at the end of a group)
-    if (isLastInGroup) {
-      widgets.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 10.0),
-          child: Divider(height: 1, thickness: 1, color: colour_main),
-        ),
-      );
-    }
-
-    lastGameGroup = currentGame['game_group'];
-  }
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: widgets,
-  );
 }
 
 // -----------------------------------------------------------------------------
-// StaffDashboard StatefulWidget and State Class
+// MAIN DASHBOARD STATE (Logic Fixes Applied Here)
 // -----------------------------------------------------------------------------
-
 class StaffDashboard extends StatefulWidget {
   const StaffDashboard({super.key});
-
   @override
   State<StaffDashboard> createState() => _StaffDashboardState();
 }
 
 class _StaffDashboardState extends State<StaffDashboard> {
-  // 🌟 STATE VARIABLES (MUST BE INSIDE State Class)
-  int Borrowed = 0;
-  int Available = 0;
-  int Disabled = 0;
-  List<Map<String, dynamic>> _filteredGameList = [];
+  late List<GameItem> _filteredGames;
+  int borrowedCount = 0, availableCount = 0, disabledCount = 0;
 
-  // The static game data list
-  final List<Map<String, dynamic>> game = [
-    {
-      'game_name': 'Castle Panic',
-      'game_group': 'Castle Panic',
-      'game_id': 1,
-      'status': 'Borrowed',
-      'pic_path': 'image/Castle_Panic.webp',
-    },
-    {
-      'game_name': 'Castle Panic',
-      'game_group': 'Castle Panic',
-      'game_id': 2,
-      'status': 'Disabled',
-      'pic_path': 'image/Castle_Panic.webp',
-    },
-    {
-      'game_name': 'Champions of Hara',
-      'game_group': 'Champions of Hara',
-      'game_id': 3,
-      'status': 'Borrowing',
-      'pic_path': 'image/Champions_of_Hara.webp',
-    },
-    {
-      'game_name': 'Defenders of the Wild',
-      'game_group': 'Defenders of the Wild',
-      'game_id': 4,
-      'status': 'Disabled',
-      'pic_path': 'image/Defenders_of_the_Wild.webp',
-    },
-    {
-      'game_name': 'Roll Player Adventures',
-      'game_group': 'Roll Player Adventures',
-      'game_id': 5,
-      'status': 'Available',
-      'pic_path': 'image/Roll_Player_Adventures.webp',
-    },
-    {
-      'game_name': 'The Captain is Dead',
-      'game_group': 'The Captain is Dead',
-      'game_id': 6,
-      'status': 'Disabled',
-      'pic_path': 'image/The_Captain_is_Dead.webp',
-    },
-    {
-      'game_name': 'The Grizzled',
-      'game_group': 'The Grizzled',
-      'game_id': 7,
-      'status': 'Disabled',
-      'pic_path': 'image/The_Grizzled.webp',
-    },
-  ];
-
-  // 🌟 AUTOMATIC STATUS CALCULATION
   @override
   void initState() {
     super.initState();
-    _filteredGameList = game;
-    calculate_status();
+    // 2. Ensure the global list is sorted on startup for initial display correctness
+    gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
+
+    _filteredGames = List.from(gameList);
+    _updateStatusCounts();
   }
 
-  void calculate_status() {
-    int tempBorrowed = 0;
-    int tempDisabled = 0;
-    int tempAvailable = 0;
+  void _updateStatusCounts() {
+    borrowedCount = gameList
+        .where((g) => g.status == 'Borrowed' || g.status == 'Borrowing')
+        .length;
+    availableCount = gameList.where((g) => g.status == 'Available').length;
+    disabledCount = gameList.where((g) => g.status == 'Disabled').length;
+    if (mounted) setState(() {});
+  }
 
-    // Calculates status based on the FULL list
-    for (int i = 0; i < game.length; i++) {
-      if (game[i]['status'] == 'Borrowed' || game[i]['status'] == 'Borrowing') {
-        tempBorrowed += 1;
-      } else if (game[i]['status'] == 'Disabled') {
-        tempDisabled += 1;
-      } else {
-        tempAvailable += 1;
+  void _filterGames(String query) {
+    setState(() {
+      _filteredGames = query.isEmpty
+          ? List.from(gameList)
+          : gameList
+                .where(
+                  (g) => g.gameName.toLowerCase().contains(query.toLowerCase()),
+                )
+                .toList();
+    });
+  }
+
+  void _toggleAvailableDisabled(int gameId) {
+    final game = gameList.firstWhere((g) => g.gameId == gameId);
+    if (game.status == 'Borrowed' || game.status == 'Borrowing') return;
+    setState(() {
+      game.status = game.status == 'Available' ? 'Disabled' : 'Available';
+      _updateStatusCounts();
+    });
+  }
+
+  void updateGame(GameItem updatedGame) {
+    final oldGroup = gameList
+        .firstWhere((g) => g.gameId == updatedGame.gameId)
+        .gameGroup;
+    setState(() {
+      for (int i = 0; i < gameList.length; i++) {
+        if (gameList[i].gameGroup == oldGroup) {
+          gameList[i] = GameItem(
+            gameId: gameList[i].gameId,
+            gameName: updatedGame.gameName,
+            gameGroup: updatedGame.gameGroup,
+            gameStyle: updatedGame.gameStyle,
+            gTime: updatedGame.gTime,
+            minP: updatedGame.minP,
+            maxP: updatedGame.maxP,
+            picPath: gameList[i].picPath,
+            g_link: updatedGame.g_link,
+            status: gameList[i].status,
+          );
+        }
+      }
+      // Re-sort to maintain correct grouping after a potential group name change
+      gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
+      _filteredGames = List.from(gameList);
+      _updateStatusCounts();
+    });
+  }
+
+  void adjustGroupCount(String groupName, int newCount) {
+    final currentGames = gameList
+        .where((g) => g.gameGroup == groupName)
+        .toList();
+    final currentCount = currentGames.length;
+    final borrowedCount = currentGames
+        .where((g) => g.status == 'Borrowed' || g.status == 'Borrowing')
+        .length;
+
+    // ไม่ให้ลดต่ำกว่าจำนวนที่ยืมอยู่
+    if (newCount < borrowedCount) return;
+
+    if (newCount > currentCount) {
+      // === เพิ่มชุดใหม่เข้าไปในกลุ่ม ===
+      final maxId = gameList.isEmpty
+          ? 0
+          : gameList.map((g) => g.gameId).reduce((a, b) => a > b ? a : b);
+      final baseId = maxId + 1;
+      final first = currentGames.first;
+
+      final newItems = <GameItem>[];
+      for (int i = currentCount; i < newCount; i++) {
+        final newGame = GameItem(
+          gameId: baseId + (i - currentCount),
+          gameName: first.gameName,
+          gameGroup: groupName,
+          gameStyle: first.gameStyle,
+          gTime: first.gTime,
+          minP: first.minP,
+          maxP: first.maxP,
+          picPath: first.picPath,
+          g_link: first.g_link,
+          status: 'Available',
+        );
+        newItems.add(newGame);
+      }
+
+      // หาตำแหน่งของกลุ่มใน gameList
+      final groupStartIndex = gameList.indexWhere(
+        (g) => g.gameGroup == groupName,
+      );
+      final groupEndIndex = groupStartIndex + currentCount;
+
+      // แทรกเข้าไปในตำแหน่งเดิม
+      gameList.insertAll(groupEndIndex, newItems);
+    } else if (newCount < currentCount) {
+      // === ลดชุด: ลบจากท้ายกลุ่ม ===
+      final toRemove = currentGames
+          .where((g) => g.status != 'Borrowed' && g.status != 'Borrowing')
+          .toList();
+
+      final removeCount = currentCount - newCount;
+      if (toRemove.length < removeCount) return;
+
+      // เรียงจาก ID มากไปน้อย แล้วลบจากท้าย
+      toRemove.sort((a, b) => b.gameId.compareTo(a.gameId));
+      for (int i = 0; i < removeCount; i++) {
+        final idToRemove = toRemove[i].gameId;
+        gameList.removeWhere((g) => g.gameId == idToRemove);
       }
     }
 
-    // Updates the state variables and refreshes the UI
     setState(() {
-      Borrowed = tempBorrowed;
-      Disabled = tempDisabled;
-      Available = tempAvailable;
+      _filteredGames = List.from(gameList);
+      _updateStatusCounts();
     });
   }
 
-  // 🌟 SEARCH FILTERING LOGIC
-  void _filterGameList(String query) {
-    final filteredList = game.where((item) {
-      final gameName = item['game_name'].toString().toLowerCase();
-      final searchTerm = query.toLowerCase();
+  // 🐛 FIX: Ensured proper Map key access, sorted, and refreshed _filteredGames
+  void _addNewGames(Map newGameData) {
+    // Safely parse count, default to 1
+    final count =
+        int.tryParse(newGameData['game_count']?.toString() ?? '1') ?? 1;
+    final maxId = gameList.isEmpty
+        ? 0
+        : gameList.map((g) => g.gameId).reduce((a, b) => a > b ? a : b);
+    final baseId = maxId + 1;
 
-      // If query is empty, it returns true for all items (show all)
-      return gameName.contains(searchTerm);
-    }).toList();
-
-    setState(() {
-      _filteredGameList = filteredList;
-    });
-  }
-
-  // 🌟 FUNCTION TO HANDLE RECEIVED DATA AND UPDATE LIST 🌟
-  void _handleNewGame(Map newGameData) {
-    // Safely parse the number of copies to add
-    int count = int.tryParse(newGameData['game_count'] ?? '1') ?? 1;
-
-    List<Map<String, dynamic>> newItems = [];
+    final String gameName = newGameData['game_name']?.toString() ?? 'Unknown';
+    // Use the correct key 'game_how2' from AddNewGame for the link, or 'gamelink' for consistency
+    final String link = newGameData['game_how2']?.toString() ?? '';
+    final String picPath =
+        'image/${newGameData['game_imageP'] ?? 'default.jpg'}';
 
     for (int i = 0; i < count; i++) {
-      newItems.add({
-        'game_name': newGameData['game_name'],
-        'game_group': newGameData['game_name'],
-        'game_id': game.length + i + 1,
-        'status': 'Available', // New games are available by default
-        // Use the selected file name for the pic_path (assumes local asset structure)
-        'pic_path': 'image/${newGameData['game_imageP']}',
-      });
+      gameList.add(
+        GameItem(
+          gameName: gameName,
+          gameGroup: gameName,
+          gameStyle: newGameData['game_style']?.toString() ?? '',
+          gameId: baseId + i,
+          minP: int.tryParse(newGameData['min_P'].toString()) ?? 1,
+          maxP: int.tryParse(newGameData['max_P'].toString()) ?? 1,
+          gTime: int.tryParse(newGameData['game_time'].toString()) ?? 60,
+          status: 'Available',
+          picPath: picPath,
+          g_link: link,
+        ),
+      );
     }
 
+    // 3. CRITICAL FIX: Sort the global list so GroupedGameList renders correctly
+    gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
+
     setState(() {
-      game.addAll(newItems);
-      _filteredGameList = game; // Refresh the display list
-      calculate_status(); // Recalculate dashboard counters
+      // 4. CRITICAL FIX: Set the filtered list to the full, newly sorted master list
+      _filteredGames = List.from(gameList);
+      _updateStatusCounts();
     });
-    debugPrint(
-      'SUCCESS: Added $count copies of ${newGameData['game_name']} to list.',
-    );
   }
 
   @override
@@ -338,194 +470,97 @@ class _StaffDashboardState extends State<StaffDashboard> {
     return SafeArea(
       child: Stack(
         children: [
-          // Makes the content scrollable
           SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Today's Status",
-                    style: TextStyle(
-                      color: colour_main,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w500,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Today's Status",
+                  style: TextStyle(
+                    color: colour_main,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    StatusCard(
+                      label: 'Borrowed',
+                      count: borrowedCount,
+                      color: colour_borrow,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Status Containers (Linked to state variables)
-                  Row(
-                    children: [
-                      // BORROWED
-                      Container(
-                        width: 115,
-                        height: 115,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: colour_borrow,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              Borrowed.toString(), // 🌟 Dynamic value
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 50,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Text(
-                              'Borrowed',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      // AVAILABLE
-                      Container(
-                        width: 115,
-                        height: 115,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: colour_available,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              Available.toString(), // 🌟 Dynamic value
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 50,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Text(
-                              'Available',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      // DISABLED
-                      Container(
-                        width: 115,
-                        height: 115,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: colour_disable,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              Disabled.toString(), // 🌟 Dynamic value
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 50,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Text(
-                              'Disabled',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Manage Board Title
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 15.0),
-                    child: Text(
-                      'Manage Board',
-                      style: TextStyle(
-                        color: colour_main,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    const Spacer(),
+                    StatusCard(
+                      label: 'Available',
+                      count: availableCount,
+                      color: colour_available,
                     ),
-                  ),
-
-                  // Search TextField
-                  TextField(
-                    onChanged: _filterGameList, // 🌟 Calls filter logic
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: colour_main, width: 1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: colour_main, width: 1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: colour_main, width: 1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      suffixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                      hintText: 'Search game name . . .',
-                      hintStyle: const TextStyle(color: Colors.grey),
+                    const Spacer(),
+                    StatusCard(
+                      label: 'Disabled',
+                      count: disabledCount,
+                      color: colour_disable,
                     ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Manage Board',
+                  style: TextStyle(
+                    color: colour_main,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500,
                   ),
-
-                  const SizedBox(height: 20),
-
-                  // Dynamic Game List (Uses the filtered list)
-                  showgame(listToShow: _filteredGameList),
-                ],
-              ),
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  onChanged: _filterGames,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(color: colour_main),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(color: colour_main),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(color: colour_main, width: 2),
+                    ),
+                    hintText: 'Search game name . . .',
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    suffixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                GroupedGameList(
+                  games: _filteredGames,
+                  onStatusToggle: _toggleAvailableDisabled,
+                ),
+              ],
             ),
           ),
-
-          // FloatingActionButton
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: FloatingActionButton(
-                onPressed: () async {
-                  // 🌟 ASYNC
-                  // Await the Map returned from the AddNewGame screen
-                  final Map? newGameData = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AddNewGame()),
-                  );
-
-                  // Check if a Map was returned and if the game name is valid
-                  if (newGameData != null &&
-                      (newGameData['game_name'] as String).isNotEmpty) {
-                    _handleNewGame(newGameData);
-                  }
-                },
-                shape: const CircleBorder(),
                 backgroundColor: colour_main,
+                shape: const CircleBorder(),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddNewGame()),
+                  );
+                  if (result is Map &&
+                      result['game_name']?.toString().isNotEmpty == true)
+                    _addNewGames(result);
+                },
                 child: const Icon(Icons.add, color: Colors.white),
               ),
             ),

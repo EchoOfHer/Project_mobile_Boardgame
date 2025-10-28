@@ -610,31 +610,95 @@ class _AddNewGameState extends State<AddNewGame> {
               // ✅ Confirm Button (Validation applied here)
               Center(
                 child: ElevatedButton(
-                  onPressed: () {
-                    // 1. Check all validation rules
+                  onPressed: () async {
+                    // 1. Run validation
                     if (!_isValidForm()) {
-                      return; // Stop form submission; alert was already shown
+                      return; // stop if invalid (alert already shown)
                     }
 
-                    // 2. If validation passes, collect and send data
+                    // 2. Prepare game data
                     final Map Ngame = {
                       'game_imageP': _fileName ?? '',
                       'game_name': _cname.text,
                       'game_style': _cstyle.text,
                       'game_time': _ctime.text,
-                      'game_minP': _cminP.text,
-                      'game_maxP': _cmaxP.text,
+                      'min_P': _cminP.text,
+                      'max_P': _cmaxP.text,
                       'game_how2': _clink.text,
-                      'game_count': _gameCount.toString(),
+                      'game_count': _gameCount,
+                      'gamelink': _clink.text,
                     };
 
-                    debugPrint('--- Validation Passed. Sending Data ---');
-                    Navigator.pop(context, Ngame);
+                    // 3. Show Success Alert (สวยงามเหมือน Edit)
+                    await showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        icon: Icon(
+                          FontAwesomeIcons.circleCheck,
+                          color: colour_available,
+                          size: 80,
+                        ),
+                        title: const Text(
+                          'Game Added!',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        content: Text(
+                          'Game "${_cname.text}"\nwith $_gameCount board(s) has been added.',
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        actions: [
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(); // ปิด dialog
+                                Navigator.pop(context, Ngame); // ส่งข้อมูลกลับ
+                              },
+                              style: TextButton.styleFrom(
+                                backgroundColor: colour_available,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 40,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'OK',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: colour_main),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colour_main,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   child: const Text(
                     'Confirm',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),
               ),
