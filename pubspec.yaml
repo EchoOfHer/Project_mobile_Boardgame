@@ -67,6 +67,12 @@ flutter:
     - image/Roll_Player_Adventures.webp
     - image/The_Captain_is_Dead.webp
     - image/The_Grizzled.webp
+    - image/Avalon.jpg
+    - image/Catan.jpg
+    - image/Exploding_Kitten.webp
+    - image/One_Week_Werewolf.webp
+    - image/Splendor.jpg
+    - image/dice.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
