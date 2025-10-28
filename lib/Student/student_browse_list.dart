@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:boardgame_app/Student/Checkrequest.dart'; 
-import '/login/login.dart'; 
-
+import 'package:boardgame_app/Student/Checkrequest.dart';
+import 'package:boardgame_app/Student/request_borrowing.dart';
+import '/login/login.dart';
 
 // === หน้าจอหลัก ===
 class BrowseStudent extends StatefulWidget {
@@ -13,12 +13,50 @@ class BrowseStudent extends StatefulWidget {
 
 class _BrowseStudentState extends State<BrowseStudent> {
   // ข้อมูลจำลองสำหรับเกม
-  final List<Map<String, String>> games = [
-    {'title': 'Exploding Kittens', 'image': 'image/Exploding_Kitten.webp'},
-    {'title': 'One Week Werewolf', 'image': 'image/One_Week_Werewolf.webp'},
-    {'title': 'Catan', 'image': 'image/Catan.jpg'},
-    {'title': 'Splendor', 'image': 'image/Splendor.jpg'},
-    {'title': 'Avalon', 'image': 'image/Avalon.jpg'},
+// [ ในไฟล์ BrowseStudent คลาส _BrowseStudentState ]
+
+  // ⬇️ ⬇️ ⬇️ 1. แก้ไขประเภท List เป็น <String, dynamic> ⬇️ ⬇️ ⬇️
+  final List<Map<String, dynamic>> games = [
+    {
+      'title': 'Exploding Kittens',
+      'image': 'image/Exploding_Kitten.webp', // ตรวจสอบ path ให้ถูก
+      'gameStyle': 'Party',
+      'players': '2-10 peoples',
+      'time': '10 min',
+      'remaining': 1, 
+    },
+    {
+      'title': 'One Week Werewolf',
+      'image': 'image/One_Week_Werewolf.webp',
+      'gameStyle': 'Party',
+      'players': '3-7 players',
+      'time': '10 min',
+      'remaining': 3, 
+    },
+    {
+      'title': 'Catan',
+      'image': 'image/Catan.jpg',
+      'gameStyle': 'Strategy',
+      'players': '3-4 players',
+      'time': '60-120 min',
+      'remaining': 2, 
+    },
+    {
+      'title': 'Splendor',
+      'image': 'image/Splendor.jpg',
+      'gameStyle': 'Strategy',
+      'players': '2-4 players',
+      'time': '30 min',
+      'remaining': 0, 
+    },
+    {
+      'title': 'Avalon',
+      'image': 'image/Avalon.jpg',
+      'gameStyle': 'Bluffing',
+      'players': '5-10 players',
+      'time': '30 min',
+      'remaining': 1, 
+    },
   ];
 
   // หมวดหมู่จำลอง
@@ -27,22 +65,22 @@ class _BrowseStudentState extends State<BrowseStudent> {
     'Party',
     'Bluffing',
     'Abstract',
-    'Dice'
+    'Dice',
   ];
   String selectedCategory = 'Family';
 
   final int _selectedIndex = 0;
 
   void _onItemTapped(int index) {
-    if (index == _selectedIndex) return; 
+    if (index == _selectedIndex) return;
 
     switch (index) {
       case 0: // Games
         break;
-      case 1: // Stats 
+      case 1: // Stats
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Checkrequest()), 
+          MaterialPageRoute(builder: (context) => const Checkrequest()),
         );
         break;
       case 2: // Bookings
@@ -54,6 +92,8 @@ class _BrowseStudentState extends State<BrowseStudent> {
     }
   }
 
+
+
   // ⬇️ ⬇️ ⬇️ นี่คือฟังก์ชันที่แก้ไขสี ⬇️ ⬇️ ⬇️
   void _showLogoutDialog() {
     // สร้างตัวแปรสี #FF7C7C
@@ -61,14 +101,16 @@ class _BrowseStudentState extends State<BrowseStudent> {
 
     showDialog(
       context: context,
-      builder: (BuildContext dialogContext) { 
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // 1. เปลี่ยนสีไอคอน
-              Icon(Icons.logout, size: 60, color: logoutColor), 
+              Icon(Icons.logout, size: 60, color: logoutColor),
               const SizedBox(height: 16),
               // 2. เปลี่ยนสีข้อความ "Log Out"
               Text(
@@ -91,8 +133,8 @@ class _BrowseStudentState extends State<BrowseStudent> {
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300], 
-                      foregroundColor: Colors.black54, 
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.black54,
                     ),
                     onPressed: () {
                       Navigator.pop(dialogContext); // ปิด Dialog
@@ -103,10 +145,10 @@ class _BrowseStudentState extends State<BrowseStudent> {
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: logoutColor, // ใช้สีที่กำหนด
-                      foregroundColor: Colors.white, 
+                      foregroundColor: Colors.white,
                     ),
                     onPressed: () {
-                      Navigator.pop(dialogContext); 
+                      Navigator.pop(dialogContext);
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (context) => const Login()),
@@ -124,15 +166,11 @@ class _BrowseStudentState extends State<BrowseStudent> {
     );
   }
   // ⬆️ ⬆️ ⬆️ จบส่วนที่แก้ไข ⬆️ ⬆️ ⬆️
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-        ),
+        decoration: const BoxDecoration(color: Colors.white),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: ListView(
@@ -152,10 +190,7 @@ class _BrowseStudentState extends State<BrowseStudent> {
                     ),
                     Text(
                       'Welcome Student',
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 18,
-                      ),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 18),
                     ),
                     const SizedBox(height: 20),
                     _buildSearchBar(),
@@ -250,9 +285,28 @@ class _BrowseStudentState extends State<BrowseStudent> {
       ),
       itemCount: games.length,
       itemBuilder: (context, index) {
-        return GameCard(
-          title: games[index]['title']!,
-          imagePath: games[index]['image']!,
+        final gameData = games[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BorrowGamePage(
+                  gameName: gameData['title']!,
+                  imageAssetPath: gameData['image']!,
+                  gameStyle: gameData['gameStyle']!,
+                  players: gameData['players']!,
+                  time: gameData['time']!,
+                  remaining: gameData['remaining']!,
+                ),
+              ),
+            );
+          },
+          child: GameCard(
+            // GameCard ยังคงรับแค่ title กับ image เหมือนเดิม
+            title: gameData['title']!,
+            imagePath: gameData['image']!,
+          ),
         );
       },
     );
@@ -267,12 +321,12 @@ class _BrowseStudentState extends State<BrowseStudent> {
           label: 'Games',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart_outline), 
+          icon: Icon(Icons.pie_chart_outline),
           activeIcon: Icon(Icons.pie_chart),
           label: 'Stats',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined), 
+          icon: Icon(Icons.calendar_today_outlined),
           activeIcon: Icon(Icons.calendar_today),
           label: 'Bookings',
         ),
@@ -298,11 +352,7 @@ class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
 
-  const GameCard({
-    super.key,
-    required this.title,
-    required this.imagePath,
-  });
+  const GameCard({super.key, required this.title, required this.imagePath});
 
   @override
   Widget build(BuildContext context) {
@@ -330,10 +380,7 @@ class GameCard extends StatelessWidget {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
