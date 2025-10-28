@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:boardgame_app/Staff/request_borrowing_staff.dart';
-import '/login/login.dart'; // ✅ เพิ่ม import หน้าล็อกอิน
+import '/login/login.dart';
+import 'package:boardgame_app/Staff/HistoryStaffPage.dart';
 
 // === หน้าจอหลัก ===
 class BrowseStaff extends StatefulWidget {
@@ -11,6 +12,11 @@ class BrowseStaff extends StatefulWidget {
 }
 
 class _BrowseStaffState extends State<BrowseStaff> {
+  // ⬇️⬇️⬇️ 1. เพิ่มตัวแปรสำหรับ Search และ Filter ⬇️⬇️⬇️
+  final TextEditingController _searchController = TextEditingController();
+  late List<Map<String, dynamic>> _filteredGames;
+  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
+
   // === รายชื่อเกม (ข้อมูลจำลอง) ===
   final List<Map<String, dynamic>> games = [
     {
@@ -55,13 +61,66 @@ class _BrowseStaffState extends State<BrowseStaff> {
     },
   ];
 
-  // === หมวดหมู่จำลอง ===
-  final List<String> categories = ['Family', 'Party', 'Bluffing', 'Abstract', 'Dice'];
-  String selectedCategory = 'Family';
+  // ⬇️⬇️⬇️ 2. เพิ่ม "All" ในหมวดหมู่ และตั้งเป็นค่าเริ่มต้น ⬇️⬇️⬇️
+  final List<String> categories = [
+    'All', // เพิ่ม 'All'
+    'Family',
+    'Party',
+    'Bluffing',
+    'Abstract',
+    'Dice',
+    'Strategy', // (เพิ่ม Strategy จากข้อมูลเกมของคุณ)
+  ];
+  String selectedCategory = 'All'; // ตั้ง 'All' เป็นค่าเริ่มต้น
+  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
   int _selectedIndex = 0; // ✅ เพิ่มตัวแปร index
 
-  // ✅ เพิ่มฟังก์ชันจัดการเมื่อกดปุ่มใน Bottom Nav
+  // ⬇️⬇️⬇️ 3. เพิ่ม initState และ dispose ⬇️⬇️⬇️
+  @override
+  void initState() {
+    super.initState();
+    // ตอนเริ่มต้น ให้ _filteredGames แสดงเกมทั้งหมด
+    _filteredGames = List.from(games);
+    // เพิ่ม Listener ให้กับ Search bar
+    _searchController.addListener(_runFilter);
+  }
+
+  @override
+  void dispose() {
+    // คืนค่า Controller
+    _searchController.dispose();
+    super.dispose();
+  }
+  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
+
+  // ⬇️⬇️⬇️ 4. ฟังก์ชันหลักสำหรับกรองข้อมูล (Filter) ⬇️⬇️⬇️
+  void _runFilter() {
+    List<Map<String, dynamic>> results = List.from(games); // เริ่มจากเกมทั้งหมด
+    final String searchQuery = _searchController.text.toLowerCase();
+
+    // ขั้นที่ 1: กรองด้วยหมวดหมู่ (Category)
+    if (selectedCategory != 'All') {
+      results = results.where((game) {
+        return game['gameStyle']!.toLowerCase() == selectedCategory.toLowerCase();
+      }).toList();
+    }
+
+    // ขั้นที่ 2: กรองด้วยการค้นหา (Search)
+    if (searchQuery.isNotEmpty) {
+      results = results.where((game) {
+        return game['title']!.toLowerCase().contains(searchQuery);
+      }).toList();
+    }
+
+    // อัปเดต UI ด้วยข้อมูลที่กรองแล้ว
+    setState(() {
+      _filteredGames = results;
+    });
+  }
+  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
+
+  // (ฟังก์ชัน _onItemTapped และ _showLogoutDialog โค้ดเดิมของคุณถูกต้องแล้ว)
   void _onItemTapped(int index) {
     if (index == _selectedIndex) return;
 
@@ -74,8 +133,11 @@ class _BrowseStaffState extends State<BrowseStaff> {
       case 2: // Assets
         // ยังไม่เชื่อมหน้าอื่น
         break;
-      case 3: // Bookings
-        // ยังไม่เชื่อมหน้าอื่น
+      case 3: // Bookings (History)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HistoryStaffPage()),
+        );
         break;
       case 4: // Logout
         _showLogoutDialog();
@@ -83,10 +145,8 @@ class _BrowseStaffState extends State<BrowseStaff> {
     }
   }
 
-  // ✅ ฟังก์ชัน Logout (เหมือน Student)
   void _showLogoutDialog() {
     const Color logoutColor = Color(0xFFFF7C7C);
-
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -159,7 +219,8 @@ class _BrowseStaffState extends State<BrowseStaff> {
         decoration: const BoxDecoration(color: Colors.white),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: ListView(
+          // ⬇️⬇️⬇️ 5. เปลี่ยน ListView เป็น Column + Expanded ⬇️⬇️⬇️
+          child: Column(
             children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -179,28 +240,32 @@ class _BrowseStaffState extends State<BrowseStaff> {
                       style: TextStyle(color: Colors.grey[700], fontSize: 18),
                     ),
                     const SizedBox(height: 20),
-                    _buildSearchBar(),
+                    _buildSearchBar(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
                     const SizedBox(height: 20),
-                    _buildCategoryFilters(),
+                    _buildCategoryFilters(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
                   ],
                 ),
               ),
               const SizedBox(height: 20),
-              _buildGameGrid(),
-              const SizedBox(height: 20),
+              // ⬇️⬇️⬇️ 6. ห่อ Grid ด้วย Expanded ⬇️⬇️⬇️
+              Expanded(
+                child: _buildGameGrid(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
+              ),
             ],
           ),
+          // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
         ),
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // === Search Bar ===
+  // ⬇️⬇️⬇️ 7. แก้ไข SearchBar ให้ใช้ Controller ⬇️⬇️⬇️
   Widget _buildSearchBar() {
     return TextField(
+      controller: _searchController, // <--- เชื่อม Controller
       decoration: InputDecoration(
-        hintText: 'Search',
+        hintText: 'Search by game title...', // <--- เปลี่ยน hint text
         prefixIcon: const Icon(Icons.search, color: Colors.grey),
         filled: true,
         fillColor: Colors.grey[100],
@@ -219,8 +284,9 @@ class _BrowseStaffState extends State<BrowseStaff> {
       ),
     );
   }
+  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
-  // === Filter หมวดหมู่ ===
+  // ⬇️⬇️⬇️ 8. แก้ไข CategoryFilters ให้เรียก _runFilter ⬇️⬇️⬇️
   Widget _buildCategoryFilters() {
     return SizedBox(
       height: 40,
@@ -236,6 +302,7 @@ class _BrowseStaffState extends State<BrowseStaff> {
               setState(() {
                 selectedCategory = category;
               });
+              _runFilter(); // <--- เรียกฟังก์ชันฟิลเตอร์เมื่อกดปุ่ม
             },
             child: Container(
               margin: const EdgeInsets.only(right: 8.0),
@@ -259,22 +326,33 @@ class _BrowseStaffState extends State<BrowseStaff> {
       ),
     );
   }
+  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
-  // === Grid รายชื่อเกม ===
+  // ⬇️⬇️⬇️ 9. แก้ไข GameGrid ให้ใช้ _filteredGames ⬇️⬇️⬇️
   Widget _buildGameGrid() {
+    // 9.1: ตรวจสอบว่ามีข้อมูลที่กรองแล้วหรือไม่
+    if (_filteredGames.isEmpty) {
+      return const Center(
+        child: Text(
+          'No games found.',
+          style: TextStyle(color: Colors.grey, fontSize: 18),
+        ),
+      );
+    }
+
+    // 9.2: สร้าง Grid จาก _filteredGames
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      // (ลบ shrinkWrap และ physics เพื่อให้เลื่อนได้)
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
         childAspectRatio: 0.75,
       ),
-      itemCount: games.length,
+      itemCount: _filteredGames.length, // <--- ใช้ _filteredGames.length
       itemBuilder: (context, index) {
-        final gameData = games[index];
+        final gameData = _filteredGames[index]; // <--- ใช้ _filteredGames[index]
 
         return GestureDetector(
           onTap: () {
@@ -300,6 +378,7 @@ class _BrowseStaffState extends State<BrowseStaff> {
       },
     );
   }
+  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
   // === Bottom Navigation Bar ===
   Widget _buildBottomNav() {
@@ -343,6 +422,7 @@ class _BrowseStaffState extends State<BrowseStaff> {
 }
 
 // === Widget การ์ดเกมแต่ละใบ ===
+// (ส่วนนี้ไม่ต้องแก้ไข)
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
