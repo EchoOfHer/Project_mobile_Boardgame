@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class BorrowGamePage extends StatefulWidget {
+class RequestBorrowingStaffPage extends StatefulWidget {
   final String gameName;
   final String imageAssetPath;
   final String gameStyle;
@@ -8,7 +8,7 @@ class BorrowGamePage extends StatefulWidget {
   final String time;
   final int remaining;
 
-  const BorrowGamePage({
+  const RequestBorrowingStaffPage({
     super.key,
     required this.gameName,
     required this.imageAssetPath,
@@ -19,10 +19,10 @@ class BorrowGamePage extends StatefulWidget {
   });
 
   @override
-  State<BorrowGamePage> createState() => _BorrowGamePageState();
+  State<RequestBorrowingStaffPage> createState() => _RequestBorrowingStaffPageState();
 }
 
-class _BorrowGamePageState extends State<BorrowGamePage> {
+class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
   bool isBorrowed = false;
   bool showRequestPopup = false;
   late int currentRemaining;
@@ -126,89 +126,13 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                     'Official website',
                     isLink: true,
                   ),
-
-                  // ⬇️ ⬇️ ⬇️ 2. ลบ const Spacer() ออก ⬇️ ⬇️ ⬇️
-                  // const Spacer(), 
-
-                  // ⬇️ ⬇️ ⬇️ 3. เพิ่ม SizedBox เพื่อสร้างช่องว่างแทน ⬇️ ⬇️ ⬇️
+                  
                   const SizedBox(height: 30), 
-
-                  // Borrow button
-                  Center(
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: (isBorrowed || currentRemaining <= 0)
-                            ? null
-                            : handleBorrow,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: (isBorrowed || currentRemaining <= 0)
-                              ? Colors.grey
-                              : Colors.orangeAccent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Borrow',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
+                
                 ],
               ),
             ),
           ),
-          // ⬆️ ⬆️ ⬆️ จบส่วนที่แก้ไข ⬆️ ⬆️ ⬆️
-
-          // --- ส่วน Popup ไม่ต้องแก้ไข ---
-          if (showRequestPopup)
-            GestureDetector(
-              onTap: () {},
-              child: Container(
-                color: Colors.black54,
-                alignment: Alignment.center,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 30,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade500,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 50,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Request send',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

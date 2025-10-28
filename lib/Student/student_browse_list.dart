@@ -86,17 +86,14 @@ class _BrowseStudentState extends State<BrowseStudent> {
       case 2: // Bookings
         print("Navigate to Bookings");
         break;
-      case 3: // Logout
-        _showLogoutDialog(); // เรียก Dialog ยืนยัน
+      case 3: 
+        _showLogoutDialog(); 
         break;
     }
   }
 
-
-
-  // ⬇️ ⬇️ ⬇️ นี่คือฟังก์ชันที่แก้ไขสี ⬇️ ⬇️ ⬇️
-  void _showLogoutDialog() {
-    // สร้างตัวแปรสี #FF7C7C
+ void _showLogoutDialog() {
+   
     const Color logoutColor = Color(0xFFFF7C7C);
 
     showDialog(

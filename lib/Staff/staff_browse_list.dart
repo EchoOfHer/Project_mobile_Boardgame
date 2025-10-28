@@ -1,38 +1,162 @@
 import 'package:flutter/material.dart';
-
+import 'package:boardgame_app/Staff/request_borrowing_staff.dart';
+import '/login/login.dart'; // ✅ เพิ่ม import หน้าล็อกอิน
 
 // === หน้าจอหลัก ===
 class BrowseStaff extends StatefulWidget {
-  const BrowseStaff ({super.key});
+  const BrowseStaff({super.key});
 
   @override
   State<BrowseStaff> createState() => _BrowseStaffState();
 }
 
 class _BrowseStaffState extends State<BrowseStaff> {
-  // ข้อมูลจำลองสำหรับเกม
-final List<Map<String, String>> games = [
-  {'title': 'Exploding Kittens', 'image': 'image/Exploding_Kitten.webp'},
-  {'title': 'One Week Werewolf', 'image': 'image/One_Week_Werewolf.webp'},
-  {'title': 'Catan', 'image': 'image/Catan.jpg'},
-  {'title': 'Splendor', 'image': 'image/Splendor.jpg'},
-  {'title': 'Avalon', 'image': 'image/Avalon.jpg'},
-];
+  // === รายชื่อเกม (ข้อมูลจำลอง) ===
+  final List<Map<String, dynamic>> games = [
+    {
+      'title': 'Exploding Kittens',
+      'image': 'image/Exploding_Kitten.webp',
+      'gameStyle': 'Party',
+      'players': '2-10 peoples',
+      'time': '10 min',
+      'remaining': 1,
+    },
+    {
+      'title': 'One Week Werewolf',
+      'image': 'image/One_Week_Werewolf.webp',
+      'gameStyle': 'Party',
+      'players': '3-7 players',
+      'time': '10 min',
+      'remaining': 3,
+    },
+    {
+      'title': 'Catan',
+      'image': 'image/Catan.jpg',
+      'gameStyle': 'Strategy',
+      'players': '3-4 players',
+      'time': '60-120 min',
+      'remaining': 2,
+    },
+    {
+      'title': 'Splendor',
+      'image': 'image/Splendor.jpg',
+      'gameStyle': 'Strategy',
+      'players': '2-4 players',
+      'time': '30 min',
+      'remaining': 0,
+    },
+    {
+      'title': 'Avalon',
+      'image': 'image/Avalon.jpg',
+      'gameStyle': 'Bluffing',
+      'players': '5-10 players',
+      'time': '30 min',
+      'remaining': 1,
+    },
+  ];
 
-
-
-  // หมวดหมู่จำลอง
+  // === หมวดหมู่จำลอง ===
   final List<String> categories = ['Family', 'Party', 'Bluffing', 'Abstract', 'Dice'];
   String selectedCategory = 'Family';
 
+  int _selectedIndex = 0; // ✅ เพิ่มตัวแปร index
+
+  // ✅ เพิ่มฟังก์ชันจัดการเมื่อกดปุ่มใน Bottom Nav
+  void _onItemTapped(int index) {
+    if (index == _selectedIndex) return;
+
+    switch (index) {
+      case 0: // Games
+        break;
+      case 1: // Stats
+        // ยังไม่เชื่อมหน้าอื่น
+        break;
+      case 2: // Assets
+        // ยังไม่เชื่อมหน้าอื่น
+        break;
+      case 3: // Bookings
+        // ยังไม่เชื่อมหน้าอื่น
+        break;
+      case 4: // Logout
+        _showLogoutDialog();
+        break;
+    }
+  }
+
+  // ✅ ฟังก์ชัน Logout (เหมือน Student)
+  void _showLogoutDialog() {
+    const Color logoutColor = Color(0xFFFF7C7C);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.logout, size: 60, color: logoutColor),
+              const SizedBox(height: 16),
+              Text(
+                "Log Out",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: logoutColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Are you sure you want to log out of your account?",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.black54,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogContext); // ปิด dialog
+                    },
+                    child: const Text("Cancle"), // เขียนเหมือนต้นฉบับ
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: logoutColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const Login()),
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    child: const Text("Confirm"),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // === UI หลัก ===
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          
-        ),
+        decoration: const BoxDecoration(color: Colors.white),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: ListView(
@@ -50,17 +174,10 @@ final List<Map<String, String>> games = [
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
-                    // ⬇️⬇️⬇️ 1. แก้ไข Text ต้อนรับ ⬇️⬇️⬇️
                     Text(
-                      'Welcome staff', // เปลี่ยนเป็น 'Welcome staff'
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 18,
-                      ),
+                      'Welcome Staff',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 18),
                     ),
-                    // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
-
                     const SizedBox(height: 20),
                     _buildSearchBar(),
                     const SizedBox(height: 20),
@@ -79,7 +196,7 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Search Bar ===
+  // === Search Bar ===
   Widget _buildSearchBar() {
     return TextField(
       decoration: InputDecoration(
@@ -103,7 +220,7 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Filter หมวดหมู่ ===
+  // === Filter หมวดหมู่ ===
   Widget _buildCategoryFilters() {
     return SizedBox(
       height: 40,
@@ -143,7 +260,7 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Grid ของเกม ===
+  // === Grid รายชื่อเกม ===
   Widget _buildGameGrid() {
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -157,57 +274,65 @@ final List<Map<String, String>> games = [
       ),
       itemCount: games.length,
       itemBuilder: (context, index) {
-        return GameCard(
-          title: games[index]['title']!,
-          imagePath: games[index]['image']!,
+        final gameData = games[index];
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RequestBorrowingStaffPage(
+                  gameName: gameData['title']!,
+                  imageAssetPath: gameData['image']!,
+                  gameStyle: gameData['gameStyle']!,
+                  players: gameData['players']!,
+                  time: gameData['time']!,
+                  remaining: gameData['remaining']!,
+                ),
+              ),
+            );
+          },
+          child: GameCard(
+            title: gameData['title']!,
+            imagePath: gameData['image']!,
+          ),
         );
       },
     );
   }
 
-  // === ส่วน Bottom Navigation ===
-  // ⬇️⬇️⬇️ 2. แก้ไข Bottom Nav Bar ให้มี 5 ไอคอนตามรูป Staff ⬇️⬇️⬇️
+  // === Bottom Navigation Bar ===
   Widget _buildBottomNav() {
     return BottomNavigationBar(
       items: const [
-        // 1. ไอคอน Games (รูปหัวใจ)
         BottomNavigationBarItem(
-          icon: Icon(Icons.favorite_border), // ในรูป Staff ใช้รูปหัวใจ
+          icon: Icon(Icons.favorite_border),
           activeIcon: Icon(Icons.favorite),
           label: 'Games',
         ),
-
-        // 2. ไอคอน Stats (Pie chart)
         BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart), // ในรูป Staff เป็นแบบทึบ
+          icon: Icon(Icons.pie_chart),
           activeIcon: Icon(Icons.pie_chart),
           label: 'Stats',
         ),
-
-        // 3. ไอคอน Assets (Cube) - (ไอคอนใหม่ที่เพิ่มเข้ามา)
         BottomNavigationBarItem(
-          icon: Icon(Icons.widgets), // ไอคอน "Cube" หรือ "Assets"
+          icon: Icon(Icons.widgets),
           activeIcon: Icon(Icons.widgets),
           label: 'Assets',
         ),
-        
-        // 4. ไอคอน Bookings (Calendar)
         BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today), // ในรูป Staff เป็นแบบทึบ
+          icon: Icon(Icons.calendar_today),
           activeIcon: Icon(Icons.calendar_today),
           label: 'Bookings',
         ),
-        
-        // 5. ไอคอน Logout
         BottomNavigationBarItem(
-          icon: Icon(Icons.logout), 
+          icon: Icon(Icons.logout),
           activeIcon: Icon(Icons.logout),
           label: 'Logout',
         ),
       ],
-      // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
-
-      currentIndex: 0,
+      currentIndex: _selectedIndex,
+      onTap: _onItemTapped, // ✅ เพิ่มฟังก์ชันนี้
       selectedItemColor: Colors.orange[800],
       unselectedItemColor: Colors.grey[600],
       showSelectedLabels: false,
@@ -217,7 +342,7 @@ final List<Map<String, String>> games = [
   }
 }
 
-// === Widget ของการ์ดเกมแต่ละใบ ===
+// === Widget การ์ดเกมแต่ละใบ ===
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
