@@ -5,7 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'lender_browse_list.dart';
 import 'lender_seerequests.dart';
-import 'lender_history.dart'; // ⭐️ 1. Import หน้า History
+import 'HistoryLenderPage.dart'; // ⭐️ 1. Import หน้า History
 import 'lender_logout.dart';
 
 const colour_main = Color(0xFFFF8000);
@@ -81,7 +81,7 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
           children: const [
             BrowseLender(), // 0
             LenderSeerequests(), // 1
-            LenderHistory(), // 2 (หน้าที่เพิ่มใหม่)
+            HistoryLenderPage(), // 2 (หน้าที่เพิ่มใหม่)
             Center(child: Text('')), // 3 (หน้าเปล่าสำหรับ Logout)
           ],
         ),
