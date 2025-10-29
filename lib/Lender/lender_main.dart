@@ -81,7 +81,7 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
           physics: const NeverScrollableScrollPhysics(),
           children: const [
             BrowseLender(), // 0
-            HistoryLenderPage(), // 1
+            SeeLenderRequests(), // 1
             HistoryLenderPage(), // 2 (หน้าที่เพิ่มใหม่)
             Center(child: Text('')), // 3 (หน้าเปล่าสำหรับ Logout)
           ],
