@@ -1,24 +1,20 @@
 import 'package:flutter/material.dart';
-import 'lender_borrowing.dart';
+import 'package:boardgame_app/Student/student_borrowing.dart';
 
-import 'see_request.dart';
-import '/login/login.dart';
-import 'HistoryLenderPage.dart';
-import 'request_borrowing_lender.dart'; 
-
-
-// === หน้าจอหลัก ===
-class BrowseLender extends StatefulWidget {
-  const BrowseLender({super.key});
+// ⭐️ 1. เปลี่ยนเป็น StatefulWidget
+class StudentBrowse extends StatefulWidget {
+  const StudentBrowse({super.key});
 
   @override
-  State<BrowseLender> createState() => _BrowseLenderState();
+  State<StudentBrowse> createState() => _StudentBrowseState();
 }
 
-class _BrowseLenderState extends State<BrowseLender> {
+class _StudentBrowseState extends State<StudentBrowse> {
+  // ⭐️ 2. ย้าย State, Controllers, และข้อมูลทั้งหมดมาที่นี่
   final TextEditingController _searchController = TextEditingController();
   late List<Map<String, dynamic>> _filteredGames;
 
+  // ข้อมูลจำลองสำหรับเกม
   final List<Map<String, dynamic>> games = [
     {
       'title': 'Exploding Kittens',
@@ -69,10 +65,11 @@ class _BrowseLenderState extends State<BrowseLender> {
     'Bluffing',
     'Abstract',
     'Dice',
-    'Strategy'
+    'Strategy',
   ];
   String selectedCategory = 'All';
 
+  // ⭐️ 3. ย้าย initState และ dispose
   @override
   void initState() {
     super.initState();
@@ -86,6 +83,7 @@ class _BrowseLenderState extends State<BrowseLender> {
     super.dispose();
   }
 
+  // ⭐️ 4. ย้ายฟังก์ชันกรอง
   void _runFilter() {
     List<Map<String, dynamic>> results = List.from(games);
     final String searchQuery = _searchController.text.toLowerCase();
@@ -107,13 +105,15 @@ class _BrowseLenderState extends State<BrowseLender> {
     });
   }
 
+  // ⭐️ 5. ลบ _onItemTapped, _showLogoutDialog, และ _buildBottomNav ออก
+
+  // ⭐️ 6. แก้ไข build method
   @override
   Widget build(BuildContext context) {
+    // ⭐️ 7. คืนค่าเป็น SafeArea และย้าย UI จาก body ของ Scaffold มาใส่
     return SafeArea(
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-        ),
+        decoration: const BoxDecoration(color: Colors.white),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: Column(
@@ -132,11 +132,8 @@ class _BrowseLenderState extends State<BrowseLender> {
                       ),
                     ),
                     Text(
-                      'Welcome Lender',
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 18,
-                      ),
+                      'Welcome Student',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 18),
                     ),
                     const SizedBox(height: 20),
                     _buildSearchBar(),
@@ -156,6 +153,7 @@ class _BrowseLenderState extends State<BrowseLender> {
     );
   }
 
+  // ⭐️ 8. ย้าย UI helper methods ที่เหลือมาทั้งหมด
   Widget _buildSearchBar() {
     return TextField(
       controller: _searchController,
@@ -240,27 +238,26 @@ class _BrowseLenderState extends State<BrowseLender> {
       ),
       itemCount: _filteredGames.length,
       itemBuilder: (context, index) {
-        final game = _filteredGames[index];
-
+        final gameData = _filteredGames[index];
         return GestureDetector(
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => BorrowGamePage(
-                  gameName: game['title']!,
-                  imageAssetPath: game['image']!,
-                  gameStyle: game['gameStyle']!,
-                  players: game['players']!,
-                  time: game['time']!,
-                  remaining: game['remaining']!,
+                  gameName: gameData['title']!,
+                  imageAssetPath: gameData['image']!,
+                  gameStyle: gameData['gameStyle']!,
+                  players: gameData['players']!,
+                  time: gameData['time']!,
+                  remaining: gameData['remaining']!,
                 ),
               ),
             );
           },
           child: GameCard(
-            title: game['title']!,
-            imagePath: game['image']!,
+            title: gameData['title']!,
+            imagePath: gameData['image']!,
           ),
         );
       },
@@ -268,15 +265,12 @@ class _BrowseLenderState extends State<BrowseLender> {
   }
 }
 
+// ⭐️ 9. ย้ายคลาส GameCard มาไว้ในไฟล์นี้ด้วย
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
 
-  const GameCard({
-    super.key,
-    required this.title,
-    required this.imagePath,
-  });
+  const GameCard({super.key, required this.title, required this.imagePath});
 
   @override
   Widget build(BuildContext context) {
@@ -304,10 +298,7 @@ class GameCard extends StatelessWidget {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

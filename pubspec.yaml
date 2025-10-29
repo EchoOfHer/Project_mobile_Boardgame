@@ -30,10 +30,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  font_awesome_flutter: ^10.7.0
+  cupertino_icons: ^1.0.8
+  font_awesome_flutter: ^10.7.0  # Use the latest version
+  image_picker: ^1.0.4
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+
+  url_launcher: ^6.2.6
 
 dev_dependencies:
   flutter_test:
@@ -71,7 +74,6 @@ flutter:
     - image/One_Week_Werewolf.webp
     - image/Splendor.jpg
     - image/dice.png
-
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

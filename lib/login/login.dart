@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'register.dart';
-// import 'package:boardgame_app/Student/student_browse_list.dart';
-import 'package:boardgame_app/Lender/lender_main.dart';
-// import 'package:boardgame_app/Staff/staff_browse_list.dart';
+import 'package:boardgame_app/Student/student_main.dart';
+import 'package:boardgame_app/Lender/lender_browse_list.dart';
+import 'package:boardgame_app/Staff/staff_main.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -25,28 +25,27 @@ class _LoginState extends State<Login> {
   void _handleLogin() {
     // 1. ตรวจสอบว่ากรอกข้อมูลครบ (validate)
     if (_formKey.currentState!.validate()) {
-      
       // 2. ดึงค่า username และ password จาก controller
       String username = _usernameController.text;
       String password = _passwordController.text;
 
       // 3. ตรวจสอบว่าตรงกับ "student" และ "123456"
 
-      if (username == "lender" && password == "456789") {
+      if (username == "student" && password == "123456") {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const LenderMain()),
+          MaterialPageRoute(builder: (context) => const StudentMain()),
         );
-      // } else if (username == "lender" && password == "456789") {
-      //   Navigator.pushReplacement(
-      //     context,
-      //     // MaterialPageRoute(builder: (context) => const BrowseLender()),
-      //   );
-      // } else if (username == "staff" && password == "123789") {
-      //   Navigator.pushReplacement(
-      //     context,
-      //     // MaterialPageRoute(builder: (context) => const BrowseStaff()),
-      //   );
+      } else if (username == "lender" && password == "456789") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const BrowseLender()),
+        );
+      } else if (username == "staff" && password == "123789") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const StaffMain()),
+        );
       } else {
         // --- ล็อกอินไม่สำเร็จ ---
         // แสดง SnackBar แจ้งเตือน
@@ -57,11 +56,9 @@ class _LoginState extends State<Login> {
           ),
         );
       }
-    
     }
   }
   // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
-
 
   // ⬇️⬇️⬇️ เพิ่มส่วนนี้เพื่อคืน Memory เมื่อปิดหน้า ⬇️⬇️⬇️
   @override
@@ -71,7 +68,6 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
   // ⬆️⬆️⬆️ จบส่วนที่เพิ่ม ⬆️⬆️⬆️
-
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +216,8 @@ class _LoginState extends State<Login> {
                   width: 130,
                   height: screenHeight * 0.06,
                   child: ElevatedButton(
-                    onPressed: _handleLogin, // <--- เรียกใช้ฟังก์ชันที่แก้ไขแล้ว
+                    onPressed:
+                        _handleLogin, // <--- เรียกใช้ฟังก์ชันที่แก้ไขแล้ว
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.deepOrange,
