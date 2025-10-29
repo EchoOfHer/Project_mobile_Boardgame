@@ -3,8 +3,9 @@ import 'see_request.dart';
 import '/login/login.dart';
 import 'HistoryLenderPage.dart';
 import 'request_borrowing_lender.dart';
+import 'package:boardgame_app/Staff/game_data.dart'; // ← Use shared game data
+import '/staff/staff_main.dart' show colour_main, colour_disable;
 
-// === หน้าจอหลัก ===
 class BrowseLender extends StatefulWidget {
   const BrowseLender({super.key});
 
@@ -13,77 +14,26 @@ class BrowseLender extends StatefulWidget {
 }
 
 class _BrowseLenderState extends State<BrowseLender> {
-  // ⬇️⬇️⬇️ 2. เพิ่มตัวแปรสำหรับ Search และ Filter ⬇️⬇️⬇️
   final TextEditingController _searchController = TextEditingController();
-  late List<Map<String, dynamic>> _filteredGames;
-  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
+  late List<dynamic> _filteredGames;
+  late List<String> categories;
+  String selectedCategory = 'All';
 
-  // ⬇️⬇️⬇️ 3. ขยายข้อมูลเกม และเปลี่ยนประเภท List ⬇️⬇️⬇️
-  final List<Map<String, dynamic>> games = [
-    {
-      'title': 'Exploding Kittens',
-      'image': 'image/Exploding_Kitten.webp',
-      'gameStyle': 'Party',
-      'players': '2-10 peoples',
-      'time': '10 min',
-      'remaining': 1, // ต้องเป็น int (ตัวเลข)
-    },
-    {
-      'title': 'One Week Werewolf',
-      'image': 'image/One_Week_Werewolf.webp',
-      'gameStyle': 'Party',
-      'players': '3-7 players',
-      'time': '10 min',
-      'remaining': 3, // ต้องเป็น int
-    },
-    {
-      'title': 'Catan',
-      'image': 'image/Catan.jpg',
-      'gameStyle': 'Strategy',
-      'players': '3-4 players',
-      'time': '60-120 min',
-      'remaining': 2, // ต้องเป็น int
-    },
-    {
-      'title': 'Splendor',
-      'image': 'image/Splendor.jpg',
-      'gameStyle': 'Strategy',
-      'players': '2-4 players',
-      'time': '30 min',
-      'remaining': 0, // ต้องเป็น int
-    },
-    {
-      'title': 'Avalon',
-      'image': 'image/Avalon.jpg',
-      'gameStyle': 'Bluffing',
-      'players': '5-10 players',
-      'time': '30 min',
-      'remaining': 1, // ต้องเป็น int
-    },
-  ];
-  // ⬆️⬆️⬆️ จบส่วนแก้ไขข้อมูลเกม ⬆️⬆️⬆️
-
-  // ⬇️⬇️⬇️ 4. เพิ่ม "All" ในหมวดหมู่ และตั้งเป็นค่าเริ่มต้น ⬇️⬇️⬇️
-  final List<String> categories = [
-    'All', // เพิ่ม 'All'
-    'Family',
-    'Party',
-    'Bluffing',
-    'Abstract',
-    'Dice',
-    'Strategy', // (เพิ่ม Strategy จากข้อมูลเกมของคุณ)
-  ];
-  String selectedCategory = 'All'; // ตั้ง 'All' เป็นค่าเริ่มต้น
-  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
-
-  // ⬇️⬇️⬇️ 5. เพิ่มตัวแปรสำหรับ Bottom Nav ⬇️⬇️⬇️
-  final int _selectedIndex = 0; // หน้านี้คือ index ที่ 0
-
-  // ⬇️⬇️⬇️ 6. เพิ่ม initState และ dispose ⬇️⬇️⬇️
   @override
   void initState() {
     super.initState();
-    _filteredGames = List.from(games);
+
+    // Initialize with one game per group
+    _filteredGames = _getUniqueGames(gameList);
+
+    // Extract unique styles from gameList
+    final Set<String> styleSet = <String>{};
+    for (final g in gameList) {
+      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
+      if (style.isNotEmpty) styleSet.add(style);
+    }
+    categories = ['All', ...styleSet.toList()];
+
     _searchController.addListener(_runFilter);
   }
 
@@ -92,137 +42,82 @@ class _BrowseLenderState extends State<BrowseLender> {
     _searchController.dispose();
     super.dispose();
   }
-  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
-  // ⬇️⬇️⬇️ 7. ฟังก์ชันหลักสำหรับกรองข้อมูล (Filter) ⬇️⬇️⬇️
+  // Safely access dynamic fields
+  dynamic _get(dynamic item, String key) {
+    if (item == null) return null;
+    if (item is Map<String, dynamic>) return item[key];
+
+    try {
+      switch (key) {
+        case 'gameName':
+          return (item as dynamic).gameName;
+        case 'gameStyle':
+          return (item as dynamic).gameStyle;
+        case 'picPath':
+          return (item as dynamic).picPath;
+        case 'minP':
+          return (item as dynamic).minP;
+        case 'maxP':
+          return (item as dynamic).maxP;
+        case 'gTime':
+          return (item as dynamic).gTime;
+        case 'g_link':
+          return (item as dynamic).g_link;
+        case 'gameGroup':
+          return (item as dynamic).gameGroup;
+        default:
+          return (item as dynamic)[key];
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Get one representative per gameGroup
+  List<dynamic> _getUniqueGames(List<dynamic> games) {
+    final Map<String, dynamic> uniqueMap = {};
+    for (var g in games) {
+      final group = _get(g, 'gameGroup')?.toString() ?? '';
+      if (group.isNotEmpty && !uniqueMap.containsKey(group)) {
+        uniqueMap[group] = g;
+      }
+    }
+    return uniqueMap.values.toList();
+  }
+
+  // Filter games
   void _runFilter() {
-    List<Map<String, dynamic>> results = List.from(games);
-    final String searchQuery = _searchController.text.toLowerCase();
+    List<dynamic> results = List<dynamic>.from(gameList);
 
-    // กรองด้วยหมวดหมู่
+    // Filter by category
     if (selectedCategory != 'All') {
       results = results.where((game) {
-        return game['gameStyle']!.toLowerCase() ==
-            selectedCategory.toLowerCase();
+        final style = (_get(game, 'gameStyle') ?? '').toString().toLowerCase();
+        return style == selectedCategory.toLowerCase();
       }).toList();
     }
 
-    // กรองด้วยการค้นหา
+    // Filter by search
+    final String searchQuery = _searchController.text.toLowerCase();
     if (searchQuery.isNotEmpty) {
       results = results.where((game) {
-        return game['title']!.toLowerCase().contains(searchQuery);
+        final name = (_get(game, 'gameName') ?? '').toString().toLowerCase();
+        return name.contains(searchQuery);
       }).toList();
     }
 
     setState(() {
-      _filteredGames = results;
+      _filteredGames = _getUniqueGames(results);
     });
-  }
-  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
-
-  // ⬇️ 8. แก้ไขฟังก์ชันสำหรับจัดการการกด Bottom Nav Bar ⬇️
-  void _onNavItemTapped(int index) {
-    if (index == _selectedIndex) return; // ถ้ากดหน้าเดิม ไม่ต้องทำอะไร
-
-    switch (index) {
-      case 0: // (Games)
-        break;
-      case 1: // (Stats/Requests)
-        Navigator.pushReplacement(
-          // ⭐️ ใช้ pushReplacement
-          context,
-          MaterialPageRoute(builder: (context) => const SeeLenderRequests()),
-        );
-        break;
-      case 2: // (Bookings/History)
-        Navigator.pushReplacement(
-          // ⭐️ เพิ่ม Case นี้
-          context,
-          MaterialPageRoute(builder: (context) => const HistoryLenderPage()),
-        );
-        break;
-      case 3: // (Logout)
-        _showLogoutDialog();
-        break;
-    }
-  }
-
-  // (ฟังก์ชัน _showLogoutDialog โค้ดเดิมของคุณถูกต้องแล้ว)
-  void _showLogoutDialog() {
-    const Color logoutColor = Color(0xFFFF7C7C);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.logout, size: 60, color: logoutColor),
-              const SizedBox(height: 16),
-              Text(
-                "Log Out",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: logoutColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Are you sure you want to log out of your account?",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      foregroundColor: Colors.black54,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                    },
-                    child: const Text("Cancle"),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: logoutColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Login()),
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: const Text("Confirm"),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(color: Colors.white),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          // ⬇️⬇️⬇️ 9. เปลี่ยน ListView เป็น Column + Expanded ⬇️⬇️⬇️
+      body: SafeArea(
+        child: Container(
+          color: Colors.white,
           child: Column(
             children: [
               Padding(
@@ -233,7 +128,7 @@ class _BrowseLenderState extends State<BrowseLender> {
                     const Text(
                       'BOARD GAME SS',
                       style: TextStyle(
-                        color: Colors.orange,
+                        color: colour_main,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
@@ -243,59 +138,53 @@ class _BrowseLenderState extends State<BrowseLender> {
                       style: TextStyle(color: Colors.grey[700], fontSize: 18),
                     ),
                     const SizedBox(height: 20),
-                    _buildSearchBar(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
-                    const SizedBox(height: 20),
-                    _buildCategoryFilters(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
+                    _buildSearchBar(),
+                    const SizedBox(height: 16),
+                    _buildCategoryFilters(),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Expanded(
-                child:
-                    _buildGameGrid(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
-              ),
+              const SizedBox(height: 10),
+              Expanded(child: _buildGameGrid()),
             ],
           ),
-          // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // ⬇️⬇️⬇️ 10. แก้ไข SearchBar ให้ใช้ Controller ⬇️⬇️⬇️
   Widget _buildSearchBar() {
     return TextField(
-      controller: _searchController, // <--- เชื่อม Controller
+      controller: _searchController,
       decoration: InputDecoration(
-        hintText: 'Search by game title...', // <--- เปลี่ยน hint text
-        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+        hintText: 'Search by game title...',
+        suffixIcon: const Icon(Icons.search, color: Colors.grey),
         filled: true,
         fillColor: Colors.grey[100],
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: colour_main),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: colour_main),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: const BorderSide(color: Colors.orange),
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: colour_main, width: 2),
         ),
       ),
     );
   }
-  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
-  // ⬇️⬇️⬇️ 11. แก้ไข CategoryFilters ให้เรียก _runFilter ⬇️⬇️⬇️
   Widget _buildCategoryFilters() {
     return SizedBox(
-      height: 40,
-      child: ListView.builder(
+      height: 42,
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = category == selectedCategory;
@@ -305,21 +194,22 @@ class _BrowseLenderState extends State<BrowseLender> {
               setState(() {
                 selectedCategory = category;
               });
-              _runFilter(); // <--- เรียกฟังก์ชันฟิลเตอร์เมื่อกดปุ่ม
+              _runFilter();
             },
             child: Container(
-              margin: const EdgeInsets.only(right: 8.0),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.orange : Colors.grey[200],
+                color: isSelected ? colour_main : Colors.grey[200],
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Center(
                 child: Text(
                   category,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black54,
+                    color: isSelected ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -329,11 +219,8 @@ class _BrowseLenderState extends State<BrowseLender> {
       ),
     );
   }
-  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
-  // ⬇️⬇️⬇️ 12. แก้ไข GameGrid ให้ใช้ _filteredGames และคลิกได้ ⬇️⬇️⬇️
   Widget _buildGameGrid() {
-    // 12.1: ตรวจสอบว่ามีข้อมูลที่กรองแล้วหรือไม่
     if (_filteredGames.isEmpty) {
       return const Center(
         child: Text(
@@ -343,88 +230,118 @@ class _BrowseLenderState extends State<BrowseLender> {
       );
     }
 
-    // 12.2: สร้าง Grid จาก _filteredGames
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      // (ลบ shrinkWrap และ physics)
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
         childAspectRatio: 0.75,
       ),
-      itemCount: _filteredGames.length, // <--- ใช้ _filteredGames.length
+      itemCount: _filteredGames.length,
       itemBuilder: (context, index) {
-        final gameData =
-            _filteredGames[index]; // <--- ใช้ _filteredGames[index]
+        final game = _filteredGames[index];
 
-        // 12.3: ห่อด้วย GestureDetector
+        final String gameName = _get(game, 'gameName')?.toString() ?? '';
+        final String picPath = _get(game, 'picPath')?.toString() ?? '';
+        final String gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
+        final String? glink = _get(game, 'g_link')?.toString(); // Optional
+
+        // Count available copies in group
+        final int remaining = gameList.where((g) {
+          final gg = _get(g, 'gameGroup')?.toString() ?? '';
+          final st = _get(g, 'status')?.toString().toLowerCase() ?? '';
+          return gg == gameGroup && st == 'available';
+        }).length;
+
         return GestureDetector(
           onTap: () {
-            // ❗️ หมายเหตุ: ผมสมมติว่าคลาสของคุณชื่อ 'RequestBorrowingLenderPage'
-            // และรับค่า parameters เหมือนกับ 'BorrowGamePage'
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => RequestBorrowingLenderPage(
-                  gameName: gameData['title']!,
-                  imageAssetPath: gameData['image']!,
-                  gameStyle: gameData['gameStyle']!,
-                  players: gameData['players']!,
-                  time: gameData['time']!,
-                  remaining: gameData['remaining']!,
+                  gameName: gameName,
+                  imageAssetPath: picPath,
+                  gameStyle: _get(game, 'gameStyle')?.toString() ?? '',
+                  players:
+                      "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} players",
+                  time: "${_get(game, 'gTime') ?? 0} min",
+                  gameGroup: gameGroup,
+                  glink: glink, // Safe: can be null
                 ),
               ),
             );
           },
-          child: GameCard(
-            title: gameData['title']!,
-            imagePath: gameData['image']!,
-          ),
+          child: GameCard(title: gameName, imagePath: picPath),
         );
       },
     );
   }
-  // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
 
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      onTap: _onNavItemTapped,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.style_outlined),
-          activeIcon: Icon(Icons.style),
-          label: 'Games',
+  void _showLogoutDialog() {
+    const Color logoutColor = Color(0xFFFF7C7C);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.logout, size: 60, color: logoutColor),
+            const SizedBox(height: 16),
+            const Text(
+              "Log Out",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: logoutColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Are you sure you want to log out?",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300],
+                  ),
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: logoutColor),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const Login()),
+                      (route) => false,
+                    );
+                  },
+                  child: const Text(
+                    "Confirm",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart_outline),
-          activeIcon: Icon(Icons.pie_chart),
-          label: 'Stats',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined),
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Bookings',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.logout),
-          activeIcon: Icon(Icons.logout),
-          label: 'Logout',
-        ),
-      ],
-      currentIndex: _selectedIndex, // <--- 13. เชื่อม Index
-      selectedItemColor: Colors.orange[800],
-      unselectedItemColor: Colors.grey[600],
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
+      ),
     );
   }
 }
 
-// ... (คลาส GameCard ไม่ต้องแก้ไข) ...
 class GameCard extends StatelessWidget {
-  // ... (โค้ดเดิม) ...
   final String title;
   final String imagePath;
 
@@ -439,18 +356,7 @@ class GameCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
-                );
-              },
-            ),
-          ),
+          Expanded(child: _buildImageOrPlaceholder()),
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: Text(
@@ -463,6 +369,25 @@ class GameCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildImageOrPlaceholder() {
+    if (imagePath.trim().isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+      );
+    }
+    return Image.asset(
+      imagePath,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[200],
+          child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+        );
+      },
     );
   }
 }

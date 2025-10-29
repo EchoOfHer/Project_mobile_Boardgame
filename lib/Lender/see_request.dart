@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '/login/login.dart';
-
+import 'package:boardgame_app/Staff/staff_main.dart'
+    show colour_available, colour_borrow, colour_disable, colour_main;
 // ⬇️⬇️⬇️ 1. เพิ่ม IMPORTS ที่จำเป็น ⬇️⬇️⬇️
 import 'lender_browse_list.dart'; // (หน้า Games)
-import 'HistoryLenderPage.dart';  // (หน้า History/Bookings)
+import 'HistoryLenderPage.dart'; // (หน้า History/Bookings)
 // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
-
 
 class SeeLenderRequests extends StatefulWidget {
   const SeeLenderRequests({super.key});
@@ -22,14 +22,20 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
 
   final List<Map<String, String>> pendingRequests = [
     {
-      'title': 'Exploding kittens',
-      'image': 'image/Exploding_Kitten.webp',
+      'title': 'Castle Panic',
+      'image': 'image/Castle_Panic.webp',
       'user': 'Anonymous',
+      'Fdate': '29',
+      'Tdate': '30',
+      'month': 'October',
     },
     {
-      'title': 'Catan',
-      'image': 'image/Catan.jpg',
+      'title': 'Champions of Hara',
+      'image': 'image/Champions_of_Hara.webp',
       'user': 'Anonymous',
+      'Fdate': '29',
+      'Tdate': '30',
+      'month': 'October',
     },
   ];
 
@@ -52,11 +58,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  color: color,
-                  size: 100,
-                ),
+                Icon(icon, color: color, size: 100),
                 const SizedBox(height: 20),
                 Text(
                   title,
@@ -103,7 +105,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.red.shade400,
+                          color: colour_disable, // <-- FIXED
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -116,7 +118,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.red.shade400),
+                            borderSide: BorderSide(color: colour_disable),
                           ),
                         ),
                         maxLines: 3,
@@ -130,7 +132,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade400,
+                          backgroundColor: colour_disable, // <-- FIXED
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
@@ -144,7 +146,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                               context: context,
                               title: 'Disapproved',
                               icon: Icons.block,
-                              color: Colors.red.shade400,
+                              color: colour_disable, // <-- FIXED
                             );
 
                             setState(() {
@@ -153,7 +155,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                           }
                         },
                         child: const Text('Submit'),
-                      )
+                      ),
                     ],
                   ),
                 ),
@@ -165,17 +167,17 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     );
   }
 
-
   // --- ฟังก์ชันสำหรับจัดการการกด Bottom Nav Bar ---
   // ⬇️⬇️⬇️ 2. แก้ไข LOGIC การนำทาง ⬇️⬇️⬇️
   void _onNavItemTapped(int index) {
     // (กำหนด index ของหน้านี้)
-    const int currentIndex = 1; 
+    const int currentIndex = 1;
     if (index == currentIndex) return; // ไม่ต้องทำอะไร ถ้ากดปุ่มของหน้าปัจจุบัน
 
     switch (index) {
       case 0: // (Games) - กดกลับไปหน้าแรก (BrowseLender)
-        Navigator.pushReplacement( // ⭐️ ใช้ pushReplacement
+        Navigator.pushReplacement(
+          // ⭐️ ใช้ pushReplacement
           context,
           MaterialPageRoute(builder: (context) => const BrowseLender()),
         );
@@ -183,7 +185,8 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
       case 1: // (Stats) - เราอยู่ที่หน้านี้แล้ว
         break;
       case 2: // (Bookings/History)
-        Navigator.pushReplacement( // ⭐️ ใช้ pushReplacement
+        Navigator.pushReplacement(
+          // ⭐️ ใช้ pushReplacement
           context,
           MaterialPageRoute(builder: (context) => const HistoryLenderPage()),
         );
@@ -197,26 +200,27 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
 
   // ... (โค้ด _showLogoutDialog ของคุณเหมือนเดิม) ...
   void _showLogoutDialog() {
-    // สร้างตัวแปรสี #FF7C7C
-    const Color logoutColor = Color(0xFFFF7C7C);
+    // ⭐️ FIXED: ใช้ colour_disable โดยตรง
+    // const Color logoutColor = Color(0xFFFF7C7C);
 
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.logout, size: 60, color: logoutColor),
+              Icon(Icons.logout, size: 60, color: colour_disable), // <-- FIXED
               const SizedBox(height: 16),
               Text(
                 "Log Out",
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: logoutColor,
+                  color: colour_disable, // <-- FIXED
                 ),
               ),
               const SizedBox(height: 8),
@@ -241,7 +245,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: logoutColor, // ใช้สีที่กำหนด
+                      backgroundColor: colour_disable, // <-- FIXED
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () {
@@ -279,7 +283,6 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
           _buildRequestsList(),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(), // 5. Bottom Navigation Bar
     );
   }
 
@@ -290,7 +293,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     return const Text(
       'Today\'s Status',
       style: TextStyle(
-        color: Colors.deepOrange,
+        color: colour_main,
         fontSize: 28,
         fontWeight: FontWeight.bold,
       ),
@@ -303,19 +306,19 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
         _buildStatusCardItem(
           count: borrowedCount,
           label: 'Borrowed',
-          color: Colors.orange.shade400,
+          color: colour_borrow,
         ),
         const SizedBox(width: 12),
         _buildStatusCardItem(
           count: availableCount,
           label: 'Available',
-          color: Colors.blueGrey.shade400,
+          color: colour_available,
         ),
         const SizedBox(width: 12),
         _buildStatusCardItem(
           count: disabledCount,
           label: 'Disabled',
-          color: Colors.red.shade400,
+          color: colour_disable,
         ),
       ],
     );
@@ -337,7 +340,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
               color: color.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
-            )
+            ),
           ],
         ),
         child: Column(
@@ -368,7 +371,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     return Text(
       'Pending Requests (${pendingRequests.length})',
       style: TextStyle(
-        color: Colors.deepOrange.shade400,
+        color: colour_main,
         fontSize: 22,
         fontWeight: FontWeight.bold,
       ),
@@ -378,25 +381,34 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
   Widget _buildRequestsList() {
     return ListView.builder(
       shrinkWrap: true,
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: pendingRequests.length,
       itemBuilder: (context, index) {
         final request = pendingRequests[index];
+        // --- ⭐️ FIX 2: Pass values in ---
         return _buildRequestCard(
           index: index,
           title: request['title']!,
           imagePath: request['image']!,
           user: request['user']!,
+          fDate: request['Fdate']!,
+          tDate: request['Tdate']!,
+          month: request['month']!,
         );
       },
     );
   }
 
+  // --- ⭐️ FIX 1: Add parameters ---
   Widget _buildRequestCard({
     required int index,
     required String title,
     required String imagePath,
     required String user,
+    required String fDate,
+    required String tDate,
+    required String month,
   }) {
     return Card(
       elevation: 2,
@@ -411,8 +423,8 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
               borderRadius: BorderRadius.circular(10),
               child: Image.asset(
                 imagePath,
-                width: 60,
-                height: 80,
+                width: 125,
+                height: 125,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   width: 60,
@@ -440,27 +452,38 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     'From : $user',
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
-                  const SizedBox(height: 10),
+                  // --- ⭐️ FIX 3: Use parameters ---
+                  Text(
+                    'Duration : $fDate - $tDate $month',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: () {
                           _showDisapprovalDialog(
-                              context: context, index: index);
+                            context: context,
+                            index: index,
+                          );
                         },
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.red.shade300,
+                          backgroundColor: colour_disable,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text('Disapprove',
-                            style: TextStyle(fontSize: 12)),
+                        child: const Text(
+                          'Disapprove',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       TextButton(
@@ -469,68 +492,37 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                             context: context,
                             title: 'Approved',
                             icon: Icons.assignment_turned_in_outlined,
-                            color: Colors.blueGrey.shade400,
+                            color: colour_available, // <-- FIXED
                           );
                           setState(() {
                             pendingRequests.removeAt(index);
                           });
                         },
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.blueGrey.shade300,
+                          backgroundColor: colour_available, // <-- FIXED
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text('Approve',
-                            style: TextStyle(fontSize: 12)),
+                        child: const Text(
+                          'Approve',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  // (โค้ด _buildBottomNav ของคุณถูกต้องแล้ว)
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      onTap: _onNavItemTapped,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.style_outlined),
-          activeIcon: Icon(Icons.style),
-          label: 'Games',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart_outline),
-          activeIcon: Icon(Icons.pie_chart),
-          label: 'Stats',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined),
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Bookings',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.logout),
-          activeIcon: Icon(Icons.logout),
-          label: 'Logout',
-        ),
-      ],
-      currentIndex: 1, // 1 คือ 'Stats' (หน้านี้)
-      selectedItemColor: Colors.orange[800],
-      unselectedItemColor: Colors.grey[600],
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
     );
   }
 }

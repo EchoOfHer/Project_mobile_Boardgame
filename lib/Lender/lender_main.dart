@@ -1,5 +1,6 @@
 // lender_main.dart
 
+import 'package:boardgame_app/Lender/see_request.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -19,14 +20,18 @@ class LenderMain extends StatefulWidget {
 
 class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // ⭐️ 2. เปลี่ยนจำนวนแท็บเป็น 4
   final int _tabCount = 4;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabCount, vsync: this, initialIndex: 0);
+    _tabController = TabController(
+      length: _tabCount,
+      vsync: this,
+      initialIndex: 0,
+    );
   }
 
   @override
@@ -50,33 +55,34 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
             labelColor: colour_main,
             unselectedLabelColor: Colors.grey,
             indicatorColor: colour_main,
-            
+
             // ⭐️ 3. ตรรกะ Logout (แท็บสุดท้ายตอนนี้คือ index 3)
             onTap: (index) {
-              if (index == _tabCount - 1) { // 3 คือแท็บสุดท้าย
+              if (index == _tabCount - 1) {
+                // 3 คือแท็บสุดท้าย
                 LenderLogout.show(context);
                 _tabController.index = _tabController.previousIndex;
               }
             },
-            
+
             // ⭐️ 4. เพิ่มไอคอน History
             tabs: const [
-              Tab(icon: Icon(FontAwesomeIcons.gamepad)),      // 0: Browse
-              Tab(icon: Icon(Icons.list_alt)),                // 1: Request
-              Tab(icon: Icon(FontAwesomeIcons.calendarMinus)), // 2: History (ไอคอนใหม่)
-              Tab(icon: Icon(Icons.logout)),                // 3: Logout
+              Tab(icon: Icon(FontAwesomeIcons.gamepad)),
+              Tab(icon: Icon(Icons.pie_chart)),
+              Tab(icon: Icon(FontAwesomeIcons.calendarMinus)),
+              Tab(icon: Icon(Icons.logout)), // 3: Logout
             ],
           ),
         ),
-        
+
         // ⭐️ 5. เพิ่มหน้า History ใน TabBarView
         body: TabBarView(
           controller: _tabController,
           physics: const NeverScrollableScrollPhysics(),
           children: const [
-            BrowseLender(),    // 0
-            LenderSeerequests(),   // 1
-            LenderHistory(),     // 2 (หน้าที่เพิ่มใหม่)
+            BrowseLender(), // 0
+            SeeLenderRequests(), // 1
+            LenderHistory(), // 2 (หน้าที่เพิ่มใหม่)
             Center(child: Text('')), // 3 (หน้าเปล่าสำหรับ Logout)
           ],
         ),
