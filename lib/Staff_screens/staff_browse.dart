@@ -41,6 +41,9 @@ class _StaffBrowseState extends State<StaffBrowse> {
   }
 
   // Helper function to get attribute safely
+  // Inside _StaffBrowseState class
+
+  // Helper function to get attribute safely
   dynamic _get(dynamic item, String key) {
     if (item == null) return null;
 
@@ -62,6 +65,9 @@ class _StaffBrowseState extends State<StaffBrowse> {
           return (item as dynamic).maxP;
         case 'gTime':
           return (item as dynamic).gTime;
+        // 🛑 FIX: Explicitly handle the 'g_link' property 🛑
+        case 'g_link':
+          return (item as dynamic).g_link;
         case 'gameGroup':
           return (item as dynamic).gameGroup;
         default:
@@ -220,6 +226,8 @@ class _StaffBrowseState extends State<StaffBrowse> {
   }
 
   Widget _buildGameGrid() {
+    // Inside _buildGameGrid
+
     if (_filteredGames.isEmpty) {
       return const Center(
         child: Text(
@@ -245,6 +253,7 @@ class _StaffBrowseState extends State<StaffBrowse> {
         final String gameStyle = _get(game, 'gameStyle')?.toString() ?? '';
         final String picPath = _get(game, 'picPath')?.toString() ?? '';
         final String gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
+        final String glink = _get(game, 'g_link')?.toString() ?? '';
 
         final int remaining = gameList.where((g) {
           final gg = _get(g, 'gameGroup')?.toString() ?? '';
@@ -262,8 +271,9 @@ class _StaffBrowseState extends State<StaffBrowse> {
                   imageAssetPath: picPath,
                   gameStyle: gameStyle,
                   players:
-                      "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} players",
+                      "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} peoples",
                   time: "${_get(game, 'gTime') ?? 0} min",
+                  glink: glink,
                   remaining: remaining,
                 ),
               ),

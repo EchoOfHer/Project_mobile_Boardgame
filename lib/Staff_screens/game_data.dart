@@ -52,7 +52,7 @@ List<GameItem> gameList = [
     gTime: 5,
     status: 'Borrowed',
     picPath: 'image/Castle_Panic.webp',
-    g_link: 'www.game.come',
+    g_link: 'www.google.come',
   ),
   GameItem(
     gameName: 'Castle Panic',

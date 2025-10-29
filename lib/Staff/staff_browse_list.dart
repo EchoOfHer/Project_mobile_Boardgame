@@ -102,7 +102,8 @@ class _BrowseStaffState extends State<BrowseStaff> {
     // ขั้นที่ 1: กรองด้วยหมวดหมู่ (Category)
     if (selectedCategory != 'All') {
       results = results.where((game) {
-        return game['gameStyle']!.toLowerCase() == selectedCategory.toLowerCase();
+        return game['gameStyle']!.toLowerCase() ==
+            selectedCategory.toLowerCase();
       }).toList();
     }
 
@@ -249,7 +250,8 @@ class _BrowseStaffState extends State<BrowseStaff> {
               const SizedBox(height: 20),
               // ⬇️⬇️⬇️ 6. ห่อ Grid ด้วย Expanded ⬇️⬇️⬇️
               Expanded(
-                child: _buildGameGrid(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
+                child:
+                    _buildGameGrid(), // (ส่วนนี้จะถูกแก้ไขโดยฟังก์ชันข้างล่าง)
               ),
             ],
           ),
@@ -352,7 +354,8 @@ class _BrowseStaffState extends State<BrowseStaff> {
       ),
       itemCount: _filteredGames.length, // <--- ใช้ _filteredGames.length
       itemBuilder: (context, index) {
-        final gameData = _filteredGames[index]; // <--- ใช้ _filteredGames[index]
+        final gameData =
+            _filteredGames[index]; // <--- ใช้ _filteredGames[index]
 
         return GestureDetector(
           onTap: () {
@@ -366,6 +369,7 @@ class _BrowseStaffState extends State<BrowseStaff> {
                   players: gameData['players']!,
                   time: gameData['time']!,
                   remaining: gameData['remaining']!,
+                  glink: gameData['link'],
                 ),
               ),
             );
@@ -427,11 +431,7 @@ class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
 
-  const GameCard({
-    super.key,
-    required this.title,
-    required this.imagePath,
-  });
+  const GameCard({super.key, required this.title, required this.imagePath});
 
   @override
   Widget build(BuildContext context) {
@@ -459,10 +459,7 @@ class GameCard extends StatelessWidget {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

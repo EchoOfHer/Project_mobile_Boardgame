@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:boardgame_app/Staff_screens/staff_main.dart'
+    show colour_available, colour_main, colour_available, colour_main;
+import 'package:url_launcher/url_launcher.dart';
 
 class RequestBorrowingStaffPage extends StatefulWidget {
   final String gameName;
@@ -7,6 +10,7 @@ class RequestBorrowingStaffPage extends StatefulWidget {
   final String players;
   final String time;
   final int remaining;
+  final String glink;
 
   const RequestBorrowingStaffPage({
     super.key,
@@ -16,10 +20,12 @@ class RequestBorrowingStaffPage extends StatefulWidget {
     required this.players,
     required this.time,
     required this.remaining,
+    required this.glink,
   });
 
   @override
-  State<RequestBorrowingStaffPage> createState() => _RequestBorrowingStaffPageState();
+  State<RequestBorrowingStaffPage> createState() =>
+      _RequestBorrowingStaffPageState();
 }
 
 class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
@@ -51,25 +57,34 @@ class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
     }
   }
 
+  Future<void> _launchUrl(String url) async {
+    // Prefix with http if missing, but only if the URL is not empty
+    final String fullUrl = url.trim().isNotEmpty && !url.startsWith('http')
+        ? 'http://$url'
+        : url;
+    final Uri uri = Uri.parse(fullUrl);
+
+    // Check if the link can be opened
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the link.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.orange),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        iconTheme: const IconThemeData(color: colour_main, size: 30),
         title: Text(
           widget.gameName,
           style: const TextStyle(
             color: Colors.orange,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+            fontSize: 30,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -84,10 +99,18 @@ class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
-                    child: Image.asset(
-                      widget.imageAssetPath,
-                      width: 180,
-                      fit: BoxFit.cover,
+                    child: Container(
+                      child: ClipRRect(
+                        // 1. ClipRRect needs the borderRadius property
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          // 2. Image.asset takes the asset path, width, and fit
+                          widget.imageAssetPath,
+                          width: 275,
+                          fit: BoxFit.cover,
+                          // NOTE: borderRadius property has been removed from here
+                        ),
+                      ),
                     ),
                   ),
 
@@ -95,70 +118,112 @@ class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
                   const Divider(thickness: 1, color: Colors.orangeAccent),
                   const SizedBox(height: 20),
 
-                  // Game Info
-                  _buildInfoRow('Name : ', widget.gameName),
-                  _buildInfoRow('Game Style : ', widget.gameStyle),
-                  _buildInfoRow('Players : ', widget.players),
-                  _buildInfoRow('Time : ', widget.time),
-
-                  // Remaining section
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        const TextSpan(
-                          text: 'Remaining : ',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        TextSpan(
-                          text: '$currentRemaining board',
-                          style: TextStyle(
-                            color: currentRemaining <= 0
-                                ? Colors.red
-                                : Colors.black,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Name : ',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 18,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Game Style : ',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 18,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Players : ',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 18,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Time : ',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 18,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Remaining : ',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 18,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'How to play : ',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.gameName,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            widget.gameStyle,
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          SizedBox(height: 16),
+                          Text(widget.players, style: TextStyle(fontSize: 18)),
+                          SizedBox(height: 16),
+                          Text(widget.time, style: TextStyle(fontSize: 18)),
+                          SizedBox(height: 16),
+                          Text(
+                            '$currentRemaining board',
+                            style: TextStyle(
+                              color: Colors.red, // Use conditional color
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          InkWell(
+                            onTap: () => _launchUrl(widget.glink),
+                            child: Text(
+                              widget.glink,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  _buildInfoRow(
-                    'How to play : ',
-                    'Official website',
-                    isLink: true,
-                  ),
-                  
-                  const SizedBox(height: 30), 
-                
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, {bool isLink = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            TextSpan(
-              text: value,
-              style: TextStyle(
-                color: isLink ? Colors.blue : Colors.black,
-                decoration: isLink
-                    ? TextDecoration.underline
-                    : TextDecoration.none,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
