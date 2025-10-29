@@ -18,6 +18,7 @@ class _StaffHistoryState extends State<StaffHistory> {
       'game': 'Exploding Kitten',
       'id': '0001',
       'borrower': 'Borrower',
+      'status': 'Approve',
       'approvedBy': 'Lender 1',
       'returnedTo': 'Steven',
       'borrowedDate': '15 Oct 2025',
@@ -27,8 +28,9 @@ class _StaffHistoryState extends State<StaffHistory> {
       'game': 'Catan',
       'id': '0003',
       'borrower': 'lukpeach',
+      'status': 'Disapprove',
+      'reason': 'Board game is being repaired.',
       'approvedBy': 'Lender 2',
-      'returnedTo': 'Steven',
       'borrowedDate': '15 Oct 2025',
       'returnedDate': '16 Oct 2025',
     },
@@ -36,6 +38,7 @@ class _StaffHistoryState extends State<StaffHistory> {
       'game': 'One week werewolf',
       'id': '0005',
       'borrower': 'thomas',
+      'status': 'Approve',
       'approvedBy': 'Lender 1',
       'returnedTo': 'Steven',
       'borrowedDate': '12 Oct 2025',
@@ -72,7 +75,8 @@ class _StaffHistoryState extends State<StaffHistory> {
                 (m['id']!.toLowerCase().contains(q)) ||
                 (m['borrower']!.toLowerCase().contains(q)) ||
                 (m['approvedBy']!.toLowerCase().contains(q)) ||
-                (m['returnedTo']!.toLowerCase().contains(q));
+                (m['returnedTo']?.toLowerCase().contains(q) ?? false) ||
+                (m['status']!.toLowerCase().contains(q));
           }).toList();
         }
       });
@@ -84,12 +88,11 @@ class _StaffHistoryState extends State<StaffHistory> {
     FocusScope.of(context).unfocus();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Container(
-        color: const Color(0xFFF7F7F7), // สีพื้นหลังเดิมของ Scaffold
+        color: const Color(0xFFF7F7F7),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -105,7 +108,7 @@ class _StaffHistoryState extends State<StaffHistory> {
               ),
               const SizedBox(height: 12),
 
-              //  Search
+              // Search bar
               TextField(
                 controller: _search,
                 textInputAction: TextInputAction.search,
@@ -150,7 +153,7 @@ class _StaffHistoryState extends State<StaffHistory> {
 
               const SizedBox(height: 20),
 
-              // List section
+              // History List
               Expanded(
                 child: _filtered.isEmpty
                     ? const Center(
@@ -173,12 +176,18 @@ class _StaffHistoryState extends State<StaffHistory> {
   }
 }
 
+// ==================== CARD ====================
 class HistoryCard extends StatelessWidget {
   final Map<String, String> item;
   const HistoryCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
+    final status = item['status'] ?? '';
+    final isApprove = status.toLowerCase() == 'approve';
+    const approveText = Color(0xFF486E5A);
+    const disapproveText = Color(0xFFDD4430);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -195,42 +204,82 @@ class HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title
           Text(
             item['game']!,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             'ID : ${item['id']}',
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
-          _row('Borrowed by :', item['borrower']!),
-          _row('Approved by :', item['approvedBy']!),
-          _row('Returned to :', item['returnedTo']!),
+
+          // Borrow Info
+          _row('Borrowed by :', item['borrower'] ?? '-'),
+          const SizedBox(height: 6),
+          _row('Approved by :', item['approvedBy'] ?? '-'),
+          const SizedBox(height: 6),
+
+          // Status
+          Row(
+            children: [
+              const SizedBox(
+                width: 130,
+                child: Text(
+                  'Status :',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+              ),
+              Text(
+                isApprove ? 'Approve' : 'Disapprove',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isApprove ? approveText : disapproveText,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Reason (Disapprove)
+          if (!isApprove && (item['reason']?.isNotEmpty ?? false)) ...[
+            _row('Reason :', item['reason']!),
+            const SizedBox(height: 6),
+          ],
+
+          // Returned (Approve only)
+          if (isApprove) ...[
+            _row('Returned to :', item['returnedTo'] ?? '-'),
+            const SizedBox(height: 6),
+          ],
+
           const Divider(height: 20, thickness: 0.5),
-          _row('Borrowed date :', item['borrowedDate']!),
-          _row('Returned date :', item['returnedDate']!),
+
+          // Dates
+          _row('Borrowed date :', item['borrowedDate'] ?? '-'),
+          const SizedBox(height: 6),
+          _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
     );
   }
 
   static Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
+        ),
+        Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+      ],
     );
   }
 }
