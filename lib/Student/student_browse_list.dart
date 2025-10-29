@@ -1,122 +1,41 @@
 import 'package:flutter/material.dart';
-import 'lender_borrowing.dart';
-
-import 'see_request.dart';
-import '/login/login.dart';
-import 'HistoryLenderPage.dart';
-import 'request_borrowing_lender.dart'; 
 
 
 // === หน้าจอหลัก ===
-class BrowseLender extends StatefulWidget {
-  const BrowseLender({super.key});
+class BrowseStudent extends StatefulWidget {
+  const BrowseStudent({super.key});
 
   @override
-  State<BrowseLender> createState() => _BrowseLenderState();
+  State<BrowseStudent> createState() => _BrowseStudentState();
 }
 
-class _BrowseLenderState extends State<BrowseLender> {
-  final TextEditingController _searchController = TextEditingController();
-  late List<Map<String, dynamic>> _filteredGames;
+class _BrowseStudentState extends State<BrowseStudent> {
+  // ข้อมูลจำลองสำหรับเกม
+final List<Map<String, String>> games = [
+  {'title': 'Exploding Kittens', 'image': 'image/Exploding_Kitten.webp'},
+  {'title': 'One Week Werewolf', 'image': 'image/One_Week_Werewolf.webp'},
+  {'title': 'Catan', 'image': 'image/Catan.jpg'},
+  {'title': 'Splendor', 'image': 'image/Splendor.jpg'},
+  {'title': 'Avalon', 'image': 'image/Avalon.jpg'},
+];
 
-  final List<Map<String, dynamic>> games = [
-    {
-      'title': 'Exploding Kittens',
-      'image': 'image/Exploding_Kitten.webp',
-      'gameStyle': 'Party',
-      'players': '2-10 peoples',
-      'time': '10 min',
-      'remaining': 1,
-    },
-    {
-      'title': 'One Week Werewolf',
-      'image': 'image/One_Week_Werewolf.webp',
-      'gameStyle': 'Party',
-      'players': '3-7 players',
-      'time': '10 min',
-      'remaining': 3,
-    },
-    {
-      'title': 'Catan',
-      'image': 'image/Catan.jpg',
-      'gameStyle': 'Strategy',
-      'players': '3-4 players',
-      'time': '60-120 min',
-      'remaining': 2,
-    },
-    {
-      'title': 'Splendor',
-      'image': 'image/Splendor.jpg',
-      'gameStyle': 'Strategy',
-      'players': '2-4 players',
-      'time': '30 min',
-      'remaining': 0,
-    },
-    {
-      'title': 'Avalon',
-      'image': 'image/Avalon.jpg',
-      'gameStyle': 'Bluffing',
-      'players': '5-10 players',
-      'time': '30 min',
-      'remaining': 1,
-    },
-  ];
 
-  final List<String> categories = [
-    'All',
-    'Family',
-    'Party',
-    'Bluffing',
-    'Abstract',
-    'Dice',
-    'Strategy'
-  ];
-  String selectedCategory = 'All';
 
-  @override
-  void initState() {
-    super.initState();
-    _filteredGames = List.from(games);
-    _searchController.addListener(_runFilter);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _runFilter() {
-    List<Map<String, dynamic>> results = List.from(games);
-    final String searchQuery = _searchController.text.toLowerCase();
-
-    if (selectedCategory != 'All') {
-      results = results.where((game) {
-        return game['gameStyle']!.toLowerCase() == selectedCategory.toLowerCase();
-      }).toList();
-    }
-
-    if (searchQuery.isNotEmpty) {
-      results = results.where((game) {
-        return game['title']!.toLowerCase().contains(searchQuery);
-      }).toList();
-    }
-
-    setState(() {
-      _filteredGames = results;
-    });
-  }
+  // หมวดหมู่จำลอง
+  final List<String> categories = ['Family', 'Party', 'Bluffing', 'Abstract', 'Dice'];
+  String selectedCategory = 'Family';
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
+    return Scaffold(
+      body: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
+          
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: Column(
+          child: ListView(
             children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -132,7 +51,7 @@ class _BrowseLenderState extends State<BrowseLender> {
                       ),
                     ),
                     Text(
-                      'Welcome Lender',
+                      'Welcome Student',
                       style: TextStyle(
                         color: Colors.grey[700],
                         fontSize: 18,
@@ -146,21 +65,21 @@ class _BrowseLenderState extends State<BrowseLender> {
                 ),
               ),
               const SizedBox(height: 20),
-              Expanded(
-                child: _buildGameGrid(),
-              ),
+              _buildGameGrid(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
+  // === ส่วน Search Bar ===
   Widget _buildSearchBar() {
     return TextField(
-      controller: _searchController,
       decoration: InputDecoration(
-        hintText: 'Search by game title...',
+        hintText: 'Search',
         prefixIcon: const Icon(Icons.search, color: Colors.grey),
         filled: true,
         fillColor: Colors.grey[100],
@@ -180,6 +99,7 @@ class _BrowseLenderState extends State<BrowseLender> {
     );
   }
 
+  // === ส่วน Filter หมวดหมู่ ===
   Widget _buildCategoryFilters() {
     return SizedBox(
       height: 40,
@@ -195,7 +115,6 @@ class _BrowseLenderState extends State<BrowseLender> {
               setState(() {
                 selectedCategory = category;
               });
-              _runFilter();
             },
             child: Container(
               margin: const EdgeInsets.only(right: 8.0),
@@ -220,54 +139,69 @@ class _BrowseLenderState extends State<BrowseLender> {
     );
   }
 
+  // === ส่วน Grid ของเกม ===
   Widget _buildGameGrid() {
-    if (_filteredGames.isEmpty) {
-      return const Center(
-        child: Text(
-          'No games found.',
-          style: TextStyle(color: Colors.grey, fontSize: 18),
-        ),
-      );
-    }
-
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
         childAspectRatio: 0.75,
       ),
-      itemCount: _filteredGames.length,
+      itemCount: games.length,
       itemBuilder: (context, index) {
-        final game = _filteredGames[index];
-
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => BorrowGamePage(
-                  gameName: game['title']!,
-                  imageAssetPath: game['image']!,
-                  gameStyle: game['gameStyle']!,
-                  players: game['players']!,
-                  time: game['time']!,
-                  remaining: game['remaining']!,
-                ),
-              ),
-            );
-          },
-          child: GameCard(
-            title: game['title']!,
-            imagePath: game['image']!,
-          ),
+        return GameCard(
+          title: games[index]['title']!,
+          imagePath: games[index]['image']!,
         );
       },
     );
   }
+
+  // === ส่วน Bottom Navigation ===
+  Widget _buildBottomNav() {
+    return BottomNavigationBar(
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.style_outlined),
+          activeIcon: Icon(Icons.style),
+          label: 'Games',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.pie_chart_outline),
+          activeIcon: Icon(Icons.pie_chart),
+          label: 'Stats',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today_outlined), // ไอคอนปฏิทิน (ตรงกับภาพ screenshot)
+          activeIcon: Icon(Icons.calendar_today),
+          label: 'Bookings',
+        ),
+        
+        // ⬇️⬇️⬇️ แก้ไขไอคอน Logout ตรงนี้ ⬇️⬇️⬇️
+        BottomNavigationBarItem(
+          // เปลี่ยนจาก Icons.logout_outlined เป็น Icons.logout 
+          // เพื่อให้ตรงกับในรูปภาพ ที่เป็นไอคอนแบบทึบตลอดเวลา
+          icon: Icon(Icons.logout), 
+          activeIcon: Icon(Icons.logout),
+          label: 'Logout',
+        ),
+        // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
+      ],
+      currentIndex: 0,
+      selectedItemColor: Colors.orange[800],
+      unselectedItemColor: Colors.grey[600],
+      showSelectedLabels: false,
+      showUnselectedLabels: false,
+      type: BottomNavigationBarType.fixed,
+    );
+  }
 }
 
+// === Widget ของการ์ดเกมแต่ละใบ ===
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
