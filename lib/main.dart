@@ -1,4 +1,4 @@
-import 'package:boardgame_app/Lender/lender_browse_list.dart';
+import 'package:boardgame_app/login/login.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: BrowseLender()
+      home: Login()
     );
   }
 }
