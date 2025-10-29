@@ -1,5 +1,6 @@
 // lender_main.dart
 
+import 'package:boardgame_app/Lender/see_request.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -80,7 +81,7 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
           physics: const NeverScrollableScrollPhysics(),
           children: const [
             BrowseLender(), // 0
-            LenderSeerequests(), // 1
+            SeeLenderRequests(), // 1
             LenderHistory(), // 2 (หน้าที่เพิ่มใหม่)
             Center(child: Text('')), // 3 (หน้าเปล่าสำหรับ Logout)
           ],
