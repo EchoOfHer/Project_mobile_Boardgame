@@ -1,14 +1,16 @@
+// lender_seerequests.dart
+
 import 'package:flutter/material.dart';
 
-
-class Seelender_requests extends StatefulWidget {
-  const Seelender_requests({super.key});
+// ⭐️ 1. คลาสยังคงเป็น StatefulWidget เหมือนเดิม
+class LenderSeerequests extends StatefulWidget {
+  const LenderSeerequests({super.key});
 
   @override
-  State<Seelender_requests> createState() => _Seelender_requestsState();
+  State<LenderSeerequests> createState() => _LenderSeerequestsState();
 }
 
-class _Seelender_requestsState extends State<Seelender_requests> {
+class _LenderSeerequestsState extends State<LenderSeerequests> {
   // --- ข้อมูลจำลองสำหรับแสดงผล ---
   final int borrowedCount = 12;
   final int availableCount = 38;
@@ -18,20 +20,19 @@ class _Seelender_requestsState extends State<Seelender_requests> {
   final List<Map<String, String>> pendingRequests = [
     {
       'title': 'Exploding kittens',
-      'image': 'image/Exploding_Kitten.webp', // (ใช้ path รูปภาพจากโค้ดก่อนหน้า)
+      'image': 'image/Exploding_Kitten.webp',
       'user': 'Anonymous',
     },
     {
       'title': 'Catan',
-      'image': 'image/Catan.jpg', // (ใช้ path รูปภาพจากโค้ดก่อนหน้า)
+      'image': 'image/Catan.jpg',
       'user': 'Anonymous',
     },
   ];
   // --- จบส่วนข้อมูลจำลอง ---
 
-
   // --- ฟังก์ชันสำหรับแสดง Pop-up (Approve/Disapprove) ---
-  void _showConfirmationDialog({ // ⭐️ เปลี่ยนชื่อเล็กน้อยเพื่อความชัดเจน
+  void _showConfirmationDialog({
     required BuildContext context,
     required String title,
     required IconData icon,
@@ -42,17 +43,17 @@ class _Seelender_requestsState extends State<Seelender_requests> {
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0), // ขอบมน
+            borderRadius: BorderRadius.circular(20.0),
           ),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // ให้ Column สูงเท่าเนื้อหา
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   icon,
                   color: color,
-                  size: 100, // ไอคอนขนาดใหญ่
+                  size: 100,
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -69,19 +70,12 @@ class _Seelender_requestsState extends State<Seelender_requests> {
         );
       },
     );
-    
-    // ⬇️⬇️⬇️ 1. ลบส่วนที่ปิดอัตโนมัติออกแล้ว ⬇️⬇️⬇️
-    // Future.delayed(const Duration(seconds: 2), () {
-    //    ...
-    // });
-    // ⬆️⬆️⬆️ จบส่วนที่ลบ ⬆️⬆️⬆️
   }
-  
 
-  // ⬇️⬇️⬇️ 2. เพิ่มฟังก์ชันสำหรับ Dialog "เหตุผล" ⬇️⬇️⬇️
+  // --- ฟังก์ชันสำหรับ Dialog "เหตุผล" ---
   void _showDisapprovalDialog({
     required BuildContext context,
-    required int index, // รับ index เพื่อใช้ลบ
+    required int index,
   }) {
     final _formKey = GlobalKey<FormState>();
     final _reasonController = TextEditingController();
@@ -89,7 +83,6 @@ class _Seelender_requestsState extends State<Seelender_requests> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        // ใช้ StatefulBuilder เพื่อให้ Dialog สามารถ update state ภายในตัวเองได้
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Dialog(
@@ -142,12 +135,9 @@ class _Seelender_requestsState extends State<Seelender_requests> {
                           ),
                         ),
                         onPressed: () {
-                          // ตรวจสอบว่ากรอกเหตุผลหรือยัง
                           if (_formKey.currentState!.validate()) {
-                            // 1. ปิด Dialog เหตุผล
-                            Navigator.of(context).pop(); 
+                            Navigator.of(context).pop();
                             
-                            // 2. แสดง Dialog "Disapproved"
                             _showConfirmationDialog(
                               context: context,
                               title: 'Disapproved',
@@ -155,7 +145,6 @@ class _Seelender_requestsState extends State<Seelender_requests> {
                               color: Colors.red.shade400,
                             );
                             
-                            // 3. ลบรายการออกจาก List (อัปเดต UI พื้นหลัง)
                             setState(() {
                               pendingRequests.removeAt(index);
                             });
@@ -173,58 +162,36 @@ class _Seelender_requestsState extends State<Seelender_requests> {
       },
     );
   }
-  // ⬆️⬆️⬆️ จบส่วนที่เพิ่ม (Dialog เหตุผล) ⬆️⬆️⬆️
 
-
-  // --- ฟังก์ชันสำหรับจัดการการกด Bottom Nav Bar ---
-  void _onNavItemTapped(int index) {
-    switch (index) {
-      case 0:
-        // (Games) - กดกลับไปหน้าแรก (BrowseLender)
-        Navigator.pop(context);
-        break;
-      case 1:
-        // (Stats) - เราอยู่ที่หน้านี้แล้ว ไม่ต้องทำอะไร
-        break;
-      case 2:
-        // (Bookings) - TODO: สร้างหน้า Bookings
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Navigate to Bookings (Not Implemented)')),
-        );
-        break;
-      case 3:
-        // (Logout) - TODO: ใส่ Logic การ Logout
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logout Tapped (Not Implemented)')),
-        );
-        break;
-    }
-  }
-
+  // ⭐️ 2. ลบฟังก์ชัน _onNavItemTapped และ _buildBottomNav ออก
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16.0, 40.0, 16.0, 16.0), // เพิ่ม padding ด้านบน
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 20),
-          _buildStatusCards(),
-          const SizedBox(height: 30),
-          _buildPendingTitle(),
-          const SizedBox(height: 20),
-          _buildRequestsList(),
-        ],
+    // ⭐️ 3. ลบ Scaffold และ BottomNavigationBar ออก
+    // ⭐️ 4. คืนค่าเป็น SafeArea ตามที่โจทย์ต้องการ
+    return SafeArea(
+      child: Container(
+        // ⭐️ 5. ใส่สีพื้นหลัง (จาก Scaffold เดิม)
+        color: Colors.white,
+        // ⭐️ 6. นำ ListView (จาก body เดิม) มาใส่
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16.0, 40.0, 16.0, 16.0),
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 20),
+            _buildStatusCards(),
+            const SizedBox(height: 30),
+            _buildPendingTitle(),
+            const SizedBox(height: 20),
+            _buildRequestsList(),
+          ],
+        ),
       ),
-      bottomNavigationBar: _buildBottomNav(), // 5. Bottom Navigation Bar
     );
   }
 
-  // (rest of the code is unchanged...)
+  // --- (Widget helpers ที่เหลือย้ายมาทั้งหมด) ---
 
-  // --- 1. Widget หัวข้อ "Today's Status" ---
   Widget _buildHeader() {
     return const Text(
       'Today\'s Status',
@@ -236,7 +203,6 @@ class _Seelender_requestsState extends State<Seelender_requests> {
     );
   }
 
-  // --- 2. Widget การ์ด Status (Row) ---
   Widget _buildStatusCards() {
     return Row(
       children: [
@@ -261,7 +227,6 @@ class _Seelender_requestsState extends State<Seelender_requests> {
     );
   }
 
-  // (Helper) Widget สำหรับการ์ด status แต่ละใบ
   Widget _buildStatusCardItem({
     required int count,
     required String label,
@@ -305,7 +270,6 @@ class _Seelender_requestsState extends State<Seelender_requests> {
     );
   }
 
-  // --- 3. Widget หัวข้อ "Pending Requests" ---
   Widget _buildPendingTitle() {
     return Text(
       'Pending Requests (${pendingRequests.length})',
@@ -317,7 +281,6 @@ class _Seelender_requestsState extends State<Seelender_requests> {
     );
   }
 
-  // --- 4. Widget รายการ Requests (ListView) ---
   Widget _buildRequestsList() {
     return ListView.builder(
       shrinkWrap: true,
@@ -326,7 +289,7 @@ class _Seelender_requestsState extends State<Seelender_requests> {
       itemBuilder: (context, index) {
         final request = pendingRequests[index];
         return _buildRequestCard(
-          index: index, 
+          index: index,
           title: request['title']!,
           imagePath: request['image']!,
           user: request['user']!,
@@ -335,10 +298,8 @@ class _Seelender_requestsState extends State<Seelender_requests> {
     );
   }
 
-  
-  // (Helper) Widget สำหรับการ์ด Request แต่ละใบ
   Widget _buildRequestCard({
-    required int index, 
+    required int index,
     required String title,
     required String imagePath,
     required String user,
@@ -349,10 +310,9 @@ class _Seelender_requestsState extends State<Seelender_requests> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Row( // Main row
-          crossAxisAlignment: CrossAxisAlignment.start, // จัดให้รูปอยู่บนสุด
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. รูปภาพ
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.asset(
@@ -369,13 +329,10 @@ class _Seelender_requestsState extends State<Seelender_requests> {
               ),
             ),
             const SizedBox(width: 16),
-
-            // 2. จัดเรียง Text และ Buttons ใหม่ด้วย Column
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- ส่วนข้อความ (อยู่ข้างบน) ---
                   Text(
                     title,
                     style: const TextStyle(
@@ -389,18 +346,12 @@ class _Seelender_requestsState extends State<Seelender_requests> {
                     'From : $user',
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
-                  
-                  const SizedBox(height: 10), // ⭐️ เพิ่มช่องว่างระหว่าง Text และ Buttons
-
-                  // --- ส่วนปุ่ม (อยู่ข้างล่าง) ---
+                  const SizedBox(height: 10),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end, 
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      
-                      // ⬇️⬇️⬇️ 3. แก้ไข onPressed ของ Disapprove ⬇️⬇️⬇️
                       TextButton(
                         onPressed: () {
-                          // ⭐️ เรียก Dialog "เหตุผล" ใหม่
                           _showDisapprovalDialog(context: context, index: index);
                         },
                         style: TextButton.styleFrom(
@@ -409,26 +360,22 @@ class _Seelender_requestsState extends State<Seelender_requests> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text('Disapprove', style: TextStyle(fontSize: 12)),
+                        child:
+                            const Text('Disapprove', style: TextStyle(fontSize: 12)),
                       ),
-                      // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
-
                       const SizedBox(width: 8),
-
-                      // ⬇️⬇️⬇️ 4. แก้ไข onPressed ของ Approve (ให้ลบ List ด้วย) ⬇️⬇️⬇️
                       TextButton(
                         onPressed: () {
-                          // 1. แสดง Dialog "Approved"
                           _showConfirmationDialog(
                             context: context,
                             title: 'Approved',
-                            icon: Icons.assignment_turned_in_outlined, 
+                            icon: Icons.assignment_turned_in_outlined,
                             color: Colors.blueGrey.shade400,
                           );
-                          // 2. ลบรายการออกจาก List
                           setState(() {
                             pendingRequests.removeAt(index);
                           });
@@ -439,12 +386,12 @@ class _Seelender_requestsState extends State<Seelender_requests> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: const Text('Approve', style: TextStyle(fontSize: 12)),
                       ),
-                      // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
                     ],
                   )
                 ],
@@ -453,42 +400,6 @@ class _Seelender_requestsState extends State<Seelender_requests> {
           ],
         ),
       ),
-    );
-  }
-
-
-  // --- 5. Widget Bottom Navigation Bar ---
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      onTap: _onNavItemTapped,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.style_outlined),
-          activeIcon: Icon(Icons.style),
-          label: 'Games',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart_outline),
-          activeIcon: Icon(Icons.pie_chart),
-          label: 'Stats',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined),
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Bookings',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.logout),
-          activeIcon: Icon(Icons.logout),
-          label: 'Logout',
-        ),
-      ],
-      currentIndex: 1, 
-      selectedItemColor: Colors.orange[800],
-      unselectedItemColor: Colors.grey[600],
-      showSelectedLabels: false, 
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
     );
   }
 }

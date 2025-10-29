@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'see_request.dart'; 
+
 class BrowseLender extends StatefulWidget {
   const BrowseLender({super.key});
 
@@ -8,59 +8,29 @@ class BrowseLender extends StatefulWidget {
 }
 
 class _BrowseLenderState extends State<BrowseLender> {
-  // ข้อมูลจำลองสำหรับเกม
-final List<Map<String, String>> games = [
-  {'title': 'Exploding Kittens', 'image': 'image/Exploding_Kitten.webp'},
-  {'title': 'One Week Werewolf', 'image': 'image/One_Week_Werewolf.webp'},
-  {'title': 'Catan', 'image': 'image/Catan.jpg'},
-  {'title': 'Splendor', 'image': 'image/Splendor.jpg'},
-  {'title': 'Avalon', 'image': 'image/Avalon.jpg'},
-];
+  final List<Map<String, String>> games = [
+    {'title': 'Exploding Kittens', 'image': 'image/Exploding_Kitten.webp'},
+    {'title': 'One Week Werewolf', 'image': 'image/One_Week_Werewolf.webp'},
+    {'title': 'Catan', 'image': 'image/Catan.jpg'},
+    {'title': 'Splendor', 'image': 'image/Splendor.jpg'},
+    {'title': 'Avalon', 'image': 'image/Avalon.jpg'},
+  ];
 
-
-
-  // หมวดหมู่จำลอง
-  final List<String> categories = ['Family', 'Party', 'Bluffing', 'Abstract', 'Dice'];
+  final List<String> categories = [
+    'Family',
+    'Party',
+    'Bluffing',
+    'Abstract',
+    'Dice'
+  ];
   String selectedCategory = 'Family';
-
-
-  // ⬇️ 2. เพิ่มฟังก์ชันสำหรับจัดการการกด Bottom Nav Bar ⬇️
-  void _onNavItemTapped(int index) {
-    switch (index) {
-      case 0:
-        // (Games) - เราอยู่ที่หน้านี้แล้ว ไม่ต้องทำอะไร
-        break;
-      case 1:
-        // (Stats/Requests) - ⭐️ นี่คือส่วนที่ไปหน้า See Requests ⭐️
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Seelender_requests()),
-        );
-        break;
-      case 2:
-        // (Bookings) - TODO: สร้างหน้า Bookings
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Navigate to Bookings (Not Implemented)')),
-        );
-        break;
-      case 3:
-        // (Logout) - TODO: ใส่ Logic การ Logout
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logout Tapped (Not Implemented)')),
-        );
-        break;
-    }
-  }
-  // ⬆️ จบส่วนที่เพิ่ม ⬆️
-
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
+    return SafeArea(
+      child: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -100,11 +70,9 @@ final List<Map<String, String>> games = [
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // === ส่วน Search Bar ===
   Widget _buildSearchBar() {
     return TextField(
       decoration: InputDecoration(
@@ -128,7 +96,6 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Filter หมวดหมู่ ===
   Widget _buildCategoryFilters() {
     return SizedBox(
       height: 40,
@@ -168,7 +135,6 @@ final List<Map<String, String>> games = [
     );
   }
 
-  // === ส่วน Grid ของเกม ===
   Widget _buildGameGrid() {
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -189,45 +155,8 @@ final List<Map<String, String>> games = [
       },
     );
   }
-
-  // === ส่วน Bottom Navigation ===
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      // ⬇️ 3. เพิ่ม onTap ตรงนี้ ⬇️
-      onTap: _onNavItemTapped, 
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.style_outlined),
-          activeIcon: Icon(Icons.style),
-          label: 'Games',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart_outline),
-          activeIcon: Icon(Icons.pie_chart),
-          label: 'Stats',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined), // ไอคอนปฏิทิน (ตรงกับภาพ screenshot)
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Bookings',
-        ),  
-        BottomNavigationBarItem(
-        icon: Icon(Icons.logout), 
-          activeIcon: Icon(Icons.logout),
-          label: 'Logout',
-        ),
-      ],
-      currentIndex: 0, // ⭐️ หน้านี้คือ index 0 (Games)
-      selectedItemColor: Colors.orange[800],
-      unselectedItemColor: Colors.grey[600],
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
-    );
-  }
 }
 
-// === Widget ของการ์ดเกมแต่ละใบ ===
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
