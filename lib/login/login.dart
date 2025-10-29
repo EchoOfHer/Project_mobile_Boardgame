@@ -30,19 +30,19 @@ class _LoginState extends State<Login> {
       String username = _usernameController.text;
       String password = _passwordController.text;
 
-      // 3. ตรวจสอบว่าตรงกับ "student" และ "123456"
+      
 
       if (username == "student" && password == "123456") {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const StudentMain()),
         );
-      } else if (username == "lender" && password == "456789") {
+      } else if (username == "lender" && password == "123456") {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LenderMain()),
         );
-      } else if (username == "staff" && password == "123789") {
+      } else if (username == "staff" && password == "123456") {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const StaffMain()),
