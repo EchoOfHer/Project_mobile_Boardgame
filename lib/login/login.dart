@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'register.dart';
 import 'package:boardgame_app/Student/student_browse_list.dart';
 import 'package:boardgame_app/Lender/lender_browse_list.dart';
-import 'package:boardgame_app/Staff/staff_browse_list.dart';
+import 'package:boardgame_app/Staff/staff_main.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -45,7 +45,7 @@ class _LoginState extends State<Login> {
       } else if (username == "staff" && password == "123789") {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const BrowseStaff()),
+          MaterialPageRoute(builder: (context) => StaffMain()),
         );
       } else {
         // --- ล็อกอินไม่สำเร็จ ---
