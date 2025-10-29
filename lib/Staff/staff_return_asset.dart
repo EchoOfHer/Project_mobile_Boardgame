@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'staff_main.dart' show colour_available, colour_main;
+import 'game_data.dart'; // <<< Ensure this import path is correct
 
 class StaffReturnAsset extends StatefulWidget {
   const StaffReturnAsset({super.key});
@@ -7,135 +9,120 @@ class StaffReturnAsset extends StatefulWidget {
   State<StaffReturnAsset> createState() => _StaffReturnAssetState();
 }
 
-// 2. ย้าย Logic, State, และข้อมูลทั้งหมดมาไว้ใน State class นี้
 class _StaffReturnAssetState extends State<StaffReturnAsset> {
-  List<Map<String, dynamic>> borrowedGames = [
-    {
-      'title': 'Exploding kittens',
-      'id': '0002',
-      'from': 'Anonymous',
-      'image': 'image/Castle_Panic.webp', 
-      'returned': false,
-    },
-    {
-      'title': 'Catan',
-      'id': '0003',
-      'from': 'Anonymous',
-      'image': 'image/Champions_of_Hara.webp', 
-      'returned': false,
-    },
-    {
-      'title': 'One week werewolf',
-      'id': '0005',
-      'from': 'Anonymous',
-      'image': 'image/Defenders_of_the_Wild.webp', 
-      'returned': false,
-    },
-  ];
+  // 1. ⭐️ CORRECT TYPE DECLARATION: This must be List<GameItem>
+  //    (The previous list of Maps was REMOVED/commented out)
+  List<GameItem> borrowedGames = [];
+
   String searchQuery = "";
-  int remainingCount = 0;
 
   @override
   void initState() {
     super.initState();
-    remainingCount = borrowedGames.where((game) => !game['returned']).length;
+
+    // 2. ⭐️ CORRECT INITIALIZATION: Filter the global gameList.
+    //    This filters the List<GameItem> and assigns the result to borrowedGames.
+    borrowedGames = gameList
+        .where((game) => game.status == 'Borrowing')
+        .toList();
   }
 
-  void markAsReturned(Map<String, dynamic> game) {
+  // Function now accepts a GameItem object
+  void markAsReturned(GameItem game) {
+    // 1. UPDATE THE GLOBAL LIST (gameList)
+    final itemToReturn = gameList.firstWhere(
+      (item) => item.gameId == game.gameId,
+    );
+
+    // Action: Change status to 'Available'
+    itemToReturn.status = 'Available';
+
+    // 2. UPDATE THE LOCAL STATE (borrowedGames)
     setState(() {
-      borrowedGames.remove(game);
-      remainingCount = borrowedGames.where((g) => !g['returned']).length;
+      // Remove the returned game from the local list displayed on this screen
+      borrowedGames.removeWhere((g) => g.gameId == game.gameId);
     });
 
-    // ⭐️ ใช้ ScaffoldMessenger.of(context) ได้เลย เพราะ StaffMain มี Scaffold รองรับอยู่แล้ว
+    // Show SnackBar
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("${game['title']} has been returned!"),
-        duration: const Duration(seconds: 2),
+        content: Text(
+          "${game.gameName} (ID: ${game.gameId}) has been returned and is now Available!",
+        ),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
-  // 3. ย้าย build method มา (แต่ตัด Scaffold, AppBar, BottomNav ออก)
+  // The build method and buildGameCard widget use the correct GameItem properties:
+  // game.gameName, game.gameId, game.picPath, etc., which solves all map access errors.
+
   @override
   Widget build(BuildContext context) {
+    // ... (Code that uses filteredList.length and ListView.builder remains correct)
     final filteredList = borrowedGames
-        .where((game) => game['title']
-            .toString()
-            .toLowerCase()
-            .contains(searchQuery.toLowerCase()))
+        .where(
+          (game) => game.gameName.toString().toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          ),
+        )
         .toList();
 
-    // ⭐️ คืนค่าเป็น SafeArea + Padding (เหมือนหน้า History)
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 4. เพิ่ม Title (เพราะเราลบ AppBar) - ใช้สไตล์เดียวกับหน้า History
+            // ... (Other widgets)
             const Text(
               "Return Asset",
               style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
-                fontSize: 26,
+                color: colour_main,
+                fontWeight: FontWeight.w600,
+                fontSize: 30,
               ),
             ),
-            const SizedBox(height: 12),
-
-            // Search bar (ย้ายมาจาก body)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 5,
-                  )
-                ],
+            const SizedBox(height: 30),
+            TextField(
+              // The InputDecoration must NOT be const if it uses a non-const variable like colour_main.
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                // 1. 'border' is the general default state
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30), // Standard radius
+                  borderSide: BorderSide(color: colour_main),
+                ),
+                // 2. 'enabledBorder' defines the look when the field is NOT focused
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(color: colour_main),
+                ),
+                // 3. 'focusedBorder' defines the look when the field IS focused
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(
+                    color: colour_main,
+                    width: 2,
+                  ), // Thicker border when focused
+                ),
+                hintText: "Search",
+                hintStyle: const TextStyle(color: Colors.grey),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 20, 0),
+                  child: Icon(Icons.search, color: Colors.grey[400]),
+                ),
+                // ⭐️ FIX: The conflicting 'border: InputBorder.none,' was removed from here.
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        hintText: "Search",
-                        border: InputBorder.none,
-                      ),
-                      onChanged: (value) {
-                        setState(() => searchQuery = value);
-                      },
-                    ),
-                  ),
-                ],
-              ),
+              onChanged: (value) {
+                setState(() => searchQuery = value);
+              },
             ),
             const SizedBox(height: 20),
 
-            // จำนวน asset ที่ยังไม่คืน (ย้ายมาจาก body)
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              transitionBuilder: (child, animation) =>
-                  ScaleTransition(scale: animation, child: child),
-              child: Text(
-                "Assets waiting to return: $remainingCount",
-                key: ValueKey<int>(remainingCount),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.orange,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-
             Text(
-              "Game on loan (${filteredList.length})...",
+              "Assets waiting to return (${filteredList.length})...",
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 color: Colors.grey,
@@ -143,7 +130,6 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
             ),
             const SizedBox(height: 10),
 
-            // ListView (ย้ายมาจาก body)
             Expanded(
               child: filteredList.isEmpty
                   ? const Center(
@@ -166,8 +152,7 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
     );
   }
 
-  // 5. ย้าย helper function (buildGameCard) มาไว้ในนี้ด้วย
-  Widget buildGameCard(Map<String, dynamic> game) {
+  Widget buildGameCard(GameItem game) {
     return Card(
       margin: const EdgeInsets.only(bottom: 15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -179,11 +164,10 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.asset(
-                game['image'],
-                width: 70,
-                height: 90,
+                game.picPath,
+                width: 125,
+                height: 125,
                 fit: BoxFit.cover,
-                // ⭐️ จัดการ Error หากโหลดรูปไม่ได้
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     width: 70,
@@ -200,22 +184,31 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    game['title'],
+                    game.gameName,
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text("ID : ${game['id']}"),
-                  Text("From : ${game['from']}"),
+                  Text("ID : ${game.gameId}"),
+                  Text("Borrowed by : Anonymous"),
                   const SizedBox(height: 6),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      const Text("Mark as "),
+                      const Text(
+                        "Mark as ",
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
                       const SizedBox(width: 5),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.tealAccent[700],
+                          backgroundColor: colour_available,
                           foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                         onPressed: () => markAsReturned(game),
                         child: const Text("Return"),

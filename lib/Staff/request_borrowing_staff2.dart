@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:boardgame_app/Staff_screens/staff_main.dart'
-    show colour_available, colour_main, colour_available, colour_main;
+import 'staff_main.dart' show colour_available, colour_disable, colour_main;
 import 'package:url_launcher/url_launcher.dart';
 
 class RequestBorrowingStaffPage extends StatefulWidget {
@@ -115,7 +114,7 @@ class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
                   ),
 
                   const SizedBox(height: 20),
-                  const Divider(thickness: 1, color: Colors.orangeAccent),
+                  const Divider(thickness: 1, color: colour_main),
                   const SizedBox(height: 20),
 
                   Row(
@@ -196,9 +195,11 @@ class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
                           Text(
                             '$currentRemaining board',
                             style: TextStyle(
-                              color: Colors.red, // Use conditional color
+                              color: currentRemaining == 0
+                                  ? colour_disable
+                                  : Colors.black, // Use conditional color
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              // fontWeight: FontWeight.bold,
                             ),
                           ),
                           SizedBox(height: 16),

@@ -1,257 +1,297 @@
 import 'package:flutter/material.dart';
-import 'package:boardgame_app/Staff/request_borrowing_staff2.dart';
+import 'request_borrowing_staff2.dart';
+import 'game_data.dart';
+import '/login/login.dart';
+import 'staff_main.dart' show colour_available, colour_main;
+// import 'Staff/HistoryStaffPage.dart';
 
-
-class StaffBrowse extends StatelessWidget {
+class StaffBrowse extends StatefulWidget {
   const StaffBrowse({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // ---------- สถานะ (แทน Stateful) ----------
-    final searchController = TextEditingController();
-    final selectedCategory = ValueNotifier<String>('All');
-    final filteredGames = ValueNotifier<List<Map<String, dynamic>>>([]);
+  State<StaffBrowse> createState() => _StaffBrowseState();
+}
 
-    // ---------- ข้อมูลเกม ----------
-    final List<Map<String, dynamic>> games = [
-      {
-        'title': 'Exploding Kittens',
-        'image': 'image/Exploding_Kitten.webp',
-        'gameStyle': 'Party',
-        'players': '2-10 peoples',
-        'time': '10 min',
-        'remaining': 1,
-      },
-      {
-        'title': 'One Week Werewolf',
-        'image': 'image/One_Week_Werewolf.webp',
-        'gameStyle': 'Party',
-        'players': '3-7 players',
-        'time': '10 min',
-        'remaining': 3,
-      },
-      {
-        'title': 'Catan',
-        'image': 'image/Catan.jpg',
-        'gameStyle': 'Strategy',
-        'players': '3-4 players',
-        'time': '60-120 min',
-        'remaining': 2,
-      },
-      {
-        'title': 'Splendor',
-        'image': 'image/Splendor.jpg',
-        'gameStyle': 'Strategy',
-        'players': '2-4 players',
-        'time': '30 min',
-        'remaining': 0,
-      },
-      {
-        'title': 'Avalon',
-        'image': 'image/Avalon.jpg',
-        'gameStyle': 'Bluffing',
-        'players': '5-10 players',
-        'time': '30 min',
-        'remaining': 1,
-      },
-    ];
+class _StaffBrowseState extends State<StaffBrowse> {
+  final TextEditingController _searchController = TextEditingController();
+  late List<dynamic> _filteredGames;
+  late List<String> categories;
+  String selectedCategory = 'All';
 
-    final List<String> categories = [
-      'All',
-      'Family',
-      'Party',
-      'Bluffing',
-      'Abstract',
-      'Dice',
-      'Strategy',
-    ];
+  @override
+  void initState() {
+    super.initState();
 
-    // ---------- ฟังก์ชันกรอง ----------
-    void runFilter() {
-      final query = searchController.text.toLowerCase();
-      final cat = selectedCategory.value;
+    // Start with one representative per group
+    _filteredGames = _getUniqueGames(gameList);
 
-      var results = List<Map<String, dynamic>>.from(games);
+    final Set<String> styleSet = <String>{};
+    for (final g in gameList) {
+      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
+      if (style.isNotEmpty) styleSet.add(style);
+    }
+    categories = ['All', ...styleSet.toList()];
 
-      if (cat != 'All') {
-        results = results
-            .where((g) => g['gameStyle']!.toLowerCase() == cat.toLowerCase())
-            .toList();
+    _searchController.addListener(_runFilter);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Helper function to get attribute safely
+  // Inside _StaffBrowseState class
+
+  // Helper function to get attribute safely
+  dynamic _get(dynamic item, String key) {
+    if (item == null) return null;
+
+    if (item is Map<String, dynamic>) return item[key];
+
+    try {
+      switch (key) {
+        case 'gameName':
+          return (item as dynamic).gameName;
+        case 'gameStyle':
+          return (item as dynamic).gameStyle;
+        case 'picPath':
+          return (item as dynamic).picPath;
+        case 'status':
+          return (item as dynamic).status;
+        case 'minP':
+          return (item as dynamic).minP;
+        case 'maxP':
+          return (item as dynamic).maxP;
+        case 'gTime':
+          return (item as dynamic).gTime;
+        // 🛑 FIX: Explicitly handle the 'g_link' property 🛑
+        case 'g_link':
+          return (item as dynamic).g_link;
+        case 'gameGroup':
+          return (item as dynamic).gameGroup;
+        default:
+          return (item as dynamic)[key];
       }
-      if (query.isNotEmpty) {
-        results = results
-            .where((g) => g['title']!.toLowerCase().contains(query))
-            .toList();
-      }
+    } catch (_) {
+      return null;
+    }
+  }
 
-      filteredGames.value = results;
+  // ✅ This ensures only one game per gameGroup
+  List<dynamic> _getUniqueGames(List<dynamic> games) {
+    final Map<String, dynamic> uniqueMap = {};
+    for (var g in games) {
+      final group = _get(g, 'gameGroup')?.toString() ?? '';
+      if (group.isNotEmpty && !uniqueMap.containsKey(group)) {
+        uniqueMap[group] = g;
+      }
+    }
+    return uniqueMap.values.toList();
+  }
+
+  // Filtering logic
+  void _runFilter() {
+    List<dynamic> results = List<dynamic>.from(gameList);
+
+    // Filter category
+    if (selectedCategory != 'All') {
+      results = results.where((game) {
+        final style = (_get(game, 'gameStyle') ?? '').toString().toLowerCase();
+        return style == selectedCategory.toLowerCase();
+      }).toList();
     }
 
-    // เริ่มต้นแสดงเกมทั้งหมด
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      filteredGames.value = List.from(games);
+    // Filter by name
+    final String searchQuery = _searchController.text.toLowerCase();
+    if (searchQuery.isNotEmpty) {
+      results = results.where((game) {
+        final name = (_get(game, 'gameName') ?? '').toString().toLowerCase();
+        return name.contains(searchQuery);
+      }).toList();
+    }
+
+    // ✅ Keep only one game per group
+    setState(() {
+      _filteredGames = _getUniqueGames(results);
     });
+  }
 
-    // ---------- UI ----------
-    return SafeArea(                 // <-- ยังคงมี SafeArea เหมือนเดิม
-      child: Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            // ----- Header -----
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'BOARD GAME SS',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Welcome Staff',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 18),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Search bar
-                  TextField(
-                    controller: searchController,
-                    onChanged: (_) => runFilter(),
-                    decoration: InputDecoration(
-                      hintText: 'Search by game title...',
-                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                        borderSide: const BorderSide(color: Colors.orange),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'BOARD GAME SS',
+                      style: TextStyle(
+                        color: colour_main,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Category filters
-                  SizedBox(
-                    height: 40,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: categories.length,
-                      itemBuilder: (context, index) {
-                        final cat = categories[index];
-                        return ValueListenableBuilder<String>(
-                          valueListenable: selectedCategory,
-                          builder: (context, selected, _) {
-                            final isSelected = cat == selected;
-                            return GestureDetector(
-                              onTap: () {
-                                selectedCategory.value = cat;
-                                runFilter();
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8.0),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color:
-                                      isSelected ? Colors.orange : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    cat,
-                                    style: TextStyle(
-                                      color:
-                                          isSelected ? Colors.white : Colors.black54,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
+                    Text(
+                      'Welcome Staff',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 18),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    _buildSearchBar(),
+                    const SizedBox(height: 16),
+                    _buildCategoryFilters(),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // ----- Game Grid -----
-            Expanded(
-              child: ValueListenableBuilder<List<Map<String, dynamic>>>(
-                valueListenable: filteredGames,
-                builder: (context, gamesList, _) {
-                  if (gamesList.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No games found.',
-                        style: TextStyle(color: Colors.grey, fontSize: 18),
-                      ),
-                    );
-                  }
-
-                  return GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 0.75,
-                    ),
-                    itemCount: gamesList.length,
-                    itemBuilder: (context, index) {
-                      final game = gamesList[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RequestBorrowingStaffPage(
-                                gameName: game['title']!,
-                                imageAssetPath: game['image']!,
-                                gameStyle: game['gameStyle']!,
-                                players: game['players']!,
-                                time: game['time']!,
-                                remaining: game['remaining']!,
-                              ),
-                            ),
-                          );
-                        },
-                        child: GameCard(
-                          title: game['title']!,
-                          imagePath: game['image']!,
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Expanded(child: _buildGameGrid()),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: 'Search by game title...',
+        suffixIcon: const Icon(Icons.search, color: Colors.grey),
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30), // Standard radius
+          borderSide: BorderSide(color: colour_main),
+        ),
+        // 2. 'enabledBorder' defines the look when the field is NOT focused
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(color: colour_main),
+        ),
+        // 3. 'focusedBorder' defines the look when the field IS focused
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide(
+            color: colour_main,
+            width: 2,
+          ), // Thicker border when focused
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryFilters() {
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final category = categories[index];
+          final isSelected = category == selectedCategory;
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                selectedCategory = category;
+              });
+              _runFilter();
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? colour_main : Colors.grey[200],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGameGrid() {
+    // Inside _buildGameGrid
+
+    if (_filteredGames.isEmpty) {
+      return const Center(
+        child: Text(
+          'No games found.',
+          style: TextStyle(color: Colors.grey, fontSize: 18),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: _filteredGames.length,
+      itemBuilder: (context, index) {
+        final game = _filteredGames[index];
+
+        final String gameName = _get(game, 'gameName')?.toString() ?? '';
+        final String gameStyle = _get(game, 'gameStyle')?.toString() ?? '';
+        final String picPath = _get(game, 'picPath')?.toString() ?? '';
+        final String gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
+        final String glink = _get(game, 'g_link')?.toString() ?? '';
+
+        final int remaining = gameList.where((g) {
+          final gg = _get(g, 'gameGroup')?.toString() ?? '';
+          final st = _get(g, 'status')?.toString().toLowerCase() ?? '';
+          return gg == gameGroup && st == 'available';
+        }).length;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RequestBorrowingStaffPage(
+                  gameName: gameName,
+                  imageAssetPath: picPath,
+                  gameStyle: gameStyle,
+                  players:
+                      "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} peoples",
+                  time: "${_get(game, 'gTime') ?? 0} min",
+                  glink: glink,
+                  remaining: remaining,
+                ),
+              ),
+            );
+          },
+          child: GameCard(title: gameName, imagePath: picPath),
+        );
+      },
+    );
+  }
 }
 
-// -----------------------------------------------------------------
-// GameCard (ไม่เปลี่ยนแปลง)
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -267,16 +307,7 @@ class GameCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.grey[200],
-                child: const Icon(Icons.broken_image, color: Colors.grey),
-              ),
-            ),
-          ),
+          Expanded(child: _buildImageOrPlaceholder()),
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: Text(
@@ -289,6 +320,26 @@ class GameCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildImageOrPlaceholder() {
+    if (imagePath.trim().isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+      );
+    }
+
+    return Image.asset(
+      imagePath,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[200],
+          child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+        );
+      },
     );
   }
 }
