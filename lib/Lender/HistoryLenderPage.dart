@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'lender_browse_list.dart'; 
-import 'see_request.dart';        
-import '/login/login.dart';       
+import 'lender_browse_list.dart';
+import 'see_request.dart';
+import '/login/login.dart';
 
 class HistoryLenderPage extends StatefulWidget {
   const HistoryLenderPage({super.key});
@@ -15,14 +15,12 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
 
-  // ----- mock data -----
-  // ... (โค้ด _all data ของคุณเหมือนเดิม) ...
   final List<Map<String, String>> _all = [
     {
       'game': 'Exploding Kitten',
       'id': '0001',
       'borrower': 'Jane',
-      'approvedBy': 'Lender 1',
+      'status': 'Approve',
       'returnedTo': 'Steven',
       'borrowedDate': '15 Oct 2025',
       'returnedDate': '16 Oct 2025',
@@ -31,8 +29,8 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
       'game': 'Catan',
       'id': '0003',
       'borrower': 'lukpeach',
-      'approvedBy': 'Lender 1',
-      'returnedTo': 'Steven',
+      'status': 'Disapprove',
+      'reason': 'Board game is being repaired.',
       'borrowedDate': '15 Oct 2025',
       'returnedDate': '16 Oct 2025',
     },
@@ -40,16 +38,14 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
       'game': 'One week werewolf',
       'id': '0005',
       'borrower': 'thomas',
-      'approvedBy': 'Lender 1',
+      'status': 'Approve',
       'returnedTo': 'Steven',
       'borrowedDate': '12 Oct 2025',
       'returnedDate': '14 Oct 2025',
     },
   ];
-  late List<Map<String, String>> _filtered;
 
-  // ⬇️⬇️⬇️ 2. กำหนด INDEX ของหน้านี้ (0=Games, 1=Stats, 2=Bookings) ⬇️⬇️⬇️
-  final int _selectedIndex = 2; // 2 คือ "Bookings" (History)
+  late List<Map<String, String>> _filtered;
 
   @override
   void initState() {
@@ -65,7 +61,6 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
     super.dispose();
   }
 
-  // ... (โค้ด _onSearchChange, _clearSearch ของคุณเหมือนเดิม) ...
   void _onSearchChange() {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 200), () {
@@ -75,11 +70,18 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
           _filtered = List.from(_all);
         } else {
           _filtered = _all.where((m) {
-            return (m['game']!.toLowerCase().contains(q)) ||
-                (m['id']!.toLowerCase().contains(q)) ||
-                (m['borrower']!.toLowerCase().contains(q)) ||
-                (m['approvedBy']!.toLowerCase().contains(q)) ||
-                (m['returnedTo']!.toLowerCase().contains(q));
+            final game = m['game']?.toLowerCase() ?? '';
+            final id = m['id']?.toLowerCase() ?? '';
+            final borrower = m['borrower']?.toLowerCase() ?? '';
+            final status = m['status']?.toLowerCase() ?? '';
+            final reason = m['reason']?.toLowerCase() ?? '';
+            final returnedTo = m['returnedTo']?.toLowerCase() ?? '';
+            return game.contains(q) ||
+                id.contains(q) ||
+                borrower.contains(q) ||
+                status.contains(q) ||
+                reason.contains(q) ||
+                returnedTo.contains(q);
           }).toList();
         }
       });
@@ -91,134 +93,6 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
     FocusScope.of(context).unfocus();
   }
 
-
-  // ⬇️⬇️⬇️ 3. เพิ่มฟังก์ชันสำหรับ BOTTOM NAV BAR ⬇️⬇️⬇️
-
-  void _onNavItemTapped(int index) {
-    if (index == _selectedIndex) return; // ไม่ต้องทำอะไรถ้ากดปุ่มของหน้าปัจจุบัน
-
-    switch (index) {
-      case 0: // Games
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BrowseLender()),
-        );
-        break;
-      case 1: // Stats/Requests
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const SeeLenderRequests()),
-        );
-        break;
-      case 2: // Bookings (หน้านี้)
-        // ไม่ต้องทำอะไร
-        break;
-      case 3: // Logout
-        _showLogoutDialog();
-        break;
-    }
-  }
-
-  void _showLogoutDialog() {
-    const Color logoutColor = Color(0xFFFF7C7C);
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.logout, size: 60, color: logoutColor),
-              const SizedBox(height: 16),
-              Text(
-                "Log Out",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: logoutColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Are you sure you want to log out of your account?",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      foregroundColor: Colors.black54,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                    },
-                    child: const Text("Cancle"),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: logoutColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Login()),
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: const Text("Confirm"),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      onTap: _onNavItemTapped,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.style_outlined),
-          activeIcon: Icon(Icons.style),
-          label: 'Games',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart_outline),
-          activeIcon: Icon(Icons.pie_chart),
-          label: 'Stats',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined),
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Bookings',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.logout),
-          activeIcon: Icon(Icons.logout),
-          label: 'Logout',
-        ),
-      ],
-      currentIndex: _selectedIndex, // ใช้ตัวแปรที่ตั้งค่าไว้ (2)
-      selectedItemColor: Colors.orange[800],
-      unselectedItemColor: Colors.grey[600],
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
-    );
-  }
-  // ⬆️⬆️⬆️ จบส่วน Bottom Nav Bar ⬆️⬆️⬆️
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -229,7 +103,6 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ... (โค้ด Title, Search Bar ของคุณเหมือนเดิม) ...
               const Text(
                 'History',
                 style: TextStyle(
@@ -284,7 +157,7 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
               ),
 
               const SizedBox(height: 20),
-              // List section
+
               Expanded(
                 child: _filtered.isEmpty
                     ? const Center(
@@ -303,22 +176,23 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
           ),
         ),
       ),
-
-      // ⬇️⬇️⬇️ 4. เพิ่ม Bottom Nav Bar เข้าไปใน SCAFFOLD ⬇️⬇️⬇️
-      bottomNavigationBar: _buildBottomNav(),
-      // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
     );
   }
 }
 
-// ... (คลาส HistoryCard ไม่ต้องแก้ไข) ...
+// ----------- CARD -------------
 class HistoryCard extends StatelessWidget {
-// ... (โค้ดเดิม) ...
   final Map<String, String> item;
   const HistoryCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
+    final status = item['status'] ?? '';
+    final isApprove = status.toLowerCase() == 'approve';
+
+    const approveText = Color(0xFF486E5A);
+    const disapproveText = Color(0xFFDD4430);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -335,6 +209,7 @@ class HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Game title
           Text(
             item['game']!,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -345,32 +220,69 @@ class HistoryCard extends StatelessWidget {
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
-          _row('Borrowed by :', item['borrower']!),
-          _row('Approved by :', item['approvedBy']!),
-          _row('Returned to :', item['returnedTo']!),
+
+          // Borrower
+          _row('Borrowed by :', item['borrower'] ?? '-'),
+          const SizedBox(height: 6),
+
+          // Status (text only, no box)
+          Row(
+            children: [
+              const SizedBox(
+                width: 130,
+                child: Text(
+                  'Status :',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  isApprove ? 'Approve' : 'Disapprove',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isApprove ? approveText : disapproveText,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Reason (เฉพาะ Disapprove)
+          if (!isApprove && (item['reason']?.isNotEmpty ?? false)) ...[
+            _row('Reason :', item['reason']!),
+            const SizedBox(height: 6),
+          ],
+
+          // Returned to (เฉพาะ Approve เท่านั้น)
+          if (isApprove) ...[
+            _row('Returned to :', item['returnedTo'] ?? '-'),
+            const SizedBox(height: 6),
+          ],
+
           const Divider(height: 20, thickness: 0.5),
-          _row('Borrowed date :', item['borrowedDate']!),
-          _row('Returned date :', item['returnedDate']!),
+
+          _row('Borrowed date :', item['borrowedDate'] ?? '-'),
+          const SizedBox(height: 6),
+          _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
     );
   }
 
   static Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
-            ),
+    return Row(
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
+        ),
+        Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+      ],
     );
   }
 }
