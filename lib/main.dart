@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: StaffMain(), // start directly in dashboard
+      home: Login(), // start directly in dashboard
     );
   }
 }
