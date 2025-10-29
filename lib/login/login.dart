@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'register.dart';
-import 'package:boardgame_app/Student/student_browse_list.dart';
+import 'package:boardgame_app/Student/student_main.dart';
 import 'package:boardgame_app/Lender/lender_browse_list.dart';
 import 'package:boardgame_app/Staff/staff_main.dart';
 
@@ -34,7 +34,7 @@ class _LoginState extends State<Login> {
       if (username == "student" && password == "123456") {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const BrowseStudent()),
+          MaterialPageRoute(builder: (context) => const StudentMain()),
         );
       } else if (username == "lender" && password == "456789") {
         Navigator.pushReplacement(

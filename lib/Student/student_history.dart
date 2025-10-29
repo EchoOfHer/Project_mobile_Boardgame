@@ -1,23 +1,21 @@
+// student_history.dart
+
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:boardgame_app/Student/Checkrequest.dart';
-import 'package:boardgame_app/Student/student_browse_list.dart'; 
-import 'package:boardgame_app/login/login.dart'; 
+// ⭐️ ไม่จำเป็นต้อง import หน้า Login หรือหน้าอื่นๆ เพราะหน้านี้ไม่ได้จัดการการนำทาง
 
-
-
-class HistoryStudentPage extends StatefulWidget {
-  const HistoryStudentPage({super.key});
+class StudentHistory extends StatefulWidget {
+  const StudentHistory({super.key});
 
   @override
-  State<HistoryStudentPage> createState() => _HistoryStudentPageState();
+  State<StudentHistory> createState() => _StudentHistoryState();
 }
 
-class _HistoryStudentPageState extends State<HistoryStudentPage> {
+class _StudentHistoryState extends State<StudentHistory> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
 
-  // ----- mock data -----
+  // ----- mock data (ย้ายมาจาก HistoryStudentPage) -----
   final List<Map<String, String>> _all = [
     {
       'game': 'Exploding Kitten',
@@ -47,8 +45,7 @@ class _HistoryStudentPageState extends State<HistoryStudentPage> {
 
   late List<Map<String, String>> _filtered;
 
-  // ⬇️⬇️⬇️ 2. กำหนด INDEX ของหน้านี้ (0=Games, 1=Stats, 2=Bookings) ⬇️⬇️⬇️
-  final int _selectedIndex = 2; // 2 คือ "Bookings"
+  // ⭐️ 2. ลบ _selectedIndex ออก (ไม่จำเป็น)
 
   @override
   void initState() {
@@ -88,140 +85,17 @@ class _HistoryStudentPageState extends State<HistoryStudentPage> {
     FocusScope.of(context).unfocus();
   }
 
-  // ⬇️⬇️⬇️ 3. เพิ่มฟังก์ชันสำหรับ BOTTOM NAV BAR (คัดลอกจาก BrowseStudent) ⬇️⬇️⬇️
-
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return; // ไม่ต้องทำอะไรถ้ากดปุ่มของหน้าปัจจุบัน
-
-    switch (index) {
-      case 0: // Games
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BrowseStudent()),
-        );
-        break;
-      case 1: // Stats
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const Checkrequest()),
-        );
-        break;
-      case 2: // Bookings (หน้านี้)
-        // ไม่ต้องทำอะไร
-        break;
-      case 3: // Logout
-        _showLogoutDialog();
-        break;
-    }
-  }
-
-  void _showLogoutDialog() {
-    const Color logoutColor = Color(0xFFFF7C7C);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.logout, size: 60, color: logoutColor),
-              const SizedBox(height: 16),
-              Text(
-                "Log Out",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: logoutColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Are you sure you want to log out of your account?",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      foregroundColor: Colors.black54,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext); // ปิด Dialog
-                    },
-                    child: const Text("Cancle"),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: logoutColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Login()),
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: const Text("Confirm"),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.style_outlined),
-          activeIcon: Icon(Icons.style),
-          label: 'Games',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart_outline),
-          activeIcon: Icon(Icons.pie_chart),
-          label: 'Stats',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined),
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Bookings',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.logout),
-          activeIcon: Icon(Icons.logout),
-          label: 'Logout',
-        ),
-      ],
-      currentIndex: _selectedIndex, // ใช้ตัวแปรที่ตั้งค่าไว้ (2)
-      onTap: _onItemTapped, // เชื่อมต่อฟังก์ชัน
-      selectedItemColor: Colors.orange[800],
-      unselectedItemColor: Colors.grey[600],
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
-    );
-  }
-  // ⬆️⬆️⬆️ จบส่วน Bottom Nav Bar ⬆️⬆️⬆️
+  // ⭐️ 3. ลบฟังก์ชันสำหรับ BOTTOM NAV BAR (ลบ _onItemTapped, _showLogoutDialog, _buildBottomNav)
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      body: SafeArea(
+    // ⭐️ 4. ลบ Scaffold และ bottomNavigationBar ออก
+    
+    // ⭐️ 5. คืนค่า SafeArea ตามที่โจทย์ต้องการ
+    return SafeArea(
+      child: Container(
+        // ⭐️ 6. ใส่สีพื้นหลังเดิมของ Scaffold
+        color: const Color(0xFFF7F7F7),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -300,15 +174,11 @@ class _HistoryStudentPageState extends State<HistoryStudentPage> {
           ),
         ),
       ),
-      
-      // ⬇️⬇️⬇️ 4. เพิ่ม Bottom Nav Bar เข้าไปใน SCAFFOLD ⬇️⬇️⬇️
-      bottomNavigationBar: _buildBottomNav(),
-      // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
     );
   }
 }
 
-// ... (คลาส HistoryCard ไม่ต้องแก้ไข) ...
+// ⭐️ (ย้ายคลาส HistoryCard มาไว้ในไฟล์นี้ด้วย)
 class HistoryCard extends StatelessWidget {
   final Map<String, String> item;
   const HistoryCard({super.key, required this.item});
@@ -341,6 +211,7 @@ class HistoryCard extends StatelessWidget {
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
+          // ⭐️ (ใช้ _row ตามโค้ดต้นฉบับที่ส่งมา)
           _row('Approved by :', item['approvedBy']!),
           _row('Returned to :', item['returnedTo']!),
           const Divider(height: 20, thickness: 0.5),
