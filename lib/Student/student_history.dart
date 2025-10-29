@@ -1,8 +1,5 @@
-// student_history.dart
-
 import 'dart:async';
 import 'package:flutter/material.dart';
-// ⭐️ ไม่จำเป็นต้อง import หน้า Login หรือหน้าอื่นๆ เพราะหน้านี้ไม่ได้จัดการการนำทาง
 
 class StudentHistory extends StatefulWidget {
   const StudentHistory({super.key});
@@ -15,11 +12,12 @@ class _StudentHistoryState extends State<StudentHistory> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
 
-  // ----- mock data (ย้ายมาจาก HistoryStudentPage) -----
+  // ----- mock data -----
   final List<Map<String, String>> _all = [
     {
       'game': 'Exploding Kitten',
       'id': '0001',
+      'status': 'Approve',
       'approvedBy': 'Lender 1',
       'returnedTo': 'Steven',
       'borrowedDate': '15 Oct 2025',
@@ -28,14 +26,16 @@ class _StudentHistoryState extends State<StudentHistory> {
     {
       'game': 'Catan',
       'id': '0003',
+      'status': 'Disapprove',
+      'reason': 'Board game is being repaired.',
       'approvedBy': 'Lender 3',
-      'returnedTo': 'Steven',
       'borrowedDate': '15 Oct 2025',
       'returnedDate': '16 Oct 2025',
     },
     {
       'game': 'One week werewolf',
       'id': '0005',
+      'status': 'Approve',
       'approvedBy': 'Lender 4',
       'returnedTo': 'Steven',
       'borrowedDate': '12 Oct 2025',
@@ -44,8 +44,6 @@ class _StudentHistoryState extends State<StudentHistory> {
   ];
 
   late List<Map<String, String>> _filtered;
-
-  // ⭐️ 2. ลบ _selectedIndex ออก (ไม่จำเป็น)
 
   @override
   void initState() {
@@ -70,10 +68,11 @@ class _StudentHistoryState extends State<StudentHistory> {
           _filtered = List.from(_all);
         } else {
           _filtered = _all.where((m) {
-            return (m['game']!.toLowerCase().contains(q)) ||
-                (m['id']!.toLowerCase().contains(q)) ||
-                (m['approvedBy']!.toLowerCase().contains(q)) ||
-                (m['returnedTo']!.toLowerCase().contains(q));
+            return (m['game']?.toLowerCase().contains(q) ?? false) ||
+                (m['id']?.toLowerCase().contains(q) ?? false) ||
+                (m['approvedBy']?.toLowerCase().contains(q) ?? false) ||
+                (m['returnedTo']?.toLowerCase().contains(q) ?? false) ||
+                (m['status']?.toLowerCase().contains(q) ?? false);
           }).toList();
         }
       });
@@ -85,16 +84,10 @@ class _StudentHistoryState extends State<StudentHistory> {
     FocusScope.of(context).unfocus();
   }
 
-  // ⭐️ 3. ลบฟังก์ชันสำหรับ BOTTOM NAV BAR (ลบ _onItemTapped, _showLogoutDialog, _buildBottomNav)
-
   @override
   Widget build(BuildContext context) {
-    // ⭐️ 4. ลบ Scaffold และ bottomNavigationBar ออก
-    
-    // ⭐️ 5. คืนค่า SafeArea ตามที่โจทย์ต้องการ
     return SafeArea(
       child: Container(
-        // ⭐️ 6. ใส่สีพื้นหลังเดิมของ Scaffold
         color: const Color(0xFFF7F7F7),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -111,12 +104,12 @@ class _StudentHistoryState extends State<StudentHistory> {
               ),
               const SizedBox(height: 12),
 
-              // Search
+              // Search bar
               TextField(
                 controller: _search,
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: 'Search by game, borrower . . .',
+                  hintText: 'Search by game, lender . . .',
                   prefixIcon: const Icon(
                     Icons.search,
                     color: Color(0xFFE67E22),
@@ -155,7 +148,8 @@ class _StudentHistoryState extends State<StudentHistory> {
               ),
 
               const SizedBox(height: 20),
-              // List section
+
+              // History List
               Expanded(
                 child: _filtered.isEmpty
                     ? const Center(
@@ -178,13 +172,18 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 }
 
-// ⭐️ (ย้ายคลาส HistoryCard มาไว้ในไฟล์นี้ด้วย)
+// -------- CARD --------
 class HistoryCard extends StatelessWidget {
   final Map<String, String> item;
   const HistoryCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
+    final status = item['status'] ?? '';
+    final isApprove = status.toLowerCase() == 'approve';
+    const approveText = Color(0xFF486E5A);
+    const disapproveText = Color(0xFFDD4430);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -201,42 +200,80 @@ class HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          //  Title
           Text(
             item['game']!,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             'ID : ${item['id']}',
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
-          // ⭐️ (ใช้ _row ตามโค้ดต้นฉบับที่ส่งมา)
-          _row('Approved by :', item['approvedBy']!),
-          _row('Returned to :', item['returnedTo']!),
+
+          //  Details
+          _row('Approved by :', item['approvedBy'] ?? '-'),
+          const SizedBox(height: 6),
+
+          //  Status
+          Row(
+            children: [
+              const SizedBox(
+                width: 130,
+                child: Text(
+                  'Status :',
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+              ),
+              Text(
+                isApprove ? 'Approve' : 'Disapprove',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isApprove ? approveText : disapproveText,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          //  Reason (เฉพาะ Disapprove)
+          if (!isApprove && (item['reason']?.isNotEmpty ?? false)) ...[
+            _row('Reason :', item['reason']!),
+            const SizedBox(height: 6),
+          ],
+
+          //  Returned to (เฉพาะ Approve)
+          if (isApprove) ...[
+            _row('Returned to :', item['returnedTo'] ?? '-'),
+            const SizedBox(height: 6),
+          ],
+
           const Divider(height: 20, thickness: 0.5),
-          _row('Borrowed date :', item['borrowedDate']!),
-          _row('Returned date :', item['returnedDate']!),
+
+          //  Dates
+          _row('Borrowed date :', item['borrowedDate'] ?? '-'),
+          const SizedBox(height: 6),
+          _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
     );
   }
 
   static Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-        ],
-      ),
+        ),
+        Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+      ],
     );
   }
 }
