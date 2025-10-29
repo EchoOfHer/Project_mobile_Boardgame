@@ -1,4 +1,45 @@
+// lib/Student/student_borrowing.dart
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '/Staff/game_data.dart';
+import 'student_main.dart' show colour_main, colour_disable;
+
+/// Helper – works with your GameItem
+dynamic _get(dynamic item, String key) {
+  if (item == null) return null;
+  final obj = item as GameItem;
+  switch (key) {
+    case 'gameName':
+      return obj.gameName;
+    case 'gameStyle':
+      return obj.gameStyle;
+    case 'picPath':
+      return obj.picPath;
+    case 'status':
+      return obj.status;
+    case 'minP':
+      return obj.minP;
+    case 'maxP':
+      return obj.maxP;
+    case 'gTime':
+      return obj.gTime;
+    case 'g_link':
+      return obj.g_link;
+    case 'gameGroup':
+      return obj.gameGroup;
+    default:
+      return null;
+  }
+}
+
+/* --------------------------------------------------------------
+   GLOBAL STATE
+   --------------------------------------------------------------
+   * _hasRequestedAnyGame → true after the first borrow
+   * _lastRequestedGroup  → keeps the group that was borrowed
+   -------------------------------------------------------------- */
+bool _hasRequestedAnyGame = false;
+String _lastRequestedGroup = '';
 
 class BorrowGamePage extends StatefulWidget {
   final String gameName;
@@ -6,7 +47,8 @@ class BorrowGamePage extends StatefulWidget {
   final String gameStyle;
   final String players;
   final String time;
-  final int remaining;
+  final String glink;
+  final String gameGroup;
 
   const BorrowGamePage({
     super.key,
@@ -15,7 +57,8 @@ class BorrowGamePage extends StatefulWidget {
     required this.gameStyle,
     required this.players,
     required this.time,
-    required this.remaining,
+    required this.glink,
+    required this.gameGroup,
   });
 
   @override
@@ -23,31 +66,60 @@ class BorrowGamePage extends StatefulWidget {
 }
 
 class _BorrowGamePageState extends State<BorrowGamePage> {
-  bool isBorrowed = false;
-  bool showRequestPopup = false;
-  late int currentRemaining;
+  bool _showPopup = false;
 
-  @override
-  void initState() {
-    super.initState();
-    currentRemaining = widget.remaining;
+  /* -----------------------------------------------------------
+     CAN BORROW ?
+     – student has not borrowed anything yet
+     – there is at least one copy available
+     ----------------------------------------------------------- */
+  bool get _canBorrow => !_hasRequestedAnyGame && _remaining > 0;
+
+  int get _remaining {
+    return gameList
+        .where(
+          (g) => g.gameGroup == widget.gameGroup && g.status == 'Available',
+        )
+        .length;
   }
 
-  void handleBorrow() async {
-    setState(() {
-      showRequestPopup = true;
-      isBorrowed = true;
-      if (currentRemaining > 0) {
-        currentRemaining--;
+  Future<void> _handleBorrow() async {
+    if (!_canBorrow) return;
+
+    setState(() => _showPopup = true);
+
+    // ---- 1. Mark that a game has been requested (global) ----
+    _hasRequestedAnyGame = true;
+    _lastRequestedGroup = widget.gameGroup;
+
+    // ---- 2. Reduce one copy from "Available" → "Borrowing" ----
+    bool changed = false;
+    for (final g in gameList) {
+      if (g.gameGroup == widget.gameGroup &&
+          g.status == 'Available' &&
+          !changed) {
+        g.status = 'Borrowing';
+        changed = true;
+        break;
       }
-    });
+    }
 
     await Future.delayed(const Duration(seconds: 3));
 
-    if (mounted) {
-      setState(() {
-        showRequestPopup = false;
-      });
+    if (mounted) setState(() => _showPopup = false);
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final String fullUrl = url.trim().isNotEmpty && !url.startsWith('http')
+        ? 'http://$url'
+        : url;
+    final Uri uri = Uri.parse(fullUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the link.')),
+        );
+      }
     }
   }
 
@@ -60,9 +132,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.orange),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.gameName,
@@ -76,95 +146,168 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
       body: Stack(
         alignment: Alignment.center,
         children: [
-          // ⬇️ ⬇️ ⬇️ 1. ห่อหุ้มเนื้อหาด้วย SingleChildScrollView ⬇️ ⬇️ ⬇️
+          // ── Main content ─────────────────────────────────────
           SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Image
                   Center(
-                    child: Image.asset(
-                      widget.imageAssetPath,
-                      width: 180,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-                  const Divider(thickness: 1, color: Colors.orangeAccent),
-                  const SizedBox(height: 20),
-
-                  // Game Info
-                  _buildInfoRow('Name : ', widget.gameName),
-                  _buildInfoRow('Game Style : ', widget.gameStyle),
-                  _buildInfoRow('Players : ', widget.players),
-                  _buildInfoRow('Time : ', widget.time),
-
-                  // Remaining section
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        const TextSpan(
-                          text: 'Remaining : ',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        TextSpan(
-                          text: '$currentRemaining board',
-                          style: TextStyle(
-                            color: currentRemaining <= 0
-                                ? Colors.red
-                                : Colors.black,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        widget.imageAssetPath,
+                        width: 275,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 275,
+                          height: 275,
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.broken_image,
+                            size: 80,
+                            color: Colors.grey,
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  _buildInfoRow(
-                    'How to play : ',
-                    'Official website',
-                    isLink: true,
+                  const SizedBox(height: 20),
+                  const Divider(thickness: 1, color: colour_main),
+                  const SizedBox(height: 20),
+
+                  // Two‑column info
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Name : ',
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Game Style : ',
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Players : ',
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Time : ',
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Remaining : ',
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'How to play : ',
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.gameName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            widget.gameStyle,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            widget.players,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            widget.time,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '$_remaining board',
+                            style: TextStyle(
+                              color: _remaining == 0
+                                  ? colour_disable
+                                  : Colors.black,
+                              fontSize: 18,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          InkWell(
+                            onTap: () => _launchUrl(widget.glink),
+                            child: Text(
+                              widget.glink.isEmpty ? 'N/A' : widget.glink,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
 
-                  // ⬇️ ⬇️ ⬇️ 2. ลบ const Spacer() ออก ⬇️ ⬇️ ⬇️
-                  // const Spacer(), 
+                  const SizedBox(height: 30),
 
-                  // ⬇️ ⬇️ ⬇️ 3. เพิ่ม SizedBox เพื่อสร้างช่องว่างแทน ⬇️ ⬇️ ⬇️
-                  const SizedBox(height: 30), 
-
-                  // Borrow button
+                  // ── Borrow button (disabled after any request) ───────
                   Center(
                     child: SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: (isBorrowed || currentRemaining <= 0)
-                            ? null
-                            : handleBorrow,
+                        onPressed: _canBorrow ? _handleBorrow : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: (isBorrowed || currentRemaining <= 0)
-                              ? Colors.grey
-                              : Colors.orangeAccent,
+                          backgroundColor: _canBorrow
+                              ? Colors.orangeAccent
+                              : Colors.grey,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Borrow',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        child: Text(
+                          _hasRequestedAnyGame
+                              ? 'You already requested a game'
+                              : (_remaining <= 0 ? 'Out of stock' : 'Borrow'),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
-          // ⬆️ ⬆️ ⬆️ จบส่วนที่แก้ไข ⬆️ ⬆️ ⬆️
 
-          // --- ส่วน Popup ไม่ต้องแก้ไข ---
-          if (showRequestPopup)
+          // ── Popup ───────────────────────────────────────
+          if (_showPopup)
             GestureDetector(
               onTap: () {},
               child: Container(
@@ -197,7 +340,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                       ),
                       const SizedBox(height: 20),
                       const Text(
-                        'Request send',
+                        'Request sent',
                         style: TextStyle(
                           color: Colors.green,
                           fontSize: 22,
@@ -210,31 +353,6 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, {bool isLink = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            TextSpan(
-              text: value,
-              style: TextStyle(
-                color: isLink ? Colors.blue : Colors.black,
-                decoration: isLink
-                    ? TextDecoration.underline
-                    : TextDecoration.none,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

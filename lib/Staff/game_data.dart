@@ -1,5 +1,4 @@
-// file: game_data.dart
-
+// lib/Staff/game_data.dart
 class GameItem {
   String gameName;
   String gameGroup;
@@ -39,8 +38,7 @@ class GameItem {
   };
 }
 
-// ⚠️ This is the global, mutable list. All modifications must be followed by setState()
-// in the widget using it. It is sorted here by default.
+// Global mutable list – **DO NOT** make it `const`
 List<GameItem> gameList = [
   GameItem(
     gameName: 'Castle Panic',
@@ -62,7 +60,7 @@ List<GameItem> gameList = [
     minP: 2,
     maxP: 3,
     gTime: 5,
-    status: 'Disabled',
+    status: 'Available',
     picPath: 'image/Castle_Panic.webp',
     g_link: 'www.game.come',
   ),
@@ -126,4 +124,4 @@ List<GameItem> gameList = [
     picPath: 'image/The_Grizzled.webp',
     g_link: 'www.game.come',
   ),
-]..sort((a, b) => a.gameGroup.compareTo(b.gameGroup)); // Sort data immediately
+]..sort((a, b) => a.gameGroup.compareTo(b.gameGroup));

@@ -1,10 +1,42 @@
-// 📄 file: browse_student.dart
+// lib/Student/browse_student.dart
 import 'package:flutter/material.dart';
-import '/Staff/game_data.dart';
+import '/Staff/game_data.dart'; // ← gameList
 import '/login/login.dart';
-import 'student_main.dart'
-    show colour_main; // if you have main color defined here
-import 'student_borrowing.dart'; // <-- your detail/borrowing page
+import 'student_main.dart' show colour_main;
+import 'student_borrowing.dart'; // ← BorrowGamePage
+
+/// Shared _get helper (same as in BorrowGamePage)
+dynamic _get(dynamic item, String key) {
+  if (item == null) return null;
+  if (item is Map<String, dynamic>) return item[key];
+  try {
+    final obj = item as dynamic;
+    switch (key) {
+      case 'gameName':
+        return obj.gameName;
+      case 'gameStyle':
+        return obj.gameStyle;
+      case 'picPath':
+        return obj.picPath;
+      case 'status':
+        return obj.status;
+      case 'minP':
+        return obj.minP;
+      case 'maxP':
+        return obj.maxP;
+      case 'gTime':
+        return obj.gTime;
+      case 'g_link':
+        return obj.g_link;
+      case 'gameGroup':
+        return obj.gameGroup;
+      default:
+        return null;
+    }
+  } catch (_) {
+    return null;
+  }
+}
 
 class BrowseStudent extends StatefulWidget {
   const BrowseStudent({super.key});
@@ -22,58 +54,27 @@ class _BrowseStudentState extends State<BrowseStudent> {
   @override
   void initState() {
     super.initState();
-
     _filteredGames = _getUniqueGames(gameList);
-
-    final Set<String> styleSet = <String>{};
-    for (final g in gameList) {
-      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
-      if (style.isNotEmpty) styleSet.add(style);
-    }
-    categories = ['All', ...styleSet.toList()];
-
+    _buildCategories();
     _searchController.addListener(_runFilter);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_runFilter);
     _searchController.dispose();
     super.dispose();
   }
 
-  // Helper to safely extract values from GameItem or Map
-  dynamic _get(dynamic item, String key) {
-    if (item == null) return null;
-    if (item is Map<String, dynamic>) return item[key];
-    try {
-      switch (key) {
-        case 'gameName':
-          return (item as dynamic).gameName;
-        case 'gameStyle':
-          return (item as dynamic).gameStyle;
-        case 'picPath':
-          return (item as dynamic).picPath;
-        case 'status':
-          return (item as dynamic).status;
-        case 'minP':
-          return (item as dynamic).minP;
-        case 'maxP':
-          return (item as dynamic).maxP;
-        case 'gTime':
-          return (item as dynamic).gTime;
-        case 'g_link':
-          return (item as dynamic).g_link;
-        case 'gameGroup':
-          return (item as dynamic).gameGroup;
-        default:
-          return null;
-      }
-    } catch (_) {
-      return null;
+  void _buildCategories() {
+    final Set<String> styleSet = {};
+    for (final g in gameList) {
+      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
+      if (style.isNotEmpty) styleSet.add(style);
     }
+    categories = ['All', ...styleSet.toList()];
   }
 
-  // Show only one game per group
   List<dynamic> _getUniqueGames(List<dynamic> games) {
     final Map<String, dynamic> uniqueMap = {};
     for (var g in games) {
@@ -85,7 +86,6 @@ class _BrowseStudentState extends State<BrowseStudent> {
     return uniqueMap.values.toList();
   }
 
-  // Filter logic
   void _runFilter() {
     List<dynamic> results = List<dynamic>.from(gameList);
 
@@ -97,16 +97,15 @@ class _BrowseStudentState extends State<BrowseStudent> {
       }).toList();
     }
 
-    // Filter by search text
-    final searchQuery = _searchController.text.toLowerCase();
-    if (searchQuery.isNotEmpty) {
+    // Filter by search
+    final query = _searchController.text.toLowerCase();
+    if (query.isNotEmpty) {
       results = results.where((game) {
         final name = (_get(game, 'gameName') ?? '').toString().toLowerCase();
-        return name.contains(searchQuery);
+        return name.contains(query);
       }).toList();
     }
 
-    // Keep one per group
     setState(() {
       _filteredGames = _getUniqueGames(results);
     });
@@ -120,6 +119,7 @@ class _BrowseStudentState extends State<BrowseStudent> {
           color: Colors.white,
           child: Column(
             children: [
+              // Header
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -188,11 +188,10 @@ class _BrowseStudentState extends State<BrowseStudent> {
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = category == selectedCategory;
-
           return GestureDetector(
             onTap: () {
               setState(() => selectedCategory = category);
-              _runFilter();
+              _runFilter(); // ← Fixed: Now updates grid
             },
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 4),
@@ -246,26 +245,23 @@ class _BrowseStudentState extends State<BrowseStudent> {
         final gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
         final glink = _get(game, 'g_link')?.toString() ?? '';
 
-        final int remaining = gameList.where((g) {
-          final gg = _get(g, 'gameGroup')?.toString() ?? '';
-          final st = _get(g, 'status')?.toString().toLowerCase() ?? '';
-          return gg == gameGroup && st == 'available';
-        }).length;
-
         return GestureDetector(
           onTap: () {
+            // Inside itemBuilder of GridView
+            final gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
+
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BorrowGamePage(
+                builder: (_) => BorrowGamePage(
                   gameName: gameName,
                   imageAssetPath: picPath,
                   gameStyle: gameStyle,
                   players:
                       "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} peoples",
                   time: "${_get(game, 'gTime') ?? 0} min",
-                  // glink: glink,
-                  remaining: remaining,
+                  glink: glink,
+                  gameGroup: gameGroup, // ← REQUIRED
                 ),
               ),
             );
@@ -277,7 +273,7 @@ class _BrowseStudentState extends State<BrowseStudent> {
   }
 }
 
-// === Game Card ===
+// === Game Card (unchanged) ===
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -316,7 +312,6 @@ class GameCard extends StatelessWidget {
         child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
       );
     }
-
     return Image.asset(
       imagePath,
       fit: BoxFit.cover,
