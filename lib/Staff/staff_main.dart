@@ -18,23 +18,45 @@ class StaffMain extends StatefulWidget {
   State<StaffMain> createState() => _StaffMainState();
 }
 
-class _StaffMainState extends State<StaffMain> {
+class _StaffMainState extends State<StaffMain> with TickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 5, vsync: this, initialIndex: 0);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 5,
-      initialIndex: 0,
       child: Scaffold(
         bottomNavigationBar: Container(
           height: 75,
           decoration: const BoxDecoration(
             border: Border(top: BorderSide(width: 0.5, color: colour_main)),
           ),
-          child: const TabBar(
+          child: TabBar(
+            controller: _tabController,
             labelColor: colour_main,
             unselectedLabelColor: Colors.grey,
             indicatorColor: colour_main,
-            tabs: [
+            onTap: (index) {
+              if (index == 4) {
+                // กดแท็บ Logout → แสดง dialog แทนการเปลี่ยนหน้า
+                StaffLogout.show(context);
+                // ป้องกันไม่ให้เปลี่ยนไปแท็บที่ 5
+                _tabController.index = _tabController.previousIndex;
+              }
+            },
+            tabs: const [
               Tab(icon: Icon(FontAwesomeIcons.gamepad)),
               Tab(icon: Icon(Icons.pie_chart)),
               Tab(icon: Icon(FontAwesomeIcons.boxesPacking)),
@@ -43,13 +65,14 @@ class _StaffMainState extends State<StaffMain> {
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [
+        body: TabBarView(
+          controller: _tabController,
+          children: const [
             StaffBrowse(),
             StaffDashboard(),
             StaffReturnAsset(),
             StaffHistory(),
-            StaffLogout(),
+            Center(child: Text('')), // หน้าเปล่าสำหรับแท็บ Logout (ไม่แสดง)
           ],
         ),
       ),

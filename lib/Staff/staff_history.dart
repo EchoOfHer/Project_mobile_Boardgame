@@ -1,17 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'staff_browse_list.dart'; 
-import '/login/login.dart';       
 
-
-class HistoryStaffPage extends StatefulWidget {
-  const HistoryStaffPage({super.key});
+class StaffHistory extends StatefulWidget {
+  const StaffHistory({super.key});
 
   @override
-  State<HistoryStaffPage> createState() => _HistoryStaffPageState();
+  State<StaffHistory> createState() => _StaffHistoryState();
 }
 
-class _HistoryStaffPageState extends State<HistoryStaffPage> {
+class _StaffHistoryState extends State<StaffHistory> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
 
@@ -48,9 +45,6 @@ class _HistoryStaffPageState extends State<HistoryStaffPage> {
 
   late List<Map<String, String>> _filtered;
 
-  // ⬇️⬇️⬇️ 2. กำหนด INDEX ของหน้านี้ (0=Games, 1=Stats, 2=Assets, 3=Bookings) ⬇️⬇️⬇️
-  final int _selectedIndex = 3; // 3 คือ "Bookings" (History)
-
   @override
   void initState() {
     super.initState();
@@ -66,7 +60,6 @@ class _HistoryStaffPageState extends State<HistoryStaffPage> {
   }
 
   void _onSearchChange() {
-    // ... (โค้ดเดิม ไม่ต้องแก้ไข) ...
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 200), () {
       final q = _search.text.trim().toLowerCase();
@@ -91,144 +84,12 @@ class _HistoryStaffPageState extends State<HistoryStaffPage> {
     FocusScope.of(context).unfocus();
   }
 
-  // ⬇️⬇️⬇️ 3. เพิ่มฟังก์ชันสำหรับ BOTTOM NAV BAR (คัดลอกจาก BrowseStaff) ⬇️⬇️⬇️
-
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return; // ไม่ต้องทำอะไรถ้ากดปุ่มของหน้าปัจจุบัน
-
-    switch (index) {
-      case 0: // Games
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BrowseStaff()),
-        );
-        break;
-      case 1: // Stats
-        // ยังไม่เชื่อมหน้าอื่น
-        break;
-      case 2: // Assets
-        // ยังไม่เชื่อมหน้าอื่น
-        break;
-      case 3: // Bookings (หน้านี้)
-        break;
-      case 4: // Logout
-        _showLogoutDialog();
-        break;
-    }
-  }
-
-  void _showLogoutDialog() {
-    const Color logoutColor = Color(0xFFFF7C7C);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.logout, size: 60, color: logoutColor),
-              const SizedBox(height: 16),
-              Text(
-                "Log Out",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: logoutColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Are you sure you want to log out of your account?",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      foregroundColor: Colors.black54,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext); // ปิด dialog
-                    },
-                    child: const Text("Cancle"), // เขียนเหมือนต้นฉบับ
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: logoutColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Login()),
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: const Text("Confirm"),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.favorite_border),
-          activeIcon: Icon(Icons.favorite),
-          label: 'Games',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.pie_chart),
-          activeIcon: Icon(Icons.pie_chart),
-          label: 'Stats',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.widgets),
-          activeIcon: Icon(Icons.widgets),
-          label: 'Assets',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today),
-          activeIcon: Icon(Icons.calendar_today),
-          label: 'Bookings',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.logout),
-          activeIcon: Icon(Icons.logout),
-          label: 'Logout',
-        ),
-      ],
-      currentIndex: _selectedIndex, // ⭐️ ใช้ตัวแปรที่ตั้งค่าไว้ (3)
-      onTap: _onItemTapped, // ⭐️ เชื่อมต่อฟังก์ชัน
-      selectedItemColor: Colors.orange[800],
-      unselectedItemColor: Colors.grey[600],
-      showSelectedLabels: false,
-      showUnselectedLabels: false,
-      type: BottomNavigationBarType.fixed,
-    );
-  }
-  // ⬆️⬆️⬆️ จบส่วน Bottom Nav Bar ⬆️⬆️⬆️
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      body: SafeArea(
+    return SafeArea(
+      child: Container(
+        color: const Color(0xFFF7F7F7), // สีพื้นหลังเดิมของ Scaffold
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -308,15 +169,10 @@ class _HistoryStaffPageState extends State<HistoryStaffPage> {
           ),
         ),
       ),
-      
-      // ⬇️⬇️⬇️ 4. เพิ่ม Bottom Nav Bar เข้าไปใน SCAFFOLD ⬇️⬇️⬇️
-      bottomNavigationBar: _buildBottomNav(),
-      // ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️ ⬆️⬆️⬆️
     );
   }
 }
 
-// ... (คลาส HistoryCard ไม่ต้องแก้ไข) ...
 class HistoryCard extends StatelessWidget {
   final Map<String, String> item;
   const HistoryCard({super.key, required this.item});

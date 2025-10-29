@@ -1,7 +1,7 @@
 // lib/Staff_screens/EditGame.dart
 import 'package:flutter/material.dart';
-import 'package:boardgame_app/Staff_screens/game_input_form.dart';
-import 'package:boardgame_app/Staff_screens/staff_main.dart'
+import 'package:boardgame_app/Staff/game_input_form.dart';
+import 'package:boardgame_app/Staff/staff_main.dart'
     show colour_available, colour_main, colour_available, colour_main;
 // import 'staff_dashboard.dart';
 import 'game_data.dart';

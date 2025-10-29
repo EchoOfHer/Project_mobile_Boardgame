@@ -1,9 +1,8 @@
-import 'package:boardgame_app/Staff_screens/staff_main.dart';
 import 'package:flutter/material.dart';
 import 'register.dart';
 import 'package:boardgame_app/Student/student_browse_list.dart';
 import 'package:boardgame_app/Lender/lender_browse_list.dart';
-import 'package:boardgame_app/Staff/staff_browse_list.dart';
+import 'package:boardgame_app/Staff/staff_main.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});

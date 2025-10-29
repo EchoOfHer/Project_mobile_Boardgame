@@ -1,6 +1,6 @@
 // file: staff_dashboard.dart
 
-import 'package:boardgame_app/Staff_screens/Add_New_Game.dart';
+import 'package:boardgame_app/Staff/Add_New_Game.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'EditGame.dart';
@@ -9,9 +9,6 @@ import 'staff_main.dart'
 // 👇 1. Import the data model and the mutable global list
 import 'game_data.dart';
 
-// -----------------------------------------------------------------------------
-// STATUS CARD (No changes needed)
-// -----------------------------------------------------------------------------
 class StatusCard extends StatelessWidget {
   final String label;
   final int count;
@@ -58,9 +55,6 @@ class StatusCard extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// GAME CARD (No changes needed)
-// -----------------------------------------------------------------------------
 class GameCard extends StatelessWidget {
   final GameItem game;
   final VoidCallback? onStatusTap;
@@ -154,9 +148,6 @@ class GameCard extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// GROUPED GAME LIST (No changes needed)
-// -----------------------------------------------------------------------------
 class GroupedGameList extends StatelessWidget {
   final List<GameItem> games;
   final Function(int gameId) onStatusToggle;
@@ -184,7 +175,7 @@ class GroupedGameList extends StatelessWidget {
     for (int i = 0; i < games.length; i++) {
       final game = games[i];
       final isNewGroup = lastGroup != game.gameGroup;
-      // Note: This logic relies entirely on the 'games' list being pre-sorted by gameGroup.
+
       final isLastInGroup =
           i == games.length - 1 || games[i + 1].gameGroup != game.gameGroup;
 
@@ -273,9 +264,6 @@ class GroupedGameList extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// MAIN DASHBOARD STATE (Logic Fixes Applied Here)
-// -----------------------------------------------------------------------------
 class StaffDashboard extends StatefulWidget {
   const StaffDashboard({super.key});
   @override
@@ -289,7 +277,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   @override
   void initState() {
     super.initState();
-    // 2. Ensure the global list is sorted on startup for initial display correctness
+
     gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
 
     _filteredGames = List.from(gameList);
@@ -347,7 +335,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           );
         }
       }
-      // Re-sort to maintain correct grouping after a potential group name change
+
       gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
       _filteredGames = List.from(gameList);
       _updateStatusCounts();
@@ -363,11 +351,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
         .where((g) => g.status == 'Borrowed' || g.status == 'Borrowing')
         .length;
 
-    // ไม่ให้ลดต่ำกว่าจำนวนที่ยืมอยู่
     if (newCount < borrowedCount) return;
 
     if (newCount > currentCount) {
-      // === เพิ่มชุดใหม่เข้าไปในกลุ่ม ===
       final maxId = gameList.isEmpty
           ? 0
           : gameList.map((g) => g.gameId).reduce((a, b) => a > b ? a : b);
@@ -391,16 +377,13 @@ class _StaffDashboardState extends State<StaffDashboard> {
         newItems.add(newGame);
       }
 
-      // หาตำแหน่งของกลุ่มใน gameList
       final groupStartIndex = gameList.indexWhere(
         (g) => g.gameGroup == groupName,
       );
       final groupEndIndex = groupStartIndex + currentCount;
 
-      // แทรกเข้าไปในตำแหน่งเดิม
       gameList.insertAll(groupEndIndex, newItems);
     } else if (newCount < currentCount) {
-      // === ลดชุด: ลบจากท้ายกลุ่ม ===
       final toRemove = currentGames
           .where((g) => g.status != 'Borrowed' && g.status != 'Borrowing')
           .toList();
@@ -408,7 +391,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
       final removeCount = currentCount - newCount;
       if (toRemove.length < removeCount) return;
 
-      // เรียงจาก ID มากไปน้อย แล้วลบจากท้าย
       toRemove.sort((a, b) => b.gameId.compareTo(a.gameId));
       for (int i = 0; i < removeCount; i++) {
         final idToRemove = toRemove[i].gameId;
@@ -422,7 +404,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
     });
   }
 
-  // 🐛 FIX: Ensured proper Map key access, sorted, and refreshed _filteredGames
   void _addNewGames(Map newGameData) {
     // Safely parse count, default to 1
     final count =
@@ -433,7 +414,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     final baseId = maxId + 1;
 
     final String gameName = newGameData['game_name']?.toString() ?? 'Unknown';
-    // Use the correct key 'game_how2' from AddNewGame for the link, or 'gamelink' for consistency
+
     final String link = newGameData['game_how2']?.toString() ?? '';
     final String picPath =
         'image/${newGameData['game_imageP'] ?? 'default.jpg'}';
@@ -455,11 +436,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
       );
     }
 
-    // 3. CRITICAL FIX: Sort the global list so GroupedGameList renders correctly
     gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
 
     setState(() {
-      // 4. CRITICAL FIX: Set the filtered list to the full, newly sorted master list
       _filteredGames = List.from(gameList);
       _updateStatusCounts();
     });
