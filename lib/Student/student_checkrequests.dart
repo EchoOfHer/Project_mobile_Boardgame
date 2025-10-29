@@ -1,3 +1,4 @@
+import 'package:boardgame_app/Student/student_main.dart';
 import 'package:flutter/material.dart';
 
 class StudentCheckrequests extends StatefulWidget {
@@ -14,36 +15,35 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Container(
-        color: const Color.fromARGB(255, 255, 255, 255),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 40),
                 const Text(
                   "Borrow status",
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    color: colour_main,
                   ),
                 ),
-                Divider(color: const Color.fromARGB(255, 255, 115, 0)),
+                const Divider(color: colour_main),
                 const SizedBox(height: 10),
                 buildBorrowCard(),
                 const SizedBox(height: 30),
                 const Text(
                   "Request status",
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    color: colour_main,
                   ),
                 ),
-                Divider(color: const Color.fromARGB(255, 255, 115, 0)),
+                const Divider(color: colour_main),
                 const SizedBox(height: 10),
                 hasRequest ? buildRequestCard() : buildNoRequestText(),
               ],
@@ -57,48 +57,68 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
   Widget buildBorrowCard() {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              "image/Castle_Panic.webp",
-              width: 70,
-              height: 90,
-              fit: BoxFit.cover,
+            // ✅ Container with background color + rounded border + image
+            Container(
+              width: 125,
+              height: 125,
+              decoration: BoxDecoration(
+                color: colour_available.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colour_available, width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  "image/Castle_Panic.webp",
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
             const SizedBox(width: 16),
+
+            // ✅ Info Section
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Exploding kittens",
+                    "Castle Panic",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   const Text("From: 27/10/2025\nTo: 28/10/2025"),
-                  const SizedBox(height: 6),
-                  Text(
-                    isReturning ? "Returning in process" : "In use",
-                    style: TextStyle(
-                      color: isReturning ? Colors.grey : Colors.green,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                   const SizedBox(height: 10),
-                  if (!isReturning)
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.orange,
-                        side: const BorderSide(color: Colors.orange),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isReturning ? "Returning in process" : "In use",
+                        style: TextStyle(
+                          color: isReturning ? Colors.grey : colour_available,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                      onPressed: () {
-                        setState(() => isReturning = true);
-                        showReturningDialog();
-                      },
-                      child: const Text("Return Assets"),
-                    ),
+                      if (!isReturning)
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colour_main,
+                            side: const BorderSide(color: colour_main),
+                          ),
+                          onPressed: () {
+                            setState(() => isReturning = true);
+                            showReturningDialog();
+                          },
+                          child: const Text("Return"),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -111,15 +131,27 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
   Widget buildRequestCard() {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              "image/Champions_of_Hara.webp",
-              width: 70,
-              height: 90,
-              fit: BoxFit.cover,
+            Container(
+              width: 125,
+              height: 125,
+              decoration: BoxDecoration(
+                color: colour_borrow.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colour_borrow, width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  "image/Champions_of_Hara.webp",
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -127,27 +159,32 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Exploding kittens",
+                    "Champions of Hara",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   const Text("From: 29/10/2025\nTo: 30/10/2025"),
-                  const SizedBox(height: 6),
-                  const Text(
-                    "Pending",
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                   const SizedBox(height: 10),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.orange,
-                      side: const BorderSide(color: Colors.orange),
-                    ),
-                    onPressed: showCancelDialog,
-                    child: const Text("Cancel request"),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Pending",
+                        style: TextStyle(
+                          color: colour_borrow,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colour_main,
+                          side: const BorderSide(color: colour_main),
+                        ),
+                        onPressed: showCancelDialog,
+                        child: const Text("Cancel"),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -187,8 +224,9 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
         ),
       ),
     );
+
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
+      if (mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
       }
     });
@@ -202,18 +240,14 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.cancel_outlined,
-              size: 60,
-              color: Colors.redAccent,
-            ),
+            const Icon(Icons.cancel_outlined, size: 60, color: colour_disable),
             const SizedBox(height: 16),
             const Text(
               "Cancel",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.red,
+                color: colour_disable,
               ),
             ),
             const SizedBox(height: 8),
@@ -227,15 +261,20 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
               children: [
                 OutlinedButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text("No"),
+                  child: const Text("No", style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colour_disable,
+                  ),
                   onPressed: () {
                     setState(() => hasRequest = false);
                     Navigator.pop(dialogContext);
                   },
-                  child: const Text("Yes"),
+                  child: const Text(
+                    "Yes",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
