@@ -25,7 +25,6 @@ class _LoginState extends State<Login> {
   void _handleLogin() {
     // 1. ตรวจสอบว่ากรอกข้อมูลครบ (validate)
     if (_formKey.currentState!.validate()) {
-      
       // 2. ดึงค่า username และ password จาก controller
       String username = _usernameController.text;
       String password = _passwordController.text;
@@ -45,7 +44,7 @@ class _LoginState extends State<Login> {
       } else if (username == "staff" && password == "123789") {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => StaffMain()),
+          MaterialPageRoute(builder: (context) => const StaffMain()),
         );
       } else {
         // --- ล็อกอินไม่สำเร็จ ---
@@ -57,11 +56,9 @@ class _LoginState extends State<Login> {
           ),
         );
       }
-    
     }
   }
   // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
-
 
   // ⬇️⬇️⬇️ เพิ่มส่วนนี้เพื่อคืน Memory เมื่อปิดหน้า ⬇️⬇️⬇️
   @override
@@ -71,7 +68,6 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
   // ⬆️⬆️⬆️ จบส่วนที่เพิ่ม ⬆️⬆️⬆️
-
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +216,8 @@ class _LoginState extends State<Login> {
                   width: 130,
                   height: screenHeight * 0.06,
                   child: ElevatedButton(
-                    onPressed: _handleLogin, // <--- เรียกใช้ฟังก์ชันที่แก้ไขแล้ว
+                    onPressed:
+                        _handleLogin, // <--- เรียกใช้ฟังก์ชันที่แก้ไขแล้ว
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.deepOrange,
