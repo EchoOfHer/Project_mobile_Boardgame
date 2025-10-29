@@ -1,79 +1,37 @@
+// 📄 file: browse_student.dart
 import 'package:flutter/material.dart';
-import 'package:boardgame_app/Student/student_borrowing.dart';
+import '/Staff/game_data.dart';
+import '/login/login.dart';
+import 'student_main.dart'
+    show colour_main; // if you have main color defined here
+import 'student_borrowing.dart'; // <-- your detail/borrowing page
 
-// ⭐️ 1. เปลี่ยนเป็น StatefulWidget
-class StudentBrowse extends StatefulWidget {
-  const StudentBrowse({super.key});
+class BrowseStudent extends StatefulWidget {
+  const BrowseStudent({super.key});
 
   @override
-  State<StudentBrowse> createState() => _StudentBrowseState();
+  State<BrowseStudent> createState() => _BrowseStudentState();
 }
 
-class _StudentBrowseState extends State<StudentBrowse> {
-  // ⭐️ 2. ย้าย State, Controllers, และข้อมูลทั้งหมดมาที่นี่
+class _BrowseStudentState extends State<BrowseStudent> {
   final TextEditingController _searchController = TextEditingController();
-  late List<Map<String, dynamic>> _filteredGames;
-
-  // ข้อมูลจำลองสำหรับเกม
-  final List<Map<String, dynamic>> games = [
-    {
-      'title': 'Exploding Kittens',
-      'image': 'image/Exploding_Kitten.webp',
-      'gameStyle': 'Party',
-      'players': '2-10 peoples',
-      'time': '10 min',
-      'remaining': 1,
-    },
-    {
-      'title': 'One Week Werewolf',
-      'image': 'image/One_Week_Werewolf.webp',
-      'gameStyle': 'Party',
-      'players': '3-7 players',
-      'time': '10 min',
-      'remaining': 3,
-    },
-    {
-      'title': 'Catan',
-      'image': 'image/Catan.jpg',
-      'gameStyle': 'Strategy',
-      'players': '3-4 players',
-      'time': '60-120 min',
-      'remaining': 2,
-    },
-    {
-      'title': 'Splendor',
-      'image': 'image/Splendor.jpg',
-      'gameStyle': 'Strategy',
-      'players': '2-4 players',
-      'time': '30 min',
-      'remaining': 0,
-    },
-    {
-      'title': 'Avalon',
-      'image': 'image/Avalon.jpg',
-      'gameStyle': 'Bluffing',
-      'players': '5-10 players',
-      'time': '30 min',
-      'remaining': 1,
-    },
-  ];
-
-  final List<String> categories = [
-    'All',
-    'Family',
-    'Party',
-    'Bluffing',
-    'Abstract',
-    'Dice',
-    'Strategy',
-  ];
+  late List<dynamic> _filteredGames;
+  late List<String> categories;
   String selectedCategory = 'All';
 
-  // ⭐️ 3. ย้าย initState และ dispose
   @override
   void initState() {
     super.initState();
-    _filteredGames = List.from(games);
+
+    _filteredGames = _getUniqueGames(gameList);
+
+    final Set<String> styleSet = <String>{};
+    for (final g in gameList) {
+      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
+      if (style.isNotEmpty) styleSet.add(style);
+    }
+    categories = ['All', ...styleSet.toList()];
+
     _searchController.addListener(_runFilter);
   }
 
@@ -83,39 +41,83 @@ class _StudentBrowseState extends State<StudentBrowse> {
     super.dispose();
   }
 
-  // ⭐️ 4. ย้ายฟังก์ชันกรอง
-  void _runFilter() {
-    List<Map<String, dynamic>> results = List.from(games);
-    final String searchQuery = _searchController.text.toLowerCase();
+  // Helper to safely extract values from GameItem or Map
+  dynamic _get(dynamic item, String key) {
+    if (item == null) return null;
+    if (item is Map<String, dynamic>) return item[key];
+    try {
+      switch (key) {
+        case 'gameName':
+          return (item as dynamic).gameName;
+        case 'gameStyle':
+          return (item as dynamic).gameStyle;
+        case 'picPath':
+          return (item as dynamic).picPath;
+        case 'status':
+          return (item as dynamic).status;
+        case 'minP':
+          return (item as dynamic).minP;
+        case 'maxP':
+          return (item as dynamic).maxP;
+        case 'gTime':
+          return (item as dynamic).gTime;
+        case 'g_link':
+          return (item as dynamic).g_link;
+        case 'gameGroup':
+          return (item as dynamic).gameGroup;
+        default:
+          return null;
+      }
+    } catch (_) {
+      return null;
+    }
+  }
 
+  // Show only one game per group
+  List<dynamic> _getUniqueGames(List<dynamic> games) {
+    final Map<String, dynamic> uniqueMap = {};
+    for (var g in games) {
+      final group = _get(g, 'gameGroup')?.toString() ?? '';
+      if (group.isNotEmpty && !uniqueMap.containsKey(group)) {
+        uniqueMap[group] = g;
+      }
+    }
+    return uniqueMap.values.toList();
+  }
+
+  // Filter logic
+  void _runFilter() {
+    List<dynamic> results = List<dynamic>.from(gameList);
+
+    // Filter by category
     if (selectedCategory != 'All') {
       results = results.where((game) {
-        return game['gameStyle']!.toLowerCase() == selectedCategory.toLowerCase();
+        final style = (_get(game, 'gameStyle') ?? '').toString().toLowerCase();
+        return style == selectedCategory.toLowerCase();
       }).toList();
     }
 
+    // Filter by search text
+    final searchQuery = _searchController.text.toLowerCase();
     if (searchQuery.isNotEmpty) {
       results = results.where((game) {
-        return game['title']!.toLowerCase().contains(searchQuery);
+        final name = (_get(game, 'gameName') ?? '').toString().toLowerCase();
+        return name.contains(searchQuery);
       }).toList();
     }
 
+    // Keep one per group
     setState(() {
-      _filteredGames = results;
+      _filteredGames = _getUniqueGames(results);
     });
   }
 
-  // ⭐️ 5. ลบ _onItemTapped, _showLogoutDialog, และ _buildBottomNav ออก
-
-  // ⭐️ 6. แก้ไข build method
   @override
   Widget build(BuildContext context) {
-    // ⭐️ 7. คืนค่าเป็น SafeArea และย้าย UI จาก body ของ Scaffold มาใส่
-    return SafeArea(
-      child: Container(
-        decoration: const BoxDecoration(color: Colors.white),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+    return Scaffold(
+      body: SafeArea(
+        child: Container(
+          color: Colors.white,
           child: Column(
             children: [
               Padding(
@@ -137,15 +139,13 @@ class _StudentBrowseState extends State<StudentBrowse> {
                     ),
                     const SizedBox(height: 20),
                     _buildSearchBar(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     _buildCategoryFilters(),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: _buildGameGrid(),
-              ),
+              const SizedBox(height: 10),
+              Expanded(child: _buildGameGrid()),
             ],
           ),
         ),
@@ -153,26 +153,25 @@ class _StudentBrowseState extends State<StudentBrowse> {
     );
   }
 
-  // ⭐️ 8. ย้าย UI helper methods ที่เหลือมาทั้งหมด
   Widget _buildSearchBar() {
     return TextField(
       controller: _searchController,
       decoration: InputDecoration(
         hintText: 'Search by game title...',
-        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+        suffixIcon: const Icon(Icons.search, color: Colors.grey),
         filled: true,
         fillColor: Colors.grey[100],
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Colors.orange),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Colors.orange),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: const BorderSide(color: Colors.orange),
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Colors.orange, width: 2),
         ),
       ),
     );
@@ -180,24 +179,24 @@ class _StudentBrowseState extends State<StudentBrowse> {
 
   Widget _buildCategoryFilters() {
     return SizedBox(
-      height: 40,
-      child: ListView.builder(
+      height: 42,
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = category == selectedCategory;
 
           return GestureDetector(
             onTap: () {
-              setState(() {
-                selectedCategory = category;
-              });
+              setState(() => selectedCategory = category);
               _runFilter();
             },
             child: Container(
-              margin: const EdgeInsets.only(right: 8.0),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected ? Colors.orange : Colors.grey[200],
                 borderRadius: BorderRadius.circular(20),
@@ -206,8 +205,9 @@ class _StudentBrowseState extends State<StudentBrowse> {
                 child: Text(
                   category,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black54,
+                    color: isSelected ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -229,43 +229,55 @@ class _StudentBrowseState extends State<StudentBrowse> {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
         childAspectRatio: 0.75,
       ),
       itemCount: _filteredGames.length,
       itemBuilder: (context, index) {
-        final gameData = _filteredGames[index];
+        final game = _filteredGames[index];
+
+        final gameName = _get(game, 'gameName')?.toString() ?? '';
+        final gameStyle = _get(game, 'gameStyle')?.toString() ?? '';
+        final picPath = _get(game, 'picPath')?.toString() ?? '';
+        final gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
+        final glink = _get(game, 'g_link')?.toString() ?? '';
+
+        final int remaining = gameList.where((g) {
+          final gg = _get(g, 'gameGroup')?.toString() ?? '';
+          final st = _get(g, 'status')?.toString().toLowerCase() ?? '';
+          return gg == gameGroup && st == 'available';
+        }).length;
+
         return GestureDetector(
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => BorrowGamePage(
-                  gameName: gameData['title']!,
-                  imageAssetPath: gameData['image']!,
-                  gameStyle: gameData['gameStyle']!,
-                  players: gameData['players']!,
-                  time: gameData['time']!,
-                  remaining: gameData['remaining']!,
+                  gameName: gameName,
+                  imageAssetPath: picPath,
+                  gameStyle: gameStyle,
+                  players:
+                      "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} peoples",
+                  time: "${_get(game, 'gTime') ?? 0} min",
+                  // glink: glink,
+                  remaining: remaining,
                 ),
               ),
             );
           },
-          child: GameCard(
-            title: gameData['title']!,
-            imagePath: gameData['image']!,
-          ),
+          child: GameCard(title: gameName, imagePath: picPath),
         );
       },
     );
   }
 }
 
-// ⭐️ 9. ย้ายคลาส GameCard มาไว้ในไฟล์นี้ด้วย
+// === Game Card ===
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -281,18 +293,7 @@ class GameCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
-                );
-              },
-            ),
-          ),
+          Expanded(child: _buildImageOrPlaceholder()),
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: Text(
@@ -305,6 +306,26 @@ class GameCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildImageOrPlaceholder() {
+    if (imagePath.trim().isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+      );
+    }
+
+    return Image.asset(
+      imagePath,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[200],
+          child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+        );
+      },
     );
   }
 }

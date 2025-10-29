@@ -18,14 +18,19 @@ class StudentMain extends StatefulWidget {
   State<StudentMain> createState() => _StudentMainState();
 }
 
-class _StudentMainState extends State<StudentMain> with TickerProviderStateMixin {
+class _StudentMainState extends State<StudentMain>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   final int _tabCount = 4; // ✅ มี 4 แท็บจริง ๆ
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabCount, vsync: this, initialIndex: 0);
+    _tabController = TabController(
+      length: _tabCount,
+      vsync: this,
+      initialIndex: 0,
+    );
   }
 
   @override
@@ -59,10 +64,10 @@ class _StudentMainState extends State<StudentMain> with TickerProviderStateMixin
               }
             },
             tabs: const [
-              Tab(icon: Icon(FontAwesomeIcons.gamepad)),      // Browse
-              Tab(icon: Icon(Icons.list_alt)),                 // Borrowing
-              Tab(icon: Icon(FontAwesomeIcons.calendarMinus)), // History
-              Tab(icon: Icon(Icons.logout)),                   // Logout
+              Tab(icon: Icon(FontAwesomeIcons.gamepad)),
+              Tab(icon: Icon(Icons.pie_chart)),
+              Tab(icon: Icon(FontAwesomeIcons.calendarMinus)),
+              Tab(icon: Icon(Icons.logout)),
             ],
           ),
         ),
@@ -70,7 +75,7 @@ class _StudentMainState extends State<StudentMain> with TickerProviderStateMixin
           controller: _tabController,
           physics: const NeverScrollableScrollPhysics(),
           children: const [
-            StudentBrowse(),
+            BrowseStudent(),
             StudentCheckrequests(),
             StudentHistory(),
             Center(child: Text('')), // หน้า logout ว่าง
