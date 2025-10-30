@@ -255,7 +255,9 @@ class HistoryCard extends StatelessWidget {
           //  Dates
           _row('Borrowed date :', item['borrowedDate'] ?? '-'),
           const SizedBox(height: 6),
-          _row('Returned date :', item['returnedDate'] ?? '-'),
+
+          //  Returned date (เฉพาะ Approve)
+          if (isApprove) _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
     );
