@@ -211,12 +211,12 @@ class HistoryCard extends StatelessWidget {
         children: [
           // Game title
           Text(
-            item['game']!,
+            item['game'] ?? '-',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
-            'ID : ${item['id']}',
+            'ID : ${item['id'] ?? '-'}',
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
@@ -263,9 +263,12 @@ class HistoryCard extends StatelessWidget {
 
           const Divider(height: 20, thickness: 0.5),
 
+          // Dates
           _row('Borrowed date :', item['borrowedDate'] ?? '-'),
           const SizedBox(height: 6),
-          _row('Returned date :', item['returnedDate'] ?? '-'),
+
+          // Returned date (เฉพาะ Approve)
+          if (isApprove) _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
     );
