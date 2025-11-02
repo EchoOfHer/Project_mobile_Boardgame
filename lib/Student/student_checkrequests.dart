@@ -1,6 +1,12 @@
 import 'package:boardgame_app/Student/student_main.dart';
 import 'package:flutter/material.dart';
 
+// 🌟 FIXED: New Color Definitions
+const Color colour_main = Color(0xFFFF8000); // Main Orange
+const Color colour_available = Color(0xFF729382); // Available Green
+const Color colour_borrow = Color(0xFFEFA34B); // Borrow/Pending Orange
+const Color colour_disable = Color(0xFFFF7C7C); // Disable/Cancel Red
+
 class StudentCheckrequests extends StatefulWidget {
   const StudentCheckrequests({super.key});
 
@@ -9,11 +15,16 @@ class StudentCheckrequests extends StatefulWidget {
 }
 
 class _StudentCheckrequestsState extends State<StudentCheckrequests> {
-  bool hasRequest = true;
-  bool isReturning = false;
+  // 🌟 FIXED: Set default state back to 'In use'
+  bool itemInUse = true; // Game currently checked out (In use / Returning)
+  bool itemPending = false; // No request pending
+  bool isReturning = false; // Not yet in the return process
 
   @override
   Widget build(BuildContext context) {
+    // Determine if any item needs to be displayed
+    bool hasActiveItem = itemInUse || itemPending;
+
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -23,8 +34,9 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Combined Borrow Status and Request Status into one section
                 const Text(
-                  "Borrow status",
+                  "Current Status",
                   style: TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.w600,
@@ -33,19 +45,9 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                 ),
                 const Divider(color: colour_main),
                 const SizedBox(height: 10),
-                buildBorrowCard(),
-                const SizedBox(height: 30),
-                const Text(
-                  "Request status",
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w600,
-                    color: colour_main,
-                  ),
-                ),
-                const Divider(color: colour_main),
-                const SizedBox(height: 10),
-                hasRequest ? buildRequestCard() : buildNoRequestText(),
+
+                // Display the active status card or the "No item" message
+                hasActiveItem ? buildStatusCard() : buildNoActiveItemText(),
               ],
             ),
           ),
@@ -54,7 +56,27 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
     );
   }
 
-  Widget buildBorrowCard() {
+  // Created a single function to build the status card
+  Widget buildStatusCard() {
+    // Determine displayed content based on status flags
+    final String cardTitle = itemInUse ? "Castle Panic" : "Champions of Hara";
+    final String imagePath = itemInUse
+        ? "image/Castle_Panic.webp"
+        : "image/Champions_of_Hara.webp";
+    // Colors updated to use the new definitions
+    // final Color borderColor = itemInUse ? colour_available : colour_borrow;
+
+    final String currentStatusText;
+    final Color statusTextColor;
+
+    if (itemInUse) {
+      currentStatusText = isReturning ? "Returning in process" : "In use";
+      statusTextColor = isReturning ? Colors.grey : colour_available;
+    } else {
+      currentStatusText = "Pending";
+      statusTextColor = colour_borrow;
+    }
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 2,
@@ -63,33 +85,29 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Container with background color + rounded border + image
+            // Image Section
             Container(
               width: 125,
               height: 125,
-              decoration: BoxDecoration(
-                color: colour_available.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colour_available, width: 2),
-              ),
+
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  "image/Castle_Panic.webp",
-                  fit: BoxFit.cover,
-                ),
+                child: Image.asset(imagePath, fit: BoxFit.cover),
               ),
             ),
             const SizedBox(width: 16),
 
-            // ✅ Info Section
+            // Info and Button Section
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Castle Panic",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    cardTitle,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   const Text("From: 27/10/2025\nTo: 28/10/2025"),
@@ -98,25 +116,36 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isReturning ? "Returning in process" : "In use",
+                        currentStatusText,
                         style: TextStyle(
-                          color: isReturning ? Colors.grey : colour_available,
+                          color: statusTextColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                      if (!isReturning)
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colour_main,
-                            side: const BorderSide(color: colour_main),
-                          ),
-                          onPressed: () {
-                            setState(() => isReturning = true);
-                            showReturningDialog();
-                          },
-                          child: const Text("Return"),
-                        ),
+
+                      // Conditional button display
+                      itemInUse && !isReturning
+                          ? OutlinedButton(
+                              // Button for "In use" -> Return
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colour_main,
+                                side: const BorderSide(color: colour_main),
+                              ),
+                              onPressed: showReturningDialog,
+                              child: const Text("Return"),
+                            )
+                          : itemPending
+                          ? OutlinedButton(
+                              // Button for "Pending" -> Cancel
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: colour_disable,
+                                side: const BorderSide(color: colour_disable),
+                              ),
+                              onPressed: showCancelDialog,
+                              child: const Text("Cancel"),
+                            )
+                          : const SizedBox.shrink(), // No button needed
                     ],
                   ),
                 ],
@@ -128,95 +157,33 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
     );
   }
 
-  Widget buildRequestCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 125,
-              height: 125,
-              decoration: BoxDecoration(
-                color: colour_borrow.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colour_borrow, width: 2),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  "image/Champions_of_Hara.webp",
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Champions of Hara",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text("From: 29/10/2025\nTo: 30/10/2025"),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Pending",
-                        style: TextStyle(
-                          color: colour_borrow,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: colour_main,
-                          side: const BorderSide(color: colour_main),
-                        ),
-                        onPressed: showCancelDialog,
-                        child: const Text("Cancel"),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget buildNoRequestText() {
+  // Combined No Request/No Borrowing Text
+  Widget buildNoActiveItemText() {
     return const Center(
-      child: Text("You have no request", style: TextStyle(color: Colors.grey)),
+      child: Text(
+        "You have no active item or pending request.",
+        style: TextStyle(color: Colors.grey),
+      ),
     );
   }
 
   void showReturningDialog() {
+    setState(() => isReturning = true); // Set status to "Returning in process"
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.loop, size: 60, color: Colors.green),
-            SizedBox(height: 16),
-            Text(
+          children: [
+            const Icon(Icons.loop, size: 60, color: colour_available),
+            const SizedBox(height: 16),
+            const Text(
               "Returning",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               "Please contact staff to approve",
               textAlign: TextAlign.center,
             ),
@@ -242,7 +209,7 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
           children: [
             const Icon(Icons.cancel_outlined, size: 60, color: colour_disable),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "Cancel",
               style: TextStyle(
                 fontSize: 22,
@@ -268,7 +235,8 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                     backgroundColor: colour_disable,
                   ),
                   onPressed: () {
-                    setState(() => hasRequest = false);
+                    // Set status to clear the pending item
+                    setState(() => itemPending = false);
                     Navigator.pop(dialogContext);
                   },
                   child: const Text(

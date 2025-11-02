@@ -54,7 +54,7 @@ class _BrowseStudentState extends State<BrowseStudent> {
   @override
   void initState() {
     super.initState();
-    _filteredGames = _getUniqueGames(gameList);
+    _runFilter();
     _buildCategories();
     _searchController.addListener(_runFilter);
   }
@@ -75,21 +75,11 @@ class _BrowseStudentState extends State<BrowseStudent> {
     categories = ['All', ...styleSet.toList()];
   }
 
-  List<dynamic> _getUniqueGames(List<dynamic> games) {
-    final Map<String, dynamic> uniqueMap = {};
-    for (var g in games) {
-      final group = _get(g, 'gameGroup')?.toString() ?? '';
-      if (group.isNotEmpty && !uniqueMap.containsKey(group)) {
-        uniqueMap[group] = g;
-      }
-    }
-    return uniqueMap.values.toList();
-  }
-
   void _runFilter() {
+    // Start with the full, unfiltered game list
     List<dynamic> results = List<dynamic>.from(gameList);
 
-    // Filter by category
+    // 1. Filter by category
     if (selectedCategory != 'All') {
       results = results.where((game) {
         final style = (_get(game, 'gameStyle') ?? '').toString().toLowerCase();
@@ -97,7 +87,7 @@ class _BrowseStudentState extends State<BrowseStudent> {
       }).toList();
     }
 
-    // Filter by search
+    // 2. Filter by search
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       results = results.where((game) {
@@ -106,8 +96,32 @@ class _BrowseStudentState extends State<BrowseStudent> {
       }).toList();
     }
 
+    // 3. 🌟 FIXED: Custom sorting logic: Group by name, then prioritize 'Available' status
+    results.sort((a, b) {
+      final groupA = _get(a, 'gameGroup')?.toString() ?? '';
+      final groupB = _get(b, 'gameGroup')?.toString() ?? '';
+      final statusA = _get(a, 'status')?.toString() ?? '';
+      final statusB = _get(b, 'status')?.toString() ?? '';
+
+      // Primary Sort: Sort by Game Group alphabetically
+      final groupComparison = groupA.compareTo(groupB);
+      if (groupComparison != 0) {
+        return groupComparison;
+      }
+
+      // Secondary Sort: Prioritize 'Available' items within the same group
+      if (statusA == 'Available' && statusB != 'Available') {
+        return -1; // A comes before B
+      }
+      if (statusA != 'Available' && statusB == 'Available') {
+        return 1; // B comes before A
+      }
+
+      return 0;
+    });
+
     setState(() {
-      _filteredGames = _getUniqueGames(results);
+      _filteredGames = results;
     });
   }
 
@@ -191,7 +205,7 @@ class _BrowseStudentState extends State<BrowseStudent> {
           return GestureDetector(
             onTap: () {
               setState(() => selectedCategory = category);
-              _runFilter(); // ← Fixed: Now updates grid
+              _runFilter();
             },
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 4),
@@ -244,10 +258,10 @@ class _BrowseStudentState extends State<BrowseStudent> {
         final picPath = _get(game, 'picPath')?.toString() ?? '';
         final gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
         final glink = _get(game, 'g_link')?.toString() ?? '';
+        final status = _get(game, 'status')?.toString() ?? '';
 
         return GestureDetector(
           onTap: () {
-            // Inside itemBuilder of GridView
             final gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
 
             Navigator.push(
@@ -261,24 +275,41 @@ class _BrowseStudentState extends State<BrowseStudent> {
                       "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} peoples",
                   time: "${_get(game, 'gTime') ?? 0} min",
                   glink: glink,
-                  gameGroup: gameGroup, // ← REQUIRED
+                  gameGroup: gameGroup,
+                  // 🌟 FIXED: Pass the individual item status
+                  currentStatus: status,
+                  // Pass callback to refresh the list after borrowing
+                  onStatusChanged: () {
+                    setState(() {
+                      _runFilter();
+                    });
+                  },
                 ),
               ),
             );
           },
-          child: GameCard(title: gameName, imagePath: picPath),
+          // Pass individual item status for the badge/grayscale logic
+          child: GameCard(title: gameName, imagePath: picPath, status: status),
         );
       },
     );
   }
 }
 
-// === Game Card (unchanged) ===
+// -------------------------------------------------------------------
+
+// === Game Card (Includes Status Badge and Grayscale Filter) ===
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
+  final String status;
 
-  const GameCard({super.key, required this.title, required this.imagePath});
+  const GameCard({
+    super.key,
+    required this.title,
+    required this.imagePath,
+    required this.status,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +320,10 @@ class GameCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _buildImageOrPlaceholder()),
+          // Image area
+          Expanded(child: _buildImageWithStatus()),
+
+          // Game Name area
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: Text(
@@ -305,22 +339,130 @@ class GameCard extends StatelessWidget {
     );
   }
 
+  // Helper to build the image and layer the status badge on top
+  Widget _buildImageWithStatus() {
+    return Stack(
+      children: [
+        // 1. The main content (Image or Placeholder)
+        Positioned.fill(child: _buildImageOrPlaceholder()),
+
+        // 2. The Status Badge, conditionally positioned at the top right corner
+        Positioned(
+          top: 8.0,
+          right: 8.0,
+          // Only show the badge if the status is NOT 'Available'
+          child: status != 'Available'
+              ? _buildStatusBadge(status)
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  // Helper to create the actual badge widget with conditional styling
+  Widget _buildStatusBadge(String text) {
+    Color backgroundColor;
+    IconData icon;
+
+    switch (text) {
+      case 'Borrowing':
+        backgroundColor = Colors.red.shade600;
+        icon = Icons.handshake;
+        break;
+      case 'Disabled':
+        backgroundColor = Colors.grey.shade700;
+        icon = Icons.block;
+        break;
+      default:
+        backgroundColor = Colors.blue.shade600;
+        icon = Icons.info_outline;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🌟 FIXED: Image loading/placeholder logic with conditional Grayscale filter
   Widget _buildImageOrPlaceholder() {
+    Widget imageWidget;
+
     if (imagePath.trim().isEmpty) {
-      return Container(
+      imageWidget = Container(
         color: Colors.grey[200],
         child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
       );
+    } else {
+      imageWidget = Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+          );
+        },
+      );
     }
-    return Image.asset(
-      imagePath,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: Colors.grey[200],
-          child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-        );
-      },
-    );
+
+    // Apply grayscale filter if status is 'Borrowing' or 'Disabled'
+    if (status == 'Borrowing' || status == 'Disabled') {
+      return ColorFiltered(
+        // Standard grayscale matrix
+        colorFilter: const ColorFilter.matrix(<double>[
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+        ]),
+        child: imageWidget,
+      );
+    } else {
+      // Return the image without the filter for 'Available' status
+      return imageWidget;
+    }
   }
 }
