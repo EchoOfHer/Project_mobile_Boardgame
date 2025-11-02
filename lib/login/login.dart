@@ -6,7 +6,7 @@ import 'package:boardgame_app/Lender/lender_browse_list.dart';
 import 'package:boardgame_app/Staff/staff_main.dart';
 
 
-final url = '10.0.0.2:3000';
+final url = '10.0.2.2:3000';
 
 class Login extends StatefulWidget {
   const Login({super.key});
