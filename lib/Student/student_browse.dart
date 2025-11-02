@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 import 'dart:convert'; // For JSON decoding
 import 'package:http/http.dart' as http; // For network requests
-// REMOVED: import '/Staff/game_data.dart'; // NO LONGER USED
 import '/login/login.dart';
 import 'student_main.dart' show colour_main;
 import 'student_borrowing.dart'; // ← BorrowGamePage
 
+// ✅ Use your local server IP or emulator address
 final url = '10.0.2.2:3000';
 
 /// Shared _get helper (same as in BorrowGamePage)
@@ -28,9 +28,9 @@ dynamic _get(dynamic item, String key) {
       case 'minP':
         return obj.minP;
       case 'maxP':
-      case 'game_id': // Added to support new data structure
-        return obj.game_id;
         return obj.maxP;
+      case 'game_id':
+        return obj.game_id;
       case 'gTime':
         return obj.gTime;
       case 'g_link':
@@ -54,18 +54,17 @@ class BrowseStudent extends StatefulWidget {
 
 class _BrowseStudentState extends State<BrowseStudent> {
   final TextEditingController _searchController = TextEditingController();
-  // New state variables for API data handling
-  List<dynamic> _allGames = []; // The list fetched from the API
+  List<dynamic> _allGames = [];
   late List<dynamic> _filteredGames;
-  late List<String> categories = ['All']; // Initialize default
+  late List<String> categories = ['All'];
   String selectedCategory = 'All';
-  bool _isLoading = true; // Loading state
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _filteredGames = []; // Initialize empty
-    _fetchGames(); // Start fetching data
+    _filteredGames = [];
+    _fetchGames();
     _searchController.addListener(_runFilter);
   }
 
@@ -76,49 +75,35 @@ class _BrowseStudentState extends State<BrowseStudent> {
     super.dispose();
   }
 
-  /// 🌐 Fetches the game list from the Express API
+  /// 🌐 Fetch games from Express API
   Future<void> _fetchGames() async {
     // Set loading state only if it's the initial load or a manual refresh
-    if (_allGames.isEmpty) {
-      if (mounted) setState(() => _isLoading = true);
-    }
+    if (_allGames.isEmpty && mounted) setState(() => _isLoading = true);
 
     try {
       final response = await http.get(Uri.parse('http://$url/api/games'));
-
       if (response.statusCode == 200) {
         final List<dynamic> fetchedGames = json.decode(response.body);
-
-        // Ensure setState is only called if the widget is still mounted
         if (mounted) {
           setState(() {
-            _allGames = fetchedGames; // Store the original fetched list
-            _buildCategories(); // Build categories based on new data
-            _runFilter(); // Apply initial filter/sort
-            _isLoading = false; // Data loaded
+            _allGames = fetchedGames;
+            _buildCategories();
+            _runFilter();
+            _isLoading = false;
           });
         }
       } else {
         print('Failed to load games. Status code: ${response.statusCode}');
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       print('Network error: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _buildCategories() {
     final Set<String> styleSet = {};
-    // Use the fetched list: _allGames
     for (final g in _allGames) {
       final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
       if (style.isNotEmpty) styleSet.add(style);
@@ -127,10 +112,8 @@ class _BrowseStudentState extends State<BrowseStudent> {
   }
 
   void _runFilter() {
-    // Start with the full, unfiltered game list: _allGames
     List<dynamic> results = List<dynamic>.from(_allGames);
 
-    // 1. Filter by category
     if (selectedCategory != 'All') {
       results = results.where((game) {
         final style = (_get(game, 'gameStyle') ?? '').toString().toLowerCase();
@@ -138,7 +121,6 @@ class _BrowseStudentState extends State<BrowseStudent> {
       }).toList();
     }
 
-    // 2. Filter by search
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       results = results.where((game) {
@@ -147,35 +129,21 @@ class _BrowseStudentState extends State<BrowseStudent> {
       }).toList();
     }
 
-    // 3. Custom sorting logic: Group by name, then prioritize 'Available' status
     results.sort((a, b) {
       final groupA = _get(a, 'gameGroup')?.toString() ?? '';
       final groupB = _get(b, 'gameGroup')?.toString() ?? '';
       final statusA = _get(a, 'status')?.toString() ?? '';
       final statusB = _get(b, 'status')?.toString() ?? '';
 
-      // Primary Sort: Sort by Game Group alphabetically
       final groupComparison = groupA.compareTo(groupB);
-      if (groupComparison != 0) {
-        return groupComparison;
-      }
+      if (groupComparison != 0) return groupComparison;
 
-      // Secondary Sort: Prioritize 'Available' items within the same group
-      if (statusA == 'Available' && statusB != 'Available') {
-        return -1; // A comes before B
-      }
-      if (statusA != 'Available' && statusB == 'Available') {
-        return 1; // B comes before A
-      }
-
+      if (statusA == 'Available' && statusB != 'Available') return -1;
+      if (statusA != 'Available' && statusB == 'Available') return 1;
       return 0;
     });
 
-    if (mounted) {
-      setState(() {
-        _filteredGames = results;
-      });
-    }
+    if (mounted) setState(() => _filteredGames = results);
   }
 
   @override
@@ -186,7 +154,6 @@ class _BrowseStudentState extends State<BrowseStudent> {
           color: Colors.white,
           child: Column(
             children: [
-              // Header (remains static)
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -212,7 +179,6 @@ class _BrowseStudentState extends State<BrowseStudent> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Expanded area for the grid, now supporting pull-to-refresh
               Expanded(child: _buildGameGrid()),
             ],
           ),
@@ -293,15 +259,14 @@ class _BrowseStudentState extends State<BrowseStudent> {
     }
 
     if (_filteredGames.isEmpty) {
-      // 🌟 Wrap the Center widget with RefreshIndicator for pull-down refresh on an empty list
+      // Pull-to-refresh on empty list
       return RefreshIndicator(
-        onRefresh: _fetchGames, // Calls the fetch function on pull-down
+        onRefresh: _fetchGames,
         color: Colors.orange,
         child: ListView(
-          // Use ListView here so RefreshIndicator works even when empty
           physics: const AlwaysScrollableScrollPhysics(),
           children: const [
-            SizedBox(height: 100), // Add padding to center the text
+            SizedBox(height: 100),
             Center(
               child: Text(
                 'No games found.',
@@ -313,9 +278,9 @@ class _BrowseStudentState extends State<BrowseStudent> {
       );
     }
 
-    // 🌟 Wrap the GridView.builder with RefreshIndicator for pull-down refresh
+    // Pull-to-refresh on populated list
     return RefreshIndicator(
-      onRefresh: _fetchGames, // Calls the fetch function on pull-down
+      onRefresh: _fetchGames,
       color: Colors.orange,
       child: GridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
@@ -328,20 +293,16 @@ class _BrowseStudentState extends State<BrowseStudent> {
         itemCount: _filteredGames.length,
         itemBuilder: (context, index) {
           final game = _filteredGames[index];
-
           final gameName = _get(game, 'gameName')?.toString() ?? '';
           final gameStyle = _get(game, 'gameStyle')?.toString() ?? '';
           final picPath = _get(game, 'picPath')?.toString() ?? '';
           final gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
           final glink = _get(game, 'g_link')?.toString() ?? '';
           final status = _get(game, 'status')?.toString() ?? '';
+          final gameId = _get(game, 'game_id');
 
           return GestureDetector(
             onTap: () {
-              // Note: The game object retrieved from the API now contains game_id
-              final gameId = _get(game, 'game_id');
-              // We pass the individual item's status, which is correct
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -354,20 +315,13 @@ class _BrowseStudentState extends State<BrowseStudent> {
                     time: "${_get(game, 'gTime') ?? 0} min",
                     glink: glink,
                     gameGroup: gameGroup,
-                    // Pass the game_id, which is unique per physical item/row
                     gameId: gameId,
-                    // 🌟 Pass the individual item status
                     currentStatus: status,
-                    // Pass callback to refresh the list after borrowing
-                    onStatusChanged: () {
-                      // Re-fetch data to reflect the change on the server
-                      _fetchGames();
-                    },
+                    onStatusChanged: () => _fetchGames(),
                   ),
                 ),
               );
             },
-            // Pass individual item status for the badge/grayscale logic
             child: GameCard(
               title: gameName,
               imagePath: picPath,
@@ -382,9 +336,8 @@ class _BrowseStudentState extends State<BrowseStudent> {
 
 // -------------------------------------------------------------------
 
-// === Game Card (Includes Status Badge and Grayscale Filter) ===
+// === Game Card (Includes Status Badge, Grayscale Filter, and Network Image) ===
 class GameCard extends StatelessWidget {
-  // ... (GameCard class remains unchanged)
   final String title;
   final String imagePath;
   final String status;
@@ -405,10 +358,7 @@ class GameCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Image area
           Expanded(child: _buildImageWithStatus()),
-
-          // Game Name area
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: Text(
@@ -424,18 +374,13 @@ class GameCard extends StatelessWidget {
     );
   }
 
-  // Helper to build the image and layer the status badge on top
   Widget _buildImageWithStatus() {
     return Stack(
       children: [
-        // 1. The main content (Image or Placeholder)
         Positioned.fill(child: _buildImageOrPlaceholder()),
-
-        // 2. The Status Badge, conditionally positioned at the top right corner
         Positioned(
           top: 8.0,
           right: 8.0,
-          // Only show the badge if the status is NOT 'Available'
           child: status != 'Available'
               ? _buildStatusBadge(status)
               : const SizedBox.shrink(),
@@ -444,7 +389,6 @@ class GameCard extends StatelessWidget {
     );
   }
 
-  // Helper to create the actual badge widget with conditional styling
   Widget _buildStatusBadge(String text) {
     Color backgroundColor;
     IconData icon;
@@ -495,18 +439,19 @@ class GameCard extends StatelessWidget {
     );
   }
 
-  // Image loading/placeholder logic with conditional Grayscale filter
+  /// ✅ Fixed image loading from server
   Widget _buildImageOrPlaceholder() {
     Widget imageWidget;
-
     if (imagePath.trim().isEmpty) {
       imageWidget = Container(
         color: Colors.grey[200],
         child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
       );
     } else {
-      imageWidget = Image.asset(
-        imagePath,
+      // 🛠️ FIX: Use Image.network and construct the full URL
+      // http://10.0.2.2:3000/image/Castle_Panic.webp
+      imageWidget = Image.network(
+        'http://$url/$imagePath',
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
@@ -517,10 +462,9 @@ class GameCard extends StatelessWidget {
       );
     }
 
-    // Apply grayscale filter if status is 'Borrowing' or 'Disabled'
+    // Apply grayscale filter if Borrowing or Disabled
     if (status == 'Borrowing' || status == 'Disabled') {
       return ColorFiltered(
-        // Standard grayscale matrix
         colorFilter: const ColorFilter.matrix(<double>[
           0.2126,
           0.7152,
@@ -546,7 +490,6 @@ class GameCard extends StatelessWidget {
         child: imageWidget,
       );
     } else {
-      // Return the image without the filter for 'Available' status
       return imageWidget;
     }
   }
