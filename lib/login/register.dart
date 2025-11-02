@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+final url = '10.0.2.2:3000';
+
 class Register extends StatefulWidget {
   const Register({super.key});
 

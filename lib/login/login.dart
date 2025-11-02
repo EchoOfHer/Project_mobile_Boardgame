@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 final url = '10.0.2.2:3000'; 
 
+
+final url = '10.0.2.2:3000';
+
 class Login extends StatefulWidget {
   const Login({super.key});
 
