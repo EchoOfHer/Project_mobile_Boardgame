@@ -2,22 +2,33 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/Staff/game_data.dart';
-import 'student_main.dart' show colour_main, colour_disable, colour_available, colour_borrow;
+import 'student_main.dart'
+    show colour_main, colour_disable, colour_available, colour_borrow;
 
 dynamic _get(dynamic item, String key) {
   if (item == null) return null;
   final obj = item as GameItem;
   switch (key) {
-    case 'gameName': return obj.gameName;
-    case 'gameStyle': return obj.gameStyle;
-    case 'picPath': return obj.picPath;
-    case 'status': return obj.status;
-    case 'minP': return obj.minP;
-    case 'maxP': return obj.maxP;
-    case 'gTime': return obj.gTime;
-    case 'g_link': return obj.g_link;
-    case 'gameGroup': return obj.gameGroup;
-    default: return null;
+    case 'gameName':
+      return obj.gameName;
+    case 'gameStyle':
+      return obj.gameStyle;
+    case 'picPath':
+      return obj.picPath;
+    case 'status':
+      return obj.status;
+    case 'minP':
+      return obj.minP;
+    case 'maxP':
+      return obj.maxP;
+    case 'gTime':
+      return obj.gTime;
+    case 'g_link':
+      return obj.g_link;
+    case 'gameGroup':
+      return obj.gameGroup;
+    default:
+      return null;
   }
 }
 
@@ -33,6 +44,8 @@ class BorrowGamePage extends StatefulWidget {
   final String time;
   final String glink;
   final String gameGroup;
+  final String currentStatus;
+  final VoidCallback? onStatusChanged;
 
   const BorrowGamePage({
     super.key,
@@ -43,6 +56,8 @@ class BorrowGamePage extends StatefulWidget {
     required this.time,
     required this.glink,
     required this.gameGroup,
+    required this.currentStatus,
+    this.onStatusChanged,
   });
 
   @override
@@ -55,84 +70,69 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   DateTime? _startDate;
   DateTime? _endDate;
 
-  // ตรวจสอบว่าสามารถกด Borrow ได้หรือไม่
-  bool get _canBorrow => !_hasRequestedAnyGame && _remaining > 0 && _startDate != null && _endDate != null;
+  bool get _isItemAvailable => widget.currentStatus == 'Available';
+
+  // ตรวจสอบว่าสามารถกด Borrow ได้หรือไม่ (เมื่อวันที่ถูกตั้งค่าอัตโนมัติแล้ว)
+  bool get _canBorrow =>
+      !_hasRequestedAnyGame &&
+      _isItemAvailable &&
+      _startDate != null &&
+      _endDate != null;
 
   int get _remaining {
     return gameList
-        .where((g) => g.gameGroup == widget.gameGroup && g.status == 'Available')
+        .where(
+          (g) => g.gameGroup == widget.gameGroup && g.status == 'Available',
+        )
         .length;
   }
 
-  // เปิด popup เลือกวันที่
+  // 🗑️ REMOVED: ไม่ใช้ Date Picker อีกต่อไป
   Future<void> _selectDate(bool isStart) async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: (isStart ? _startDate : _endDate) ?? now,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 90)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.orange,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(foregroundColor: Colors.orange),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null && mounted) {
-      setState(() {
-        if (isStart) {
-          _startDate = picked;
-          if (_endDate != null && _endDate!.isBefore(picked)) {
-            _endDate = null;
-          }
-        } else {
-          if (_startDate != null && picked.isBefore(_startDate!)) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('End date cannot be before start date.')),
-            );
-          } else {
-            _endDate = picked;
-          }
-        }
-      });
-    }
+    // This function is now just a placeholder, as the date is set automatically in _onBorrowPressed
   }
 
-  // กดปุ่ม Borrow ครั้งแรก → แสดง UI เลือกวัน
+  // 🌟 FIXED: _onBorrowPressed จะตั้งค่าวันที่ 'วันนี้' และ 'พรุ่งนี้' อัตโนมัติ
   void _onBorrowPressed() {
-    if (_hasRequestedAnyGame || _remaining <= 0) return;
-    setState(() => _showDuration = true);
+    if (_hasRequestedAnyGame || !_isItemAvailable) return;
+
+    final DateTime today = DateTime.now().toLocal().copyWith(
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+    );
+    final DateTime tomorrow = today.add(const Duration(days: 1));
+
+    setState(() {
+      _startDate = today;
+      _endDate = tomorrow;
+      _showDuration = true; // Show the confirmation screen
+    });
   }
 
-  // ยืนยันการยืม
   Future<void> _handleBorrow() async {
     if (!_canBorrow) return;
 
     setState(() => _showPopup = true);
 
-    // ตั้งค่าสถานะว่าจองแล้ว
     _hasRequestedAnyGame = true;
     _lastRequestedGroup = widget.gameGroup;
 
-    // อัปเดตสถานะเกม
     bool changed = false;
     for (final g in gameList) {
-      if (g.gameGroup == widget.gameGroup && g.status == 'Available' && !changed) {
+      if (g.gameGroup == widget.gameGroup &&
+          g.status == 'Available' &&
+          !changed) {
         g.status = 'Borrowing';
         changed = true;
         break;
       }
+    }
+
+    if (widget.onStatusChanged != null) {
+      widget.onStatusChanged!();
     }
 
     await Future.delayed(const Duration(seconds: 3));
@@ -140,9 +140,14 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   }
 
   Future<void> _launchUrl(String url) async {
-    final String fullUrl = url.trim().isNotEmpty && !url.startsWith('http') ? 'http://$url' : url;
+    final String fullUrl = url.trim().isNotEmpty && !url.startsWith('http')
+        ? 'http://$url'
+        : url;
     final Uri uri = Uri.parse(fullUrl);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open the link.')),
@@ -153,7 +158,10 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
 
   String get _borrowButtonText {
     if (_hasRequestedAnyGame) return 'You already requested a game';
-    if (_remaining <= 0) return 'Out of stock';
+    if (!_isItemAvailable) return 'Unavailable: ${widget.currentStatus}';
+    if (_showDuration && (_startDate == null || _endDate == null))
+      // 🌟 UPDATED: Should not happen if logic is correct, but safe fallback
+      return 'Duration Error';
     return 'Borrow';
   }
 
@@ -175,7 +183,11 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
         ),
         title: Text(
           widget.gameName,
-          style: const TextStyle(color: Colors.orange, fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.orange,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: Stack(
@@ -199,7 +211,11 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                           width: 275,
                           height: 275,
                           color: Colors.grey[200],
-                          child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+                          child: const Icon(
+                            Icons.broken_image,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
                     ),
@@ -216,41 +232,99 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                         const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Name : ', style: TextStyle(color: Colors.grey, fontSize: 18)),
+                            Text(
+                              'Name : ',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 18,
+                              ),
+                            ),
                             SizedBox(height: 16),
-                            Text('Game Style : ', style: TextStyle(color: Colors.grey, fontSize: 18)),
+                            Text(
+                              'Game Style : ',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 18,
+                              ),
+                            ),
                             SizedBox(height: 16),
-                            Text('Players : ', style: TextStyle(color: Colors.grey, fontSize: 18)),
+                            Text(
+                              'Players : ',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 18,
+                              ),
+                            ),
                             SizedBox(height: 16),
-                            Text('Time : ', style: TextStyle(color: Colors.grey, fontSize: 18)),
+                            Text(
+                              'Time : ',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 18,
+                              ),
+                            ),
+                            // Text(
+                            //   'Status : ',
+                            //   style: TextStyle(
+                            //     color: Colors.grey,
+                            //     fontSize: 18,
+                            //   ),
+                            // ),
                             SizedBox(height: 16),
-                            Text('Remaining : ', style: TextStyle(color: Colors.grey, fontSize: 18)),
-                            SizedBox(height: 16),
-                            Text('How to play : ', style: TextStyle(color: Colors.grey, fontSize: 18)),
+                            Text(
+                              'How to play : ',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 18,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(width: 16),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(widget.gameName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 16),
-                            Text(widget.gameStyle, style: const TextStyle(fontSize: 18)),
-                            const SizedBox(height: 16),
-                            Text(widget.players, style: const TextStyle(fontSize: 18)),
-                            const SizedBox(height: 16),
-                            Text(widget.time, style: const TextStyle(fontSize: 18)),
+                            Text(
+                              widget.gameName,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 16),
                             Text(
-                              '$_remaining board',
-                              style: TextStyle(color: _remaining == 0 ? colour_disable : Colors.black, fontSize: 18),
+                              widget.gameStyle,
+                              style: const TextStyle(fontSize: 18),
                             ),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.players,
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.time,
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                            // Text(
+                            //   widget.currentStatus,
+                            //   style: TextStyle(
+                            //     color: _isItemAvailable
+                            //         ? colour_available
+                            //         : colour_disable,
+                            //     fontSize: 18,
+                            //   ),
+                            // ),
                             const SizedBox(height: 16),
                             InkWell(
                               onTap: () => _launchUrl(widget.glink),
                               child: Text(
                                 widget.glink.isEmpty ? 'N/A' : widget.glink,
-                                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -261,55 +335,71 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                     ),
                   ],
 
-                  // UI ภาพที่ 2: Duration
+                  // UI ภาพที่ 2: Duration (Confirmation of fixed dates)
                   if (_showDuration) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Duration', style: TextStyle(color: Colors.grey, fontSize: 18)),
+                          const Text(
+                            'Duration (Today - Tomorrow)',
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
-                                child: GestureDetector(
-                                  onTap: () => _selectDate(true),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                    decoration: BoxDecoration(
-                                      color: colour_available,
-                                      borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colour_available,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _startDate == null
+                                        ? 'Error: Date not set'
+                                        : _formatDate(_startDate),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
                                     ),
-                                    child: Text(
-                                      _startDate == null ? 'From' : _formatDate(_startDate),
-                                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                                      textAlign: TextAlign.center,
-                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Text('-', style: TextStyle(fontSize: 20, color: Colors.grey)),
+                                child: Text(
+                                  '-',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ),
                               Expanded(
-                                child: GestureDetector(
-                                  onTap: _startDate == null ? null : () => _selectDate(false),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                    decoration: BoxDecoration(
-                                      color: _startDate == null ? Colors.grey[300] : colour_available,
-                                      borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colour_available,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _endDate == null
+                                        ? 'Error: Date not set'
+                                        : _formatDate(_endDate),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
                                     ),
-                                    child: Text(
-                                      _endDate == null ? 'To' : _formatDate(_endDate),
-                                      style: TextStyle(
-                                        color: _startDate == null ? Colors.grey[600] : Colors.white,
-                                        fontSize: 16,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ),
@@ -322,24 +412,33 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
 
                   const SizedBox(height: 30),
 
-                  // ปุ่ม Borrow (เปลี่ยนสถานะเมื่อจองแล้ว)
+                  // ปุ่ม Borrow
                   Center(
                     child: SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
+                        // If showDuration is true, check _canBorrow (which ensures dates are set)
                         onPressed: _showDuration
                             ? (_canBorrow ? _handleBorrow : null)
-                            : (_hasRequestedAnyGame || _remaining <= 0 ? null : _onBorrowPressed),
+                            : (_hasRequestedAnyGame || !_isItemAvailable
+                                  ? null
+                                  : _onBorrowPressed), // Trigger automatic date set
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _hasRequestedAnyGame || _remaining <= 0
+                          backgroundColor:
+                              _hasRequestedAnyGame || !_isItemAvailable
                               ? Colors.grey
                               : colour_borrow,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: Text(
                           _borrowButtonText,
-                          style: const TextStyle(fontSize: 18, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -358,21 +457,38 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                 color: Colors.black54,
                 alignment: Alignment.center,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 30,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: 80,
                         height: 80,
-                        decoration: BoxDecoration(color: colour_available, shape: BoxShape.circle),
-                        child: const Icon(Icons.check, color: Colors.white, size: 50),
+                        decoration: BoxDecoration(
+                          color: colour_available,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 50,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       const Text(
                         'Request sent',
-                        style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),

@@ -124,4 +124,16 @@ List<GameItem> gameList = [
     picPath: 'image/The_Grizzled.webp',
     g_link: 'www.game.come',
   ),
+  GameItem(
+    gameName: 'The Grizzled',
+    gameGroup: 'The Grizzled',
+    gameStyle: 'Family',
+    gameId: 7,
+    minP: 2,
+    maxP: 3,
+    gTime: 5,
+    status: 'Available',
+    picPath: 'image/The_Grizzled.webp',
+    g_link: 'www.game.come',
+  ),
 ]..sort((a, b) => a.gameGroup.compareTo(b.gameGroup));

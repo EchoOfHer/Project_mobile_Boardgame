@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // 🌟 ADDED: ต้องใช้สำหรับแปลงวันที่
 
 class StudentHistory extends StatefulWidget {
   const StudentHistory({super.key});
@@ -20,7 +21,7 @@ class _StudentHistoryState extends State<StudentHistory> {
       'status': 'Approve',
       'approvedBy': 'Lender 1',
       'returnedTo': 'Steven',
-      'borrowedDate': '15 Oct 2025',
+      'borrowedDate': '15 Oct 2025', // วันที่ 15
       'returnedDate': '16 Oct 2025',
     },
     {
@@ -29,8 +30,8 @@ class _StudentHistoryState extends State<StudentHistory> {
       'status': 'Disapprove',
       'reason': 'Board game is being repaired.',
       'approvedBy': 'Lender 3',
-      'borrowedDate': '15 Oct 2025',
-      'returnedDate': '16 Oct 2025',
+      'borrowedDate': '17 Oct 2025', // 🌟 CHANGED: วันที่ 17 (ควรอยู่บนสุด)
+      'returnedDate': '18 Oct 2025',
     },
     {
       'game': 'One week werewolf',
@@ -38,17 +39,47 @@ class _StudentHistoryState extends State<StudentHistory> {
       'status': 'Approve',
       'approvedBy': 'Lender 4',
       'returnedTo': 'Steven',
-      'borrowedDate': '12 Oct 2025',
+      'borrowedDate': '12 Oct 2025', // วันที่ 12
       'returnedDate': '14 Oct 2025',
     },
   ];
 
   late List<Map<String, String>> _filtered;
 
+  // 🌟 NEW: Helper function to parse date string to DateTime
+  DateTime _parseDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) {
+      // Return a very old date for items with missing dates, ensuring they sort last
+      return DateTime(1900);
+    }
+    // Assuming format is 'dd MMM yyyy' (e.g., '15 Oct 2025')
+    try {
+      // Use 'en_US' locale to safely parse English month names like 'Oct'
+      return DateFormat('dd MMM yyyy', 'en_US').parse(dateStr);
+    } catch (e) {
+      // Fallback for parsing errors
+      print('Date parsing error for $dateStr: $e');
+      return DateTime(1900);
+    }
+  }
+
+  // 🌟 NEW: Sorting function (Newest to Oldest)
+  void _sortHistory(List<Map<String, String>> list) {
+    list.sort((a, b) {
+      final dateA = _parseDate(a['borrowedDate']);
+      final dateB = _parseDate(b['borrowedDate']);
+
+      // Compare in descending order (ใหม่ไปเก่า): dateB.compareTo(dateA)
+      return dateB.compareTo(dateA);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    // 🌟 FIXED: Sort the initial list
     _filtered = List.from(_all);
+    _sortHistory(_filtered);
     _search.addListener(_onSearchChange);
   }
 
@@ -63,29 +94,46 @@ class _StudentHistoryState extends State<StudentHistory> {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 200), () {
       final q = _search.text.trim().toLowerCase();
+
+      List<Map<String, String>> results;
+
+      if (q.isEmpty) {
+        // Start filtering from the complete list again
+        results = List.from(_all);
+      } else {
+        results = _all.where((m) {
+          return (m['game']?.toLowerCase().contains(q) ?? false) ||
+              (m['id']?.toLowerCase().contains(q) ?? false) ||
+              (m['approvedBy']?.toLowerCase().contains(q) ?? false) ||
+              (m['returnedTo']?.toLowerCase().contains(q) ?? false) ||
+              (m['status']?.toLowerCase().contains(q) ?? false);
+        }).toList();
+      }
+
+      // 🌟 FIXED: Sort the results list before setting state
+      _sortHistory(results);
+
       setState(() {
-        if (q.isEmpty) {
-          _filtered = List.from(_all);
-        } else {
-          _filtered = _all.where((m) {
-            return (m['game']?.toLowerCase().contains(q) ?? false) ||
-                (m['id']?.toLowerCase().contains(q) ?? false) ||
-                (m['approvedBy']?.toLowerCase().contains(q) ?? false) ||
-                (m['returnedTo']?.toLowerCase().contains(q) ?? false) ||
-                (m['status']?.toLowerCase().contains(q) ?? false);
-          }).toList();
-        }
+        _filtered = results;
       });
     });
   }
 
   void _clearSearch() {
     _search.clear();
+    // 🌟 FIXED: Call _onSearchChange to trigger UI update after clearing
+    _onSearchChange();
     FocusScope.of(context).unfocus();
   }
 
   @override
   Widget build(BuildContext context) {
+    // 🌟 Ensure that the initial sort happens even if initState uses _all directly
+    if (_filtered.isEmpty && _all.isNotEmpty) {
+      _filtered = List.from(_all);
+      _sortHistory(_filtered);
+    }
+
     return SafeArea(
       child: Container(
         color: const Color(0xFFF7F7F7),
@@ -200,7 +248,7 @@ class HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          //  Title
+          // 	Title
           Text(
             item['game']!,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -212,11 +260,11 @@ class HistoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          //  Details
+          // 	Details
           _row('Approved by :', item['approvedBy'] ?? '-'),
           const SizedBox(height: 6),
 
-          //  Status
+          // 	Status
           Row(
             children: [
               const SizedBox(
@@ -238,13 +286,13 @@ class HistoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
-          //  Reason (เฉพาะ Disapprove)
+          // 	Reason (เฉพาะ Disapprove)
           if (!isApprove && (item['reason']?.isNotEmpty ?? false)) ...[
             _row('Reason :', item['reason']!),
             const SizedBox(height: 6),
           ],
 
-          //  Returned to (เฉพาะ Approve)
+          // 	Returned to (เฉพาะ Approve)
           if (isApprove) ...[
             _row('Returned to :', item['returnedTo'] ?? '-'),
             const SizedBox(height: 6),
@@ -252,11 +300,11 @@ class HistoryCard extends StatelessWidget {
 
           const Divider(height: 20, thickness: 0.5),
 
-          //  Dates
+          // 	Dates
           _row('Borrowed date :', item['borrowedDate'] ?? '-'),
           const SizedBox(height: 6),
 
-          //  Returned date (เฉพาะ Approve)
+          // 	Returned date (เฉพาะ Approve)
           if (isApprove) _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
