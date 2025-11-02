@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+final url = '10.0.0.2:3000';
+
 class Register extends StatefulWidget {
   const Register({super.key});
 
