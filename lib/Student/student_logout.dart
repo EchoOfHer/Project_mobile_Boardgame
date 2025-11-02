@@ -1,20 +1,16 @@
-// student_logout.dart
-
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'student_main.dart' show url;
-// ⭐️ 1. import หน้า Login (ต้องมีไฟล์ /login/login.dart)
 import '/login/login.dart';
 
-// ⭐️ 2. เปลี่ยนเป็นคลาสธรรมดา (ไม่ใช่ Widget)
 class StudentLogout {
-  
-  // ⭐️ 3. สร้าง static method ชื่อ show() ตามที่ Main เรียกใช้
   static void show(BuildContext context) {
     const Color logoutColor = Color(0xFFFF7C7C);
 
     showDialog(
       context: context,
-      barrierDismissible: false, // ป้องกันการกดปิดข้างๆ
+      barrierDismissible: false, // ป้องกันการกดนอกกรอบแล้วปิด
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -50,8 +46,6 @@ class StudentLogout {
                     ),
                     onPressed: () {
                       Navigator.pop(dialogContext); // ปิด Dialog
-                      
-                      // ⭐️ 4. ทำให้ Tab กลับไปหน้าแรก (index 0)
                       DefaultTabController.of(context).animateTo(0);
                     },
                     child: const Text("Cancel"),
@@ -61,8 +55,33 @@ class StudentLogout {
                       backgroundColor: logoutColor,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(dialogContext);
+
+                      try {
+                        const String apiUrl = 'http://localhost:3000/api/logout';
+
+                        // 🔹 ตัวอย่างการเรียก API logout
+                        final response = await http.post(
+                          Uri.parse(apiUrl),
+                          headers: {
+                            'Content-Type': 'application/json',
+                            // ถ้ามี token ให้เพิ่มบรรทัดนี้:
+                            // 'Authorization': 'Bearer $token',
+                          },
+                        );
+
+                        if (response.statusCode == 200) {
+                          final data = json.decode(response.body);
+                          debugPrint('Logout success: ${data['message']}');
+                        } else {
+                          debugPrint('Logout failed: ${response.body}');
+                        }
+                      } catch (e) {
+                        debugPrint('Logout error: $e');
+                      }
+
+                      // 🔹 กลับไปหน้า Login
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (context) => const Login()),
