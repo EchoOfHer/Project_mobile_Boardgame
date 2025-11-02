@@ -2,8 +2,10 @@ import 'package:boardgame_app/Lender/lender_main.dart';
 import 'package:flutter/material.dart';
 import 'register.dart';
 import 'package:boardgame_app/Student/student_main.dart';
-import 'package:boardgame_app/Lender/lender_browse_list.dart';
 import 'package:boardgame_app/Staff/staff_main.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+final url = '10.0.2.2:3000'; 
 
 
 final url = '10.0.2.2:3000';
@@ -25,53 +27,87 @@ class _LoginState extends State<Login> {
     setState(() => _obscureText = !_obscureText);
   }
 
-  // ⬇️⬇️⬇️ นี่คือส่วนที่แก้ไขตามที่คุณขอ ⬇️⬇️⬇️
-  void _handleLogin() {
-    // 1. ตรวจสอบว่ากรอกข้อมูลครบ (validate)
+  void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      // 2. ดึงค่า username และ password จาก controller
       String username = _usernameController.text;
       String password = _passwordController.text;
 
-      
+      final Uri apiUrl = Uri.http(url,'/api/login');
 
-      if (username == "student" && password == "123456") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const StudentMain()),
+      try {
+        final response = await http.post(
+          apiUrl,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'username': username, 'password': password}),
         );
-      } else if (username == "lender" && password == "123456") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LenderMain()),
-        );
-      } else if (username == "staff" && password == "123456") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const StaffMain()),
-        );
-      } else {
-        // --- ล็อกอินไม่สำเร็จ ---
-        // แสดง SnackBar แจ้งเตือน
+
+        if (response.statusCode == 200) {
+          final responseData = json.decode(response.body);
+          final String token = responseData['token'];
+          final String role = responseData['role'];
+
+          print('Login Success! Token: $token, Role: $role');
+
+          if (role == "borrower") {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const StudentMain()),
+            );
+          } else if (role == "lender") {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const LenderMain()),
+            );
+          } else if (role == "staff") {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const StaffMain()),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Login successful, but unknown Role'),
+                backgroundColor: Colors.blue,
+              ),
+            );
+          }
+        } else if (response.statusCode == 401) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Incorrect username or password'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else {
+          String message = 'Login failed due to an error';
+          try {
+            final responseData = json.decode(response.body);
+            message = responseData['message'] ?? message;
+          } catch (_) {
+            message = 'Server Error: ${response.statusCode}';
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Username หรือ Password ไม่ถูกต้อง'),
-            backgroundColor: Colors.red, // สีพื้นหลังแจ้งเตือน
+          SnackBar(
+            content: Text('Cannot connect to server: $e'),
+            backgroundColor: Colors.red,
           ),
         );
       }
     }
   }
-  // ⬆️⬆️⬆️ จบส่วนที่แก้ไข ⬆️⬆️⬆️
 
-  // ⬇️⬇️⬇️ เพิ่มส่วนนี้เพื่อคืน Memory เมื่อปิดหน้า ⬇️⬇️⬇️
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
-  // ⬆️⬆️⬆️ จบส่วนที่เพิ่ม ⬆️⬆️⬆️
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +119,7 @@ class _LoginState extends State<Login> {
       body: Center(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
-            horizontal: screenWidth * 0.1, // ปรับความกว้างขอบตามจอ
+            horizontal: screenWidth * 0.1,
             vertical: screenHeight * 0.05,
           ),
           child: Form(
@@ -93,10 +129,11 @@ class _LoginState extends State<Login> {
               children: [
                 Image.asset(
                   'image/dice.png',
-                  width: screenWidth * 0.2, // ปรับภาพให้สัมพันธ์กับจอ
+                  width: screenWidth * 0.25,
+                  height: screenWidth * 0.25,
                 ),
-                SizedBox(height: screenHeight * 0.02),
 
+                SizedBox(height: screenHeight * 0.02),
                 Text(
                   'LOGIN',
                   style: TextStyle(
@@ -113,8 +150,6 @@ class _LoginState extends State<Login> {
                   ),
                 ),
                 SizedBox(height: screenHeight * 0.04),
-
-                // Username field
                 TextFormField(
                   controller: _usernameController,
                   decoration: InputDecoration(
@@ -143,8 +178,6 @@ class _LoginState extends State<Login> {
                       value!.isEmpty ? 'Please enter your Username' : null,
                 ),
                 SizedBox(height: screenHeight * 0.015),
-
-                // Password field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscureText,
@@ -159,7 +192,6 @@ class _LoginState extends State<Login> {
                       icon: Icon(
                         _obscureText ? Icons.visibility : Icons.visibility_off,
                         color: Colors.red.shade400,
-                        size: screenWidth * 0.05,
                       ),
                       onPressed: _togglePasswordVisibility,
                     ),
@@ -182,15 +214,13 @@ class _LoginState extends State<Login> {
                       value!.isEmpty ? 'Please enter your Password' : null,
                 ),
                 SizedBox(height: screenHeight * 0.02),
-
                 SizedBox(
                   width: double.infinity,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton(
                       style: TextButton.styleFrom(
-                        padding:
-                            EdgeInsets.zero, // เอา padding ออกเพื่อให้ดูเนียน
+                        padding: EdgeInsets.zero,
                         minimumSize: const Size(0, 0),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -213,15 +243,12 @@ class _LoginState extends State<Login> {
                     ),
                   ),
                 ),
-
                 SizedBox(height: screenHeight * 0.03),
-
                 SizedBox(
                   width: 130,
                   height: screenHeight * 0.06,
                   child: ElevatedButton(
-                    onPressed:
-                        _handleLogin, // <--- เรียกใช้ฟังก์ชันที่แก้ไขแล้ว
+                    onPressed: _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.deepOrange,
