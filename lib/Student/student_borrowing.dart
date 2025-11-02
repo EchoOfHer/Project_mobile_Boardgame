@@ -1,36 +1,16 @@
 // lib/Student/student_borrowing.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '/Staff/game_data.dart';
+import 'dart:convert'; // Added for JSON encoding
+import 'package:http/http.dart' as http; // Added for API call
+
+// REMOVED: import '/Staff/game_data.dart'; // No longer using local gameList
 import 'student_main.dart'
     show colour_main, colour_disable, colour_available, colour_borrow,url;
 
-dynamic _get(dynamic item, String key) {
-  if (item == null) return null;
-  final obj = item as GameItem;
-  switch (key) {
-    case 'gameName':
-      return obj.gameName;
-    case 'gameStyle':
-      return obj.gameStyle;
-    case 'picPath':
-      return obj.picPath;
-    case 'status':
-      return obj.status;
-    case 'minP':
-      return obj.minP;
-    case 'maxP':
-      return obj.maxP;
-    case 'gTime':
-      return obj.gTime;
-    case 'g_link':
-      return obj.g_link;
-    case 'gameGroup':
-      return obj.gameGroup;
-    default:
-      return null;
-  }
-}
+// NOTE: Removed the old dynamic _get helper as the data structure is now Map<String, dynamic>
+// from the API, and no longer relies on the local GameItem class.
+final url = '10.0.2.2:3000'; // Define the URL again for use in this file
 
 // ตัวแปรสถานะการจอง (แชร์ทั้งแอป)
 bool _hasRequestedAnyGame = false;
@@ -44,6 +24,7 @@ class BorrowGamePage extends StatefulWidget {
   final String time;
   final String glink;
   final String gameGroup;
+  final dynamic gameId; // <<<--- FIX 1: ADD gameId FIELD
   final String currentStatus;
   final VoidCallback? onStatusChanged;
 
@@ -56,6 +37,7 @@ class BorrowGamePage extends StatefulWidget {
     required this.time,
     required this.glink,
     required this.gameGroup,
+    required this.gameId, // <<<--- FIX 1: ADD gameId TO CONSTRUCTOR
     required this.currentStatus,
     this.onStatusChanged,
   });
@@ -69,6 +51,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   bool _showDuration = false;
   DateTime? _startDate;
   DateTime? _endDate;
+  bool _isRequesting = false; // New state for API call loading
 
   bool get _isItemAvailable => widget.currentStatus == 'Available';
 
@@ -77,15 +60,10 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
       !_hasRequestedAnyGame &&
       _isItemAvailable &&
       _startDate != null &&
-      _endDate != null;
+      _endDate != null &&
+      !_isRequesting; // Cannot borrow while already requesting
 
-  int get _remaining {
-    return gameList
-        .where(
-          (g) => g.gameGroup == widget.gameGroup && g.status == 'Available',
-        )
-        .length;
-  }
+  // REMOVED: The _remaining getter as it depends on the removed 'gameList'
 
   // 🗑️ REMOVED: ไม่ใช้ Date Picker อีกต่อไป
   Future<void> _selectDate(bool isStart) async {
@@ -96,6 +74,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   void _onBorrowPressed() {
     if (_hasRequestedAnyGame || !_isItemAvailable) return;
 
+    // Use DateTime.now() to set the dates for the reservation
     final DateTime today = DateTime.now().toLocal().copyWith(
       hour: 0,
       minute: 0,
@@ -112,31 +91,68 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
     });
   }
 
+  /// 🌐 Replaced local data modification with API call to request borrowing
   Future<void> _handleBorrow() async {
     if (!_canBorrow) return;
 
-    setState(() => _showPopup = true);
+    setState(() {
+      _isRequesting = true;
+      _showPopup = true;
+    });
 
-    _hasRequestedAnyGame = true;
-    _lastRequestedGroup = widget.gameGroup;
+    try {
+      final response = await http.post(
+        Uri.parse('http://$url/request-borrowing'), // Your new POST endpoint
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'game_id': widget.gameId, // Send the unique game ID
+          'start_date': _startDate!.toIso8601String().substring(0, 10),
+          'end_date': _endDate!.toIso8601String().substring(0, 10),
+          // You will need to add student_id/user_id here
+          // 'student_id': 123456,
+        }),
+      );
 
-    bool changed = false;
-    for (final g in gameList) {
-      if (g.gameGroup == widget.gameGroup &&
-          g.status == 'Available' &&
-          !changed) {
-        g.status = 'Borrowing';
-        changed = true;
-        break;
+      if (response.statusCode == 200) {
+        // Assume success, show success popup
+        _hasRequestedAnyGame = true;
+        _lastRequestedGroup = widget.gameGroup;
+
+        // Call the refresh function on the previous page
+        if (widget.onStatusChanged != null) {
+          widget.onStatusChanged!();
+        }
+      } else {
+        // Handle API error response (e.g., already borrowed, game disabled)
+        final errorMsg =
+            json.decode(response.body)['message'] ?? 'Borrow request failed.';
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $errorMsg')));
+        }
+      }
+    } catch (e) {
+      print('Borrow API network error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error. Could not send request.'),
+          ),
+        );
+      }
+    } finally {
+      // Hide popup and reset requesting state after a short delay
+      await Future.delayed(const Duration(seconds: 3));
+      if (mounted) {
+        setState(() {
+          _isRequesting = false;
+          _showPopup = false;
+        });
       }
     }
-
-    if (widget.onStatusChanged != null) {
-      widget.onStatusChanged!();
-    }
-
-    await Future.delayed(const Duration(seconds: 3));
-    if (mounted) setState(() => _showPopup = false);
   }
 
   Future<void> _launchUrl(String url) async {
@@ -157,12 +173,14 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   }
 
   String get _borrowButtonText {
+    if (_isRequesting) return 'Requesting...'; // Show loading state
     if (_hasRequestedAnyGame) return 'You already requested a game';
     if (!_isItemAvailable) return 'Unavailable: ${widget.currentStatus}';
     if (_showDuration && (_startDate == null || _endDate == null))
-      // 🌟 UPDATED: Should not happen if logic is correct, but safe fallback
       return 'Duration Error';
-    return 'Borrow';
+
+    // Updated button text for the two stages
+    return _showDuration ? 'Confirm Borrow' : 'Borrow';
   }
 
   String _formatDate(DateTime? date) {
@@ -263,13 +281,6 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                                 fontSize: 18,
                               ),
                             ),
-                            // Text(
-                            //   'Status : ',
-                            //   style: TextStyle(
-                            //     color: Colors.grey,
-                            //     fontSize: 18,
-                            //   ),
-                            // ),
                             SizedBox(height: 16),
                             Text(
                               'How to play : ',
@@ -306,15 +317,6 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                               widget.time,
                               style: const TextStyle(fontSize: 18),
                             ),
-                            // Text(
-                            //   widget.currentStatus,
-                            //   style: TextStyle(
-                            //     color: _isItemAvailable
-                            //         ? colour_available
-                            //         : colour_disable,
-                            //     fontSize: 18,
-                            //   ),
-                            // ),
                             const SizedBox(height: 16),
                             InkWell(
                               onTap: () => _launchUrl(widget.glink),
@@ -421,12 +423,16 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                         // If showDuration is true, check _canBorrow (which ensures dates are set)
                         onPressed: _showDuration
                             ? (_canBorrow ? _handleBorrow : null)
-                            : (_hasRequestedAnyGame || !_isItemAvailable
+                            : (_hasRequestedAnyGame ||
+                                      !_isItemAvailable ||
+                                      _isRequesting
                                   ? null
                                   : _onBorrowPressed), // Trigger automatic date set
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              _hasRequestedAnyGame || !_isItemAvailable
+                              _hasRequestedAnyGame ||
+                                  !_isItemAvailable ||
+                                  _isRequesting
                               ? Colors.grey
                               : colour_borrow,
                           shape: RoundedRectangleBorder(
@@ -449,8 +455,8 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
             ),
           ),
 
-          // Success Popup
-          if (_showPopup)
+          // Success Popup (Updated to check for _isRequesting)
+          if (_showPopup && _isRequesting)
             GestureDetector(
               onTap: () {},
               child: Container(
