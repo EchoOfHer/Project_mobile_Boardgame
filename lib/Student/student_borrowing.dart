@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '/Staff/game_data.dart';
 import 'student_main.dart'
     show colour_main, colour_disable, colour_available, colour_borrow;
-
+final url = '10.0.2.2:3000';
 dynamic _get(dynamic item, String key) {
   if (item == null) return null;
   final obj = item as GameItem;
