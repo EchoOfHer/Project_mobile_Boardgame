@@ -1,6 +1,7 @@
 // student_logout.dart
 
 import 'package:flutter/material.dart';
+import 'student_main.dart' show url;
 // ⭐️ 1. import หน้า Login (ต้องมีไฟล์ /login/login.dart)
 import '/login/login.dart';
 

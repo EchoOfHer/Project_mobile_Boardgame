@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import '/Staff/game_data.dart'; // ← gameList
 import '/login/login.dart';
-import 'student_main.dart' show colour_main;
+import 'student_main.dart' show colour_main, url;
 import 'student_borrowing.dart'; // ← BorrowGamePage
 
 /// Shared _get helper (same as in BorrowGamePage)

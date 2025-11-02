@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // 🌟 ADDED: ต้องใช้สำหรับแปลงวันที่
-
+import 'student_main.dart' show url;
 class StudentHistory extends StatefulWidget {
   const StudentHistory({super.key});
 

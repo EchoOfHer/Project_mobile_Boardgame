@@ -1,6 +1,6 @@
 import 'package:boardgame_app/Student/student_main.dart';
 import 'package:flutter/material.dart';
-
+import 'student_main.dart' show url;
 // 🌟 FIXED: New Color Definitions
 const Color colour_main = Color(0xFFFF8000); // Main Orange
 const Color colour_available = Color(0xFF729382); // Available Green

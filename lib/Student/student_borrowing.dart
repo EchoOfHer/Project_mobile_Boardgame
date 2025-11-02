@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/Staff/game_data.dart';
 import 'student_main.dart'
-    show colour_main, colour_disable, colour_available, colour_borrow;
+    show colour_main, colour_disable, colour_available, colour_borrow,url;
 
 dynamic _get(dynamic item, String key) {
   if (item == null) return null;
