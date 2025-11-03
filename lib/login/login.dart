@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'register.dart';
 import 'package:boardgame_app/Student/student_main.dart';
 import 'package:boardgame_app/Staff/staff_main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 final url = '10.0.2.2:3000'; 
@@ -43,9 +44,20 @@ class _LoginState extends State<Login> {
           final responseData = json.decode(response.body);
           final String token = responseData['token'];
           final String role = responseData['role'];
+          
+          // 💡 FIX 1: Get the numeric user_id
+          final int userId = responseData['user_id'];
+          final String loggedInUsername = responseData['username'];
 
-          print('Login Success! Token: $token, Role: $role');
+          // 🔑 Save data
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', token);
+          await prefs.setString('role', role);
+          await prefs.setString('username', loggedInUsername);
+          await prefs.setInt('user_id', userId); // ✅ FIX 2: Save the numeric ID
 
+          print('Login Success! Token: $token, Role: $role, User ID: $userId');
+          
           if (role == "borrower") {
             Navigator.pushReplacement(
               context,
@@ -130,7 +142,7 @@ class _LoginState extends State<Login> {
                   width: screenWidth * 0.25,
                   height: screenWidth * 0.25,
                 ),
-
+                // ... (Rest of the UI code is unchanged) ...
                 SizedBox(height: screenHeight * 0.02),
                 Text(
                   'LOGIN',

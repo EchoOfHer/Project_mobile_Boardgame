@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ===== API SERVICE =====
 class ApiService {
@@ -13,21 +14,28 @@ class ApiService {
     } else if (Platform.isAndroid) {
       return 'http://10.0.2.2:3000';
     } else {
-      return 'http://192.168.1.123:3000'; // เปลี่ยนเป็น IP เครื่องที่รัน Node.js
+      return 'http://192.168.1.123:3000'; // change to your Node.js IP
     }
   }
 
   static Future<List<Map<String, dynamic>>> fetchHistory({
+    required String token,
     required dynamic borrowerId,
     String query = '',
   }) async {
     final uri = Uri.parse('$baseUrl/borrow-history').replace(
       queryParameters: {'borrower_id': borrowerId.toString(), 'q': query},
     );
-    final res = await http.get(uri, headers: {'Accept': 'application/json'});
+
+    final res = await http.get(
+      uri,
+      headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+    );
+
     if (res.statusCode != 200) {
-      throw Exception('Failed to load history');
+      throw Exception('Failed to load history. Status: ${res.statusCode}');
     }
+
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     final items = (data['items'] as List)
         .map((e) => Map<String, dynamic>.from(e))
@@ -38,9 +46,7 @@ class ApiService {
 
 // ===== MAIN PAGE =====
 class StudentHistory extends StatefulWidget {
-  final dynamic borrowerId; // รับ userId ผ่าน constructor
-
-  const StudentHistory({super.key, required this.borrowerId});
+  const StudentHistory({super.key});
 
   @override
   State<StudentHistory> createState() => _StudentHistoryState();
@@ -54,7 +60,10 @@ class _StudentHistoryState extends State<StudentHistory> {
   bool _loading = true;
   String _error = '';
 
-  // แปลง string date -> DateTime
+  String? _token;
+  String? _borrowerId;
+
+  // --- Helper methods ---
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
     try {
@@ -72,23 +81,47 @@ class _StudentHistoryState extends State<StudentHistory> {
     );
   }
 
+  Future<void> _loadAuthData() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('token');
+    final userId = prefs.getInt('user_id');
+    _borrowerId = userId?.toString();
+  }
+
   Future<void> _fetch() async {
+    if (_token == null || _borrowerId == null) {
+      await _loadAuthData();
+      if (_token == null || _borrowerId == null) {
+        setState(() {
+          _error = 'User not logged in or missing ID.';
+          _loading = false;
+        });
+        return;
+      }
+    }
+
     setState(() {
       _loading = true;
       _error = '';
     });
+
     try {
       final items = await ApiService.fetchHistory(
-        borrowerId: widget.borrowerId, // ใช้ userId ที่ส่งมาจาก constructor
+        token: _token!,
+        borrowerId: _borrowerId!,
         query: _search.text.trim(),
       );
+
       _sortHistory(items);
+
       setState(() {
         _filtered = items;
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = e.toString().contains('401')
+            ? 'Authentication failed. Please log in again.'
+            : e.toString();
       });
     } finally {
       setState(() {
@@ -112,7 +145,9 @@ class _StudentHistoryState extends State<StudentHistory> {
   @override
   void initState() {
     super.initState();
-    _fetch();
+    _loadAuthData().then((_) {
+      _fetch();
+    });
     _search.addListener(_onSearchChange);
   }
 
@@ -223,10 +258,28 @@ class HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = item['status'] ?? '';
-    final isApprove = status.toLowerCase() == 'approve';
-    const approveText = Color(0xFF486E5A);
-    const disapproveText = Color(0xFFDD4430);
+    final status = (item['status'] ?? '').toString().toLowerCase();
+
+    // Status color and label mapping
+    Color statusColor;
+    String statusLabel;
+
+    if (status == 'approve') {
+      statusColor = const Color(0xFF486E5A); // green
+      statusLabel = 'Approve';
+    } else if (status == 'disapprove') {
+      statusColor = const Color(0xFFDD4430); // red
+      statusLabel = 'Disapprove';
+    } else if (status == 'pending') {
+      statusColor = const Color(0xFFE67E22); // orange
+      statusLabel = 'Pending';
+    } else if (status == 'returned') {
+      statusColor = const Color(0xFF486E5A); // green
+      statusLabel = 'Returned';
+    } else {
+      statusColor = Colors.black54;
+      statusLabel = status;
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -250,7 +303,7 @@ class HistoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'ID : ${item['id'] ?? '-'}',
+            'Borrow ID : ${item['id'] ?? '-'}',
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
@@ -266,28 +319,30 @@ class HistoryCard extends StatelessWidget {
                 ),
               ),
               Text(
-                isApprove ? 'Approve' : 'Disapprove',
+                statusLabel,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: isApprove ? approveText : disapproveText,
+                  color: statusColor,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          if (!isApprove && (item['reason']?.isNotEmpty ?? false)) ...[
+          if (status == 'disapprove' &&
+              (item['reason']?.isNotEmpty ?? false)) ...[
             _row('Reason :', item['reason'] ?? ''),
             const SizedBox(height: 6),
           ],
-          if (isApprove) ...[
+          if (status == 'approve' || status == 'returned') ...[
             _row('Returned to :', item['returnedTo'] ?? '-'),
             const SizedBox(height: 6),
           ],
           const Divider(height: 20, thickness: 0.5),
           _row('Borrowed date :', item['borrowedDate'] ?? '-'),
           const SizedBox(height: 6),
-          if (isApprove) _row('Returned date :', item['returnedDate'] ?? '-'),
+          if (status == 'approve' || status == 'returned')
+            _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
     );

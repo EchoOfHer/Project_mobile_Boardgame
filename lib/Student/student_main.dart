@@ -78,7 +78,7 @@ class _StudentMainState extends State<StudentMain>
           children: const [
             BrowseStudent(),
             StudentCheckrequests(),
-            StudentHistory(),
+           StudentHistory(),
             Center(child: Text('')), // หน้า logout ว่าง
           ],
         ),
