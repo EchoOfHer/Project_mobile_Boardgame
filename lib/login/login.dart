@@ -30,9 +30,7 @@ class _LoginState extends State<Login> {
       String username = _usernameController.text;
       String password = _passwordController.text;
 
-      
-
-      if (username == "student" && password == "123456") {
+      if (username == "peach" && password == "123456") {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const StudentMain()),

@@ -1,9 +1,46 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // 🌟 ADDED: ต้องใช้สำหรับแปลงวันที่
-final url = '10.0.2.2:3000';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+
+// ===== API SERVICE =====
+class ApiService {
+  static String get baseUrl {
+    if (Platform.isIOS) {
+      return 'http://localhost:3000';
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:3000';
+    } else {
+      return 'http://192.168.1.123:3000'; // เปลี่ยนเป็น IP เครื่องที่รัน Node.js
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchHistory({
+    required dynamic borrowerId,
+    String query = '',
+  }) async {
+    final uri = Uri.parse('$baseUrl/borrow-history').replace(
+      queryParameters: {'borrower_id': borrowerId.toString(), 'q': query},
+    );
+    final res = await http.get(uri, headers: {'Accept': 'application/json'});
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load history');
+    }
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final items = (data['items'] as List)
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    return items;
+  }
+}
+
+// ===== MAIN PAGE =====
 class StudentHistory extends StatefulWidget {
-  const StudentHistory({super.key});
+  final dynamic borrowerId; // รับ userId ผ่าน constructor
+
+  const StudentHistory({super.key, required this.borrowerId});
 
   @override
   State<StudentHistory> createState() => _StudentHistoryState();
@@ -13,73 +50,69 @@ class _StudentHistoryState extends State<StudentHistory> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
 
-  // ----- mock data -----
-  final List<Map<String, String>> _all = [
-    {
-      'game': 'Exploding Kitten',
-      'id': '0001',
-      'status': 'Approve',
-      'approvedBy': 'Lender 1',
-      'returnedTo': 'Steven',
-      'borrowedDate': '15 Oct 2025', // วันที่ 15
-      'returnedDate': '16 Oct 2025',
-    },
-    {
-      'game': 'Catan',
-      'id': '0003',
-      'status': 'Disapprove',
-      'reason': 'Board game is being repaired.',
-      'approvedBy': 'Lender 3',
-      'borrowedDate': '17 Oct 2025', // 🌟 CHANGED: วันที่ 17 (ควรอยู่บนสุด)
-      'returnedDate': '18 Oct 2025',
-    },
-    {
-      'game': 'One week werewolf',
-      'id': '0005',
-      'status': 'Approve',
-      'approvedBy': 'Lender 4',
-      'returnedTo': 'Steven',
-      'borrowedDate': '12 Oct 2025', // วันที่ 12
-      'returnedDate': '14 Oct 2025',
-    },
-  ];
+  List<Map<String, dynamic>> _filtered = [];
+  bool _loading = true;
+  String _error = '';
 
-  late List<Map<String, String>> _filtered;
-
-  // 🌟 NEW: Helper function to parse date string to DateTime
+  // แปลง string date -> DateTime
   DateTime _parseDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) {
-      // Return a very old date for items with missing dates, ensuring they sort last
-      return DateTime(1900);
-    }
-    // Assuming format is 'dd MMM yyyy' (e.g., '15 Oct 2025')
+    if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
     try {
-      // Use 'en_US' locale to safely parse English month names like 'Oct'
       return DateFormat('dd MMM yyyy', 'en_US').parse(dateStr);
-    } catch (e) {
-      // Fallback for parsing errors
-      print('Date parsing error for $dateStr: $e');
+    } catch (_) {
       return DateTime(1900);
     }
   }
 
-  // 🌟 NEW: Sorting function (Newest to Oldest)
-  void _sortHistory(List<Map<String, String>> list) {
-    list.sort((a, b) {
-      final dateA = _parseDate(a['borrowedDate']);
-      final dateB = _parseDate(b['borrowedDate']);
+  void _sortHistory(List<Map<String, dynamic>> list) {
+    list.sort(
+      (a, b) => _parseDate(
+        b['borrowedDate'],
+      ).compareTo(_parseDate(a['borrowedDate'])),
+    );
+  }
 
-      // Compare in descending order (ใหม่ไปเก่า): dateB.compareTo(dateA)
-      return dateB.compareTo(dateA);
+  Future<void> _fetch() async {
+    setState(() {
+      _loading = true;
+      _error = '';
     });
+    try {
+      final items = await ApiService.fetchHistory(
+        borrowerId: widget.borrowerId, // ใช้ userId ที่ส่งมาจาก constructor
+        query: _search.text.trim(),
+      );
+      _sortHistory(items);
+      setState(() {
+        _filtered = items;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  void _onSearchChange() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), _fetch);
+    setState(() {});
+  }
+
+  void _clearSearch() {
+    _search.clear();
+    FocusScope.of(context).unfocus();
+    _fetch();
   }
 
   @override
   void initState() {
     super.initState();
-    // 🌟 FIXED: Sort the initial list
-    _filtered = List.from(_all);
-    _sortHistory(_filtered);
+    _fetch();
     _search.addListener(_onSearchChange);
   }
 
@@ -90,129 +123,92 @@ class _StudentHistoryState extends State<StudentHistory> {
     super.dispose();
   }
 
-  void _onSearchChange() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), () {
-      final q = _search.text.trim().toLowerCase();
-
-      List<Map<String, String>> results;
-
-      if (q.isEmpty) {
-        // Start filtering from the complete list again
-        results = List.from(_all);
-      } else {
-        results = _all.where((m) {
-          return (m['game']?.toLowerCase().contains(q) ?? false) ||
-              (m['id']?.toLowerCase().contains(q) ?? false) ||
-              (m['approvedBy']?.toLowerCase().contains(q) ?? false) ||
-              (m['returnedTo']?.toLowerCase().contains(q) ?? false) ||
-              (m['status']?.toLowerCase().contains(q) ?? false);
-        }).toList();
-      }
-
-      // 🌟 FIXED: Sort the results list before setting state
-      _sortHistory(results);
-
-      setState(() {
-        _filtered = results;
-      });
-    });
-  }
-
-  void _clearSearch() {
-    _search.clear();
-    // 🌟 FIXED: Call _onSearchChange to trigger UI update after clearing
-    _onSearchChange();
-    FocusScope.of(context).unfocus();
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 🌟 Ensure that the initial sort happens even if initState uses _all directly
-    if (_filtered.isEmpty && _all.isNotEmpty) {
-      _filtered = List.from(_all);
-      _sortHistory(_filtered);
-    }
-
     return SafeArea(
-      child: Container(
-        color: const Color(0xFFF7F7F7),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'History',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFE67E22),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Search bar
-              TextField(
-                controller: _search,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: 'Search by game, lender . . .',
-                  prefixIcon: const Icon(
-                    Icons.search,
+      child: RefreshIndicator(
+        onRefresh: _fetch,
+        child: Container(
+          color: const Color(0xFFF7F7F7),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'History',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
                     color: Color(0xFFE67E22),
                   ),
-                  suffixIcon: (_search.text.isEmpty)
-                      ? null
-                      : IconButton(
-                          onPressed: _clearSearch,
-                          icon: const Icon(
-                            Icons.close,
-                            color: Color(0xFFE67E22),
-                          ),
-                        ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFFFD6A5),
-                      width: 2,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFE67E22),
-                      width: 2.5,
-                    ),
-                  ),
-                  hintStyle: const TextStyle(color: Colors.black45),
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // History List
-              Expanded(
-                child: _filtered.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No results found',
-                          style: TextStyle(color: Colors.black54),
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: _filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 16),
-                        itemBuilder: (_, i) => HistoryCard(item: _filtered[i]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _search,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _fetch(),
+                  decoration: InputDecoration(
+                    hintText: 'Search by game, lender . . .',
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Color(0xFFE67E22),
+                    ),
+                    suffixIcon: (_search.text.isEmpty)
+                        ? null
+                        : IconButton(
+                            onPressed: _clearSearch,
+                            icon: const Icon(
+                              Icons.close,
+                              color: Color(0xFFE67E22),
+                            ),
+                          ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFFFD6A5),
+                        width: 2,
                       ),
-              ),
-            ],
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFE67E22),
+                        width: 2.5,
+                      ),
+                    ),
+                    hintStyle: const TextStyle(color: Colors.black45),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : (_error.isNotEmpty)
+                      ? Center(child: Text('Error: $_error'))
+                      : _filtered.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No results found',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _filtered.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 16),
+                          itemBuilder: (_, i) =>
+                              HistoryCard(item: _filtered[i]),
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -220,9 +216,9 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 }
 
-// -------- CARD --------
+// ===== CARD WIDGET =====
 class HistoryCard extends StatelessWidget {
-  final Map<String, String> item;
+  final Map<String, dynamic> item;
   const HistoryCard({super.key, required this.item});
 
   @override
@@ -248,23 +244,18 @@ class HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 	Title
           Text(
-            item['game']!,
+            item['game'] ?? '-',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
-            'ID : ${item['id']}',
+            'ID : ${item['id'] ?? '-'}',
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
-
-          // 	Details
           _row('Approved by :', item['approvedBy'] ?? '-'),
           const SizedBox(height: 6),
-
-          // 	Status
           Row(
             children: [
               const SizedBox(
@@ -285,26 +276,17 @@ class HistoryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-
-          // 	Reason (เฉพาะ Disapprove)
           if (!isApprove && (item['reason']?.isNotEmpty ?? false)) ...[
-            _row('Reason :', item['reason']!),
+            _row('Reason :', item['reason'] ?? ''),
             const SizedBox(height: 6),
           ],
-
-          // 	Returned to (เฉพาะ Approve)
           if (isApprove) ...[
             _row('Returned to :', item['returnedTo'] ?? '-'),
             const SizedBox(height: 6),
           ],
-
           const Divider(height: 20, thickness: 0.5),
-
-          // 	Dates
           _row('Borrowed date :', item['borrowedDate'] ?? '-'),
           const SizedBox(height: 6),
-
-          // 	Returned date (เฉพาะ Approve)
           if (isApprove) _row('Returned date :', item['returnedDate'] ?? '-'),
         ],
       ),
