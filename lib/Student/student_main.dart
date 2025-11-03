@@ -10,6 +10,7 @@ const colour_main = Color(0xFFFF8000);
 const colour_available = Color(0xFF729382);
 const colour_disable = Color(0xFFFF7C7C);
 const colour_borrow = Color(0xFFEFA34B);
+final url ='10.0.2.2:3000';
 
 class StudentMain extends StatefulWidget {
   const StudentMain({super.key});
