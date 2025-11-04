@@ -1,30 +1,150 @@
-import 'package:boardgame_app/Student/student_main.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart'; // Required for date formatting
 import 'student_main.dart' show url;
-// 🌟 FIXED: New Color Definitions
-const Color colour_main = Color(0xFFFF8000); // Main Orange
-const Color colour_available = Color(0xFF729382); // Available Green
-const Color colour_borrow = Color(0xFFEFA34B); // Borrow/Pending Orange
-const Color colour_disable = Color(0xFFFF7C7C); // Disable/Cancel Red
-final url = '10.0.2.2:3000';
+
+// Color Definitions
+const Color colour_main = Color(0xFFFF8000);
+const Color colour_available = Color(0xFF729382);
+const Color colour_borrow = Color(0xFFEFA34B);
+const Color colour_disable = Color(0xFFFF7C7C);
+
+// --- Date Formatting Helper (YYYY-MM-DD) ---
+String _formatDate(dynamic dateInput) {
+  if (dateInput == null) return '-';
+  try {
+    // Attempt to parse the date/timestamp string
+    final dateTime = DateTime.parse(dateInput.toString());
+    // Format to YYYY-MM-DD
+    return DateFormat('yyyy-MM-dd').format(dateTime);
+  } catch (e) {
+    // Return the original string or a fallback if parsing fails
+    return dateInput.toString();
+  }
+}
+
+// --- Data Model ---
+class BorrowItem {
+  final int borrowId;
+  final String gameName;
+  final String picPath;
+  final String fromDate;
+  final String returnDate;
+  final String borrowStatus;
+  final String gameInventoryStatus;
+  final String howtoLink;
+
+  BorrowItem.fromJson(Map<String, dynamic> json)
+    : borrowId = json['borrow_id'] as int,
+      gameName = json['game_name'] as String,
+      picPath = json['pic_path'] as String,
+      // Dates are formatted here
+      fromDate = _formatDate(json['from_date']),
+      returnDate = _formatDate(json['return_date']),
+      borrowStatus = json['borrow_status'] as String,
+      gameInventoryStatus = json['game_inventory_status'] as String,
+      howtoLink = json['howto_link'] as String;
+}
+// --- Widget Definition ---
+
 class StudentCheckrequests extends StatefulWidget {
-  const StudentCheckrequests({super.key});
+  final int userId;
+  const StudentCheckrequests({super.key, required this.userId});
 
   @override
   State<StudentCheckrequests> createState() => _StudentCheckrequestsState();
 }
 
 class _StudentCheckrequestsState extends State<StudentCheckrequests> {
-  // 🌟 FIXED: Set default state back to 'In use'
-  bool itemInUse = true; // Game currently checked out (In use / Returning)
-  bool itemPending = false; // No request pending
-  bool isReturning = false; // Not yet in the return process
+  late Future<List<BorrowItem>> _borrowFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _borrowFuture = _fetchBorrowRequests();
+  }
+
+  // 🔑 Helper function to refresh FutureBuilder
+  void _refreshData() {
+    if (mounted) {
+      setState(() {
+        _borrowFuture = _fetchBorrowRequests();
+      });
+    }
+  }
+
+  // 🔑 Central function to update status via API (for Cancel and Return)
+  Future<bool> _updateBorrowStatus(
+    int borrowId,
+    String newStatus,
+    String actionName,
+  ) async {
+    final uri = Uri.http(url, '/api/borrow/status/$borrowId');
+
+    try {
+      final response = await http.put(
+        uri,
+        // สำคัญ: ต้องกำหนด Headers เป็น application/json
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'status': newStatus}),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$actionName request success!')));
+        return true;
+      } else {
+        final data = json.decode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${data['message'] ?? 'Failed to update status'}'),
+            backgroundColor: colour_disable,
+          ),
+        );
+        return false;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Network error during $actionName: $e'),
+          backgroundColor: colour_disable,
+        ),
+      );
+      return false;
+    }
+  }
+
+  // 🚀 API CALL: Fetch active requests
+  Future<List<BorrowItem>> _fetchBorrowRequests() async {
+    final uri = Uri.http(url, '/api/check-request/${widget.userId}');
+
+    try {
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+
+        if (data['data'] == null || data['data'].isEmpty) {
+          return [];
+        }
+
+        final List<dynamic> jsonList = data['data'];
+        return [BorrowItem.fromJson(jsonList.first)];
+      } else {
+        throw Exception(
+          'Failed to load request: Status ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('Error fetching borrow requests: $e');
+      return [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Determine if any item needs to be displayed
-    bool hasActiveItem = itemInUse || itemPending;
-
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -34,7 +154,6 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Combined Borrow Status and Request Status into one section
                 const Text(
                   "Current Status",
                   style: TextStyle(
@@ -45,9 +164,28 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                 ),
                 const Divider(color: colour_main),
                 const SizedBox(height: 10),
-
-                // Display the active status card or the "No item" message
-                hasActiveItem ? buildStatusCard() : buildNoActiveItemText(),
+                FutureBuilder<List<BorrowItem>>(
+                  future: _borrowFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: colour_main),
+                      );
+                    } else if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error: ${snapshot.error}',
+                          style: TextStyle(color: colour_disable),
+                        ),
+                      );
+                    } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                      final item = snapshot.data!.first;
+                      return _buildStatusCard(item);
+                    } else {
+                      return _buildNoActiveItemText();
+                    }
+                  },
+                ),
               ],
             ),
           ),
@@ -56,25 +194,30 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
     );
   }
 
-  // Created a single function to build the status card
-  Widget buildStatusCard() {
-    // Determine displayed content based on status flags
-    final String cardTitle = itemInUse ? "Castle Panic" : "Champions of Hara";
-    final String imagePath = itemInUse
-        ? "image/Castle_Panic.webp"
-        : "image/Champions_of_Hara.webp";
-    // Colors updated to use the new definitions
-    // final Color borderColor = itemInUse ? colour_available : colour_borrow;
+  // --- UI Builder ---
+
+  Widget _buildStatusCard(BorrowItem item) {
+    final String status = item.borrowStatus.toLowerCase();
+
+    final bool isPending = status == 'pending';
+    final bool isApproved = status == 'approved';
+    final bool isReturning = status == 'returning';
 
     final String currentStatusText;
     final Color statusTextColor;
 
-    if (itemInUse) {
-      currentStatusText = isReturning ? "Returning in process" : "In use";
-      statusTextColor = isReturning ? Colors.grey : colour_available;
-    } else {
+    if (isApproved) {
+      currentStatusText = "In use";
+      statusTextColor = colour_available;
+    } else if (isReturning) {
+      currentStatusText = "Returning in process";
+      statusTextColor = Colors.grey;
+    } else if (isPending) {
       currentStatusText = "Pending";
       statusTextColor = colour_borrow;
+    } else {
+      currentStatusText = "Unknown Status ($status)";
+      statusTextColor = Colors.black;
     }
 
     return Card(
@@ -89,10 +232,14 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
             Container(
               width: 125,
               height: 125,
-
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(imagePath, fit: BoxFit.cover),
+                child: Image.network(
+                  'http://$url/${item.picPath}',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.broken_image),
+                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -103,14 +250,15 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    cardTitle,
+                    item.gameName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text("From: 27/10/2025\nTo: 28/10/2025"),
+                  // Dates are already formatted as YYYY-MM-DD
+                  Text("From: ${item.fromDate}\nTo: ${item.returnDate}"),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -123,29 +271,28 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                           fontSize: 16,
                         ),
                       ),
-
-                      // Conditional button display
-                      itemInUse && !isReturning
-                          ? OutlinedButton(
-                              // Button for "In use" -> Return
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: colour_main,
-                                side: const BorderSide(color: colour_main),
-                              ),
-                              onPressed: showReturningDialog,
-                              child: const Text("Return"),
-                            )
-                          : itemPending
-                          ? OutlinedButton(
-                              // Button for "Pending" -> Cancel
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: colour_disable,
-                                side: const BorderSide(color: colour_disable),
-                              ),
-                              onPressed: showCancelDialog,
-                              child: const Text("Cancel"),
-                            )
-                          : const SizedBox.shrink(), // No button needed
+                      // Show Return button only if APPROVED
+                      if (isApproved)
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colour_main,
+                            side: const BorderSide(color: colour_main),
+                          ),
+                          onPressed: () => _showReturningDialog(item.borrowId),
+                          child: const Text("Return"),
+                        )
+                      // Show Cancel button only if PENDING
+                      else if (isPending)
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colour_disable,
+                            side: const BorderSide(color: colour_disable),
+                          ),
+                          onPressed: () => _showCancelDialog(item.borrowId),
+                          child: const Text("Cancel"),
+                        )
+                      else
+                        const SizedBox.shrink(),
                     ],
                   ),
                 ],
@@ -157,8 +304,7 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
     );
   }
 
-  // Combined No Request/No Borrowing Text
-  Widget buildNoActiveItemText() {
+  Widget _buildNoActiveItemText() {
     return const Center(
       child: Text(
         "You have no active item or pending request.",
@@ -167,43 +313,50 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
     );
   }
 
-  void showReturningDialog() {
-    setState(() => isReturning = true); // Set status to "Returning in process"
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.loop, size: 60, color: colour_available),
-            const SizedBox(height: 16),
-            const Text(
-              "Returning",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Please contact staff to approve",
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
+  // --- Dialogs ---
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
+  void _showReturningDialog(int borrowId) {
+    _updateBorrowStatus(borrowId, 'returning', 'Return').then((success) {
+      if (success && mounted) {
+        showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.loop, size: 60, color: colour_available),
+                const SizedBox(height: 16),
+                const Text(
+                  "Returning",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Please contact staff to approve",
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+          _refreshData();
+        });
       }
     });
   }
 
-  void showCancelDialog() {
+  void _showCancelDialog(int borrowId) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -234,10 +387,20 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colour_disable,
                   ),
-                  onPressed: () {
-                    // Set status to clear the pending item
-                    setState(() => itemPending = false);
-                    Navigator.pop(dialogContext);
+                  onPressed: () async {
+                    Navigator.pop(dialogContext); // 1. ปิด Dialog
+
+                    // 2. เรียก API และรอผลลัพธ์
+                    final bool success = await _updateBorrowStatus(
+                      borrowId,
+                      'cancelled',
+                      'Cancel',
+                    );
+
+                    // 3. ถ้า API สำเร็จค่อย refresh หน้าจอ
+                    if (success) {
+                      _refreshData();
+                    }
                   },
                   child: const Text(
                     "Yes",

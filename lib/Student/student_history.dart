@@ -6,8 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ===== API SERVICE =====
+// ===== API SERVICE (omitted) =====
 class ApiService {
+  // ... (omitted implementation) ...
   static String get baseUrl {
     if (Platform.isIOS) {
       return 'http://localhost:3000';
@@ -44,9 +45,10 @@ class ApiService {
   }
 }
 
-// ===== MAIN PAGE =====
+// ===== MAIN PAGE (Fixed to use widget.userId) =====
 class StudentHistory extends StatefulWidget {
-  const StudentHistory({super.key});
+  final int userId;
+  const StudentHistory({super.key, required this.userId});
 
   @override
   State<StudentHistory> createState() => _StudentHistoryState();
@@ -61,7 +63,6 @@ class _StudentHistoryState extends State<StudentHistory> {
   String _error = '';
 
   String? _token;
-  String? _borrowerId;
 
   // --- Helper methods ---
   DateTime _parseDate(String? dateStr) {
@@ -84,20 +85,17 @@ class _StudentHistoryState extends State<StudentHistory> {
   Future<void> _loadAuthData() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
-    final userId = prefs.getInt('user_id');
-    _borrowerId = userId?.toString();
   }
 
   Future<void> _fetch() async {
-    if (_token == null || _borrowerId == null) {
-      await _loadAuthData();
-      if (_token == null || _borrowerId == null) {
-        setState(() {
-          _error = 'User not logged in or missing ID.';
-          _loading = false;
-        });
-        return;
-      }
+    await _loadAuthData();
+
+    if (_token == null || widget.userId == 0) {
+      setState(() {
+        _error = 'User not logged in or missing ID.';
+        _loading = false;
+      });
+      return;
     }
 
     setState(() {
@@ -108,7 +106,7 @@ class _StudentHistoryState extends State<StudentHistory> {
     try {
       final items = await ApiService.fetchHistory(
         token: _token!,
-        borrowerId: _borrowerId!,
+        borrowerId: widget.userId,
         query: _search.text.trim(),
       );
 
@@ -121,7 +119,7 @@ class _StudentHistoryState extends State<StudentHistory> {
       setState(() {
         _error = e.toString().contains('401')
             ? 'Authentication failed. Please log in again.'
-            : e.toString();
+            : 'Fetch Error: ${e.toString()}';
       });
     } finally {
       setState(() {
@@ -138,7 +136,9 @@ class _StudentHistoryState extends State<StudentHistory> {
 
   void _clearSearch() {
     _search.clear();
-    FocusScope.of(context).unfocus();
+    if (FocusScope.of(context).hasFocus) {
+      FocusScope.of(context).unfocus();
+    }
     _fetch();
   }
 
@@ -251,7 +251,7 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 }
 
-// ===== CARD WIDGET =====
+// ===== CARD WIDGET (Fixed to include 'cancelled' and 'returning') =====
 class HistoryCard extends StatelessWidget {
   final Map<String, dynamic> item;
   const HistoryCard({super.key, required this.item});
@@ -265,17 +265,24 @@ class HistoryCard extends StatelessWidget {
     String statusLabel;
 
     if (status == 'approve') {
-      statusColor = const Color(0xFF486E5A); // green
+      statusColor = const Color(0xFF486E5A); // Green
       statusLabel = 'Approve';
     } else if (status == 'disapprove') {
-      statusColor = const Color(0xFFDD4430); // red
+      statusColor = const Color(0xFFDD4430); // Red
       statusLabel = 'Disapprove';
     } else if (status == 'pending') {
-      statusColor = const Color(0xFFE67E22); // orange
+      statusColor = const Color(0xFFE67E22); // Orange
       statusLabel = 'Pending';
     } else if (status == 'returned') {
-      statusColor = const Color(0xFF486E5A); // green
+      statusColor = const Color(0xFF486E5A); // Green
       statusLabel = 'Returned';
+    } else if (status == 'cancelled') {
+      statusColor = Colors.grey;
+      statusLabel = 'Cancelled';
+    } else if (status == 'returning') {
+      // 🔑 NEW: เพิ่มสถานะ 'returning'
+      statusColor = const Color(0xFFE67E22); // Orange (Same as Pending)
+      statusLabel = 'Returning';
     } else {
       statusColor = Colors.black54;
       statusLabel = status;
@@ -307,7 +314,10 @@ class HistoryCard extends StatelessWidget {
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
-          _row('Approved by :', item['approvedBy'] ?? '-'),
+
+          if (status != 'disapprove' && status != 'cancelled')
+            _row('Approved by :', item['approvedBy'] ?? '-'),
+
           const SizedBox(height: 6),
           Row(
             children: [
