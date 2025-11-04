@@ -155,7 +155,7 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Current Status",
+                  "Request Status",
                   style: TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.w600,
