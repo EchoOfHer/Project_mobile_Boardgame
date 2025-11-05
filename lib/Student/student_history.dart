@@ -6,16 +6,14 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ===== API SERVICE (omitted) =====
 class ApiService {
-  // ... (omitted implementation) ...
   static String get baseUrl {
     if (Platform.isIOS) {
       return 'http://localhost:3000';
     } else if (Platform.isAndroid) {
       return 'http://10.0.2.2:3000';
     } else {
-      return 'http://192.168.1.123:3000'; // change to your Node.js IP
+      return 'http://192.168.1.123:3000';
     }
   }
 
@@ -38,14 +36,10 @@ class ApiService {
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final items = (data['items'] as List)
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-    return items;
+    return (data['items'] as List).cast<Map<String, dynamic>>();
   }
 }
 
-// ===== MAIN PAGE (Fixed to use widget.userId) =====
 class StudentHistory extends StatefulWidget {
   final int userId;
   const StudentHistory({super.key, required this.userId});
@@ -61,10 +55,8 @@ class _StudentHistoryState extends State<StudentHistory> {
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
   String _error = '';
-
   String? _token;
 
-  // --- Helper methods ---
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
     try {
@@ -74,12 +66,24 @@ class _StudentHistoryState extends State<StudentHistory> {
     }
   }
 
+  // SORTING: Pending/Returning on top, others by latest date
   void _sortHistory(List<Map<String, dynamic>> list) {
-    list.sort(
-      (a, b) => _parseDate(
-        b['borrowedDate'],
-      ).compareTo(_parseDate(a['borrowedDate'])),
-    );
+    list.sort((a, b) {
+      final statusA = (a['status'] ?? '').toString().toLowerCase();
+      final statusB = (b['status'] ?? '').toString().toLowerCase();
+
+      // 1. Pending & Returning ขึ้นก่อนเสมอ
+      final isActiveA = statusA == 'pending' || statusA == 'returning';
+      final isActiveB = statusB == 'pending' || statusB == 'returning';
+
+      if (isActiveA && !isActiveB) return -1;
+      if (!isActiveA && isActiveB) return 1;
+
+      // 2. ถ้าสถานะเท่ากัน → เรียงตามวันที่ล่าสุด
+      final dateA = _parseDate(a['borrowedDate']);
+      final dateB = _parseDate(b['borrowedDate']);
+      return dateB.compareTo(dateA); // ใหม่ → เก่า
+    });
   }
 
   Future<void> _loadAuthData() async {
@@ -89,19 +93,15 @@ class _StudentHistoryState extends State<StudentHistory> {
 
   Future<void> _fetch() async {
     await _loadAuthData();
-
     if (_token == null || widget.userId == 0) {
       setState(() {
-        _error = 'User not logged in or missing ID.';
+        _error = 'Please log in again.';
         _loading = false;
       });
       return;
     }
 
-    setState(() {
-      _loading = true;
-      _error = '';
-    });
+    setState(() => _loading = true);
 
     try {
       final items = await ApiService.fetchHistory(
@@ -111,43 +111,33 @@ class _StudentHistoryState extends State<StudentHistory> {
       );
 
       _sortHistory(items);
-
-      setState(() {
-        _filtered = items;
-      });
+      setState(() => _filtered = items);
     } catch (e) {
       setState(() {
         _error = e.toString().contains('401')
-            ? 'Authentication failed. Please log in again.'
-            : 'Fetch Error: ${e.toString()}';
+            ? 'Session expired. Please log in again.'
+            : 'Error: ${e.toString()}';
       });
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
   void _onSearchChange() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), _fetch);
-    setState(() {});
+    _debounce = Timer(const Duration(milliseconds: 300), _fetch);
   }
 
   void _clearSearch() {
     _search.clear();
-    if (FocusScope.of(context).hasFocus) {
-      FocusScope.of(context).unfocus();
-    }
+    FocusScope.of(context).unfocus();
     _fetch();
   }
 
   @override
   void initState() {
     super.initState();
-    _loadAuthData().then((_) {
-      _fetch();
-    });
+    _loadAuthData().then((_) => _fetch());
     _search.addListener(_onSearchChange);
   }
 
@@ -184,12 +174,12 @@ class _StudentHistoryState extends State<StudentHistory> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _fetch(),
                   decoration: InputDecoration(
-                    hintText: 'Search by game, lender . . .',
+                    hintText: 'Search by game, lender...',
                     prefixIcon: const Icon(
                       Icons.search,
                       color: Color(0xFFE67E22),
                     ),
-                    suffixIcon: (_search.text.isEmpty)
+                    suffixIcon: _search.text.isEmpty
                         ? null
                         : IconButton(
                             onPressed: _clearSearch,
@@ -225,8 +215,13 @@ class _StudentHistoryState extends State<StudentHistory> {
                 Expanded(
                   child: _loading
                       ? const Center(child: CircularProgressIndicator())
-                      : (_error.isNotEmpty)
-                      ? Center(child: Text('Error: $_error'))
+                      : _error.isNotEmpty
+                      ? Center(
+                          child: Text(
+                            'Error: $_error',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        )
                       : _filtered.isEmpty
                       ? const Center(
                           child: Text(
@@ -251,7 +246,7 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 }
 
-// ===== CARD WIDGET (Fixed to include 'cancelled' and 'returning') =====
+// CARD (รองรับทุกสถานะ + สีสวย)
 class HistoryCard extends StatelessWidget {
   final Map<String, dynamic> item;
   const HistoryCard({super.key, required this.item});
@@ -260,32 +255,37 @@ class HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = (item['status'] ?? '').toString().toLowerCase();
 
-    // Status color and label mapping
     Color statusColor;
     String statusLabel;
 
-    if (status == 'approve') {
-      statusColor = const Color(0xFF486E5A); // Green
-      statusLabel = 'Approve';
-    } else if (status == 'disapprove') {
-      statusColor = const Color(0xFFDD4430); // Red
-      statusLabel = 'Disapprove';
-    } else if (status == 'pending') {
-      statusColor = const Color(0xFFE67E22); // Orange
-      statusLabel = 'Pending';
-    } else if (status == 'returned') {
-      statusColor = const Color(0xFF486E5A); // Green
-      statusLabel = 'Returned';
-    } else if (status == 'cancelled') {
-      statusColor = Colors.grey;
-      statusLabel = 'Cancelled';
-    } else if (status == 'returning') {
-      // 🔑 NEW: เพิ่มสถานะ 'returning'
-      statusColor = const Color(0xFFE67E22); // Orange (Same as Pending)
-      statusLabel = 'Returning';
-    } else {
-      statusColor = Colors.black54;
-      statusLabel = status;
+    switch (status) {
+      case 'pending':
+        statusColor = const Color(0xFFE67E22);
+        statusLabel = 'Pending';
+        break;
+      case 'returning':
+        statusColor = const Color(0xFFE67E22);
+        statusLabel = 'Returning';
+        break;
+      case 'approve':
+        statusColor = const Color(0xFF486E5A);
+        statusLabel = 'Approved';
+        break;
+      case 'disapprove':
+        statusColor = const Color(0xFFDD4430);
+        statusLabel = 'Disapproved';
+        break;
+      case 'returned':
+        statusColor = const Color(0xFF486E5A);
+        statusLabel = 'Returned';
+        break;
+      case 'cancelled':
+        statusColor = Colors.grey;
+        statusLabel = 'Cancelled';
+        break;
+      default:
+        statusColor = Colors.black54;
+        statusLabel = status;
     }
 
     return Container(
@@ -310,21 +310,20 @@ class HistoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Borrow ID : ${item['id'] ?? '-'}',
+            'ID: ${item['id'] ?? '-'}',
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
 
           if (status != 'disapprove' && status != 'cancelled')
-            _row('Approved by :', item['approvedBy'] ?? '-'),
+            _row('Approved by:', item['approvedBy'] ?? '-'),
 
-          const SizedBox(height: 6),
           Row(
             children: [
               const SizedBox(
                 width: 130,
                 child: Text(
-                  'Status :',
+                  'Status:',
                   style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
               ),
@@ -339,38 +338,39 @@ class HistoryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+
           if (status == 'disapprove' &&
-              (item['reason']?.isNotEmpty ?? false)) ...[
-            _row('Reason :', item['reason'] ?? ''),
-            const SizedBox(height: 6),
-          ],
-          if (status == 'approve' || status == 'returned') ...[
-            _row('Returned to :', item['returnedTo'] ?? '-'),
-            const SizedBox(height: 6),
-          ],
-          const Divider(height: 20, thickness: 0.5),
-          _row('Borrowed date :', item['borrowedDate'] ?? '-'),
-          const SizedBox(height: 6),
+              (item['reason']?.toString().isNotEmpty ?? false))
+            _row('Reason:', item['reason'] ?? ''),
+
           if (status == 'approve' || status == 'returned')
-            _row('Returned date :', item['returnedDate'] ?? '-'),
+            _row('Returned to:', item['returnedTo'] ?? '-'),
+
+          const Divider(height: 20),
+          _row('Borrowed:', item['borrowedDate'] ?? '-'),
+          if (status == 'approve' || status == 'returned')
+            _row('Returned:', item['returnedDate'] ?? '-'),
         ],
       ),
     );
   }
 
   static Widget _row(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 130,
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
           ),
-        ),
-        Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-      ],
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
     );
   }
 }
