@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart'; // 🔑 NEW: Import SharedPreferences
 import 'student_main.dart' show url;
 import '/login/login.dart';
 
@@ -59,26 +60,25 @@ class StudentLogout {
                       Navigator.pop(dialogContext);
 
                       try {
-                        const String apiUrl = 'http://localhost:3000/api/logout';
+                        const String apiUrl =
+                            'http://localhost:3000/api/logout';
 
-                        // 🔹 ตัวอย่างการเรียก API logout
-                        final response = await http.post(
+                        // 🔹 ตัวอย่างการเรียก API logout (ไม่จำเป็นต้องรอผล)
+                        await http.post(
                           Uri.parse(apiUrl),
-                          headers: {
-                            'Content-Type': 'application/json',
-                            // ถ้ามี token ให้เพิ่มบรรทัดนี้:
-                            // 'Authorization': 'Bearer $token',
-                          },
+                          headers: {'Content-Type': 'application/json'},
                         );
 
-                        if (response.statusCode == 200) {
-                          final data = json.decode(response.body);
-                          debugPrint('Logout success: ${data['message']}');
-                        } else {
-                          debugPrint('Logout failed: ${response.body}');
-                        }
+                        // 🔑 FIX: เคลียร์ข้อมูล Token และ User จาก SharedPreferences
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('token');
+                        await prefs.remove('username');
+                        await prefs.remove('user_id');
+                        // Note: การใช้ remove() เป็นวิธีที่ปลอดภัยที่สุดในการเคลียร์ Session
                       } catch (e) {
-                        debugPrint('Logout error: $e');
+                        debugPrint(
+                          'Logout process error (API call or clear storage failed): $e',
+                        );
                       }
 
                       // 🔹 กลับไปหน้า Login
