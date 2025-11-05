@@ -6,6 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// --- Color Definitions ---
+const Color colour_main_orange = Color(0xFFE67E22);
+const Color colour_available_green = Color(0xFF486E5A);
+const Color colour_disable_red = Color(0xFFDD4430);
+
+// --- API Service ---
 class ApiService {
   static String get baseUrl {
     if (Platform.isIOS) {
@@ -40,6 +46,7 @@ class ApiService {
   }
 }
 
+// --- Main History Widget ---
 class StudentHistory extends StatefulWidget {
   final int userId;
   const StudentHistory({super.key, required this.userId});
@@ -51,38 +58,28 @@ class StudentHistory extends StatefulWidget {
 class _StudentHistoryState extends State<StudentHistory> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
-
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
   String _error = '';
   String? _token;
 
+  // ✅ REVERTED: กลับมา Parse แค่ Date string
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
     try {
+      // Format expected from Node.js is '%d %b %Y' (e.g., 06 Nov 2025)
       return DateFormat('dd MMM yyyy', 'en_US').parse(dateStr);
     } catch (_) {
       return DateTime(1900);
     }
   }
 
-  // SORTING: Pending/Returning on top, others by latest date
+  // ✅ REVERTED: กลับมาใช้ borrowedDate ในการเรียงลำดับ
   void _sortHistory(List<Map<String, dynamic>> list) {
     list.sort((a, b) {
-      final statusA = (a['status'] ?? '').toString().toLowerCase();
-      final statusB = (b['status'] ?? '').toString().toLowerCase();
-
-      // 1. Pending & Returning ขึ้นก่อนเสมอ
-      final isActiveA = statusA == 'pending' || statusA == 'returning';
-      final isActiveB = statusB == 'pending' || statusB == 'returning';
-
-      if (isActiveA && !isActiveB) return -1;
-      if (!isActiveA && isActiveB) return 1;
-
-      // 2. ถ้าสถานะเท่ากัน → เรียงตามวันที่ล่าสุด
       final dateA = _parseDate(a['borrowedDate']);
       final dateB = _parseDate(b['borrowedDate']);
-      return dateB.compareTo(dateA); // ใหม่ → เก่า
+      return dateB.compareTo(dateA); // Newest first (by date)
     });
   }
 
@@ -102,6 +99,7 @@ class _StudentHistoryState extends State<StudentHistory> {
     }
 
     setState(() => _loading = true);
+    _error = '';
 
     try {
       final items = await ApiService.fetchHistory(
@@ -109,7 +107,6 @@ class _StudentHistoryState extends State<StudentHistory> {
         borrowerId: widget.userId,
         query: _search.text.trim(),
       );
-
       _sortHistory(items);
       setState(() => _filtered = items);
     } catch (e) {
@@ -165,7 +162,7 @@ class _StudentHistoryState extends State<StudentHistory> {
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFE67E22),
+                    color: colour_main_orange,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -177,7 +174,7 @@ class _StudentHistoryState extends State<StudentHistory> {
                     hintText: 'Search by game, lender...',
                     prefixIcon: const Icon(
                       Icons.search,
-                      color: Color(0xFFE67E22),
+                      color: colour_main_orange,
                     ),
                     suffixIcon: _search.text.isEmpty
                         ? null
@@ -185,7 +182,7 @@ class _StudentHistoryState extends State<StudentHistory> {
                             onPressed: _clearSearch,
                             icon: const Icon(
                               Icons.close,
-                              color: Color(0xFFE67E22),
+                              color: colour_main_orange,
                             ),
                           ),
                     filled: true,
@@ -204,7 +201,7 @@ class _StudentHistoryState extends State<StudentHistory> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30),
                       borderSide: const BorderSide(
-                        color: Color(0xFFE67E22),
+                        color: colour_main_orange,
                         width: 2.5,
                       ),
                     ),
@@ -214,18 +211,23 @@ class _StudentHistoryState extends State<StudentHistory> {
                 const SizedBox(height: 20),
                 Expanded(
                   child: _loading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: colour_main_orange,
+                          ),
+                        )
                       : _error.isNotEmpty
                       ? Center(
                           child: Text(
                             'Error: $_error',
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(color: colour_disable_red),
                           ),
                         )
                       : _filtered.isEmpty
                       ? const Center(
                           child: Text(
-                            'No results found',
+                            'No history found for approved, disapproved, returned, or cancelled requests.',
+                            textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.black54),
                           ),
                         )
@@ -246,7 +248,7 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 }
 
-// CARD (รองรับทุกสถานะ + สีสวย)
+// --- History Card Widget (No changes needed) ---
 class HistoryCard extends StatelessWidget {
   final Map<String, dynamic> item;
   const HistoryCard({super.key, required this.item});
@@ -254,34 +256,33 @@ class HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = (item['status'] ?? '').toString().toLowerCase();
-
     Color statusColor;
     String statusLabel;
 
     switch (status) {
-      case 'pending':
-        statusColor = const Color(0xFFE67E22);
-        statusLabel = 'Pending';
-        break;
-      case 'returning':
-        statusColor = const Color(0xFFE67E22);
-        statusLabel = 'Returning';
-        break;
       case 'approve':
-        statusColor = const Color(0xFF486E5A);
+        statusColor = colour_available_green;
         statusLabel = 'Approved';
         break;
       case 'disapprove':
-        statusColor = const Color(0xFFDD4430);
+        statusColor = colour_disable_red;
         statusLabel = 'Disapproved';
         break;
       case 'returned':
-        statusColor = const Color(0xFF486E5A);
+        statusColor = colour_available_green;
         statusLabel = 'Returned';
         break;
       case 'cancelled':
         statusColor = Colors.grey;
         statusLabel = 'Cancelled';
+        break;
+      case 'pending':
+        statusColor = colour_main_orange;
+        statusLabel = 'Pending';
+        break;
+      case 'returning':
+        statusColor = colour_main_orange;
+        statusLabel = 'Returning';
         break;
       default:
         statusColor = Colors.black54;
