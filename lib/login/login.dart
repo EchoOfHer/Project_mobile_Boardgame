@@ -6,8 +6,8 @@ import 'package:boardgame_app/Staff/staff_main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-final url = '10.0.2.2:3000'; 
 
+final url = '10.0.2.2:3000'; // Local API
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -21,96 +21,91 @@ class _LoginState extends State<Login> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscureText = true;
+  bool _loading = false;
 
   void _togglePasswordVisibility() {
     setState(() => _obscureText = !_obscureText);
   }
 
-  void _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      String username = _usernameController.text;
-      String password = _passwordController.text;
+  Future<void> _handleLogin() async {
+  if (!_formKey.currentState!.validate()) return;
 
-      final Uri apiUrl = Uri.http(url,'/api/login');
+  setState(() => _loading = true);
 
-      try {
-        final response = await http.post(
-          apiUrl,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'username': username, 'password': password}),
+  String username = _usernameController.text.trim();
+  String password = _passwordController.text.trim();
+
+  try {
+    final response = await http.post(
+      Uri.http(url, '/api/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'username': username, 'password': password}),
+    );
+
+    setState(() => _loading = false);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final String token = data['token'];
+      final String role = data['role'];
+      final int userId = data['user_id'];
+      final String loggedInUsername = data['username'];
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', token);
+      await prefs.setString('role', role);
+      await prefs.setString('username', loggedInUsername);
+      await prefs.setInt('user_id', userId);
+
+      // ตรวจสอบว่าบันทึกข้อมูลสำเร็จ
+      print('Stored user_id: ${prefs.getInt('user_id')}');
+      print('Stored role: ${prefs.getString('role')}');
+
+      // Navigate based on role
+      if (role == 'borrower') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const StudentMain()),
         );
-
-        if (response.statusCode == 200) {
-          final responseData = json.decode(response.body);
-          final String token = responseData['token'];
-          final String role = responseData['role'];
-          
-          // 💡 FIX 1: Get the numeric user_id
-          final int userId = responseData['user_id'];
-          final String loggedInUsername = responseData['username'];
-
-          // 🔑 Save data
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('token', token);
-          await prefs.setString('role', role);
-          await prefs.setString('username', loggedInUsername);
-          await prefs.setInt('user_id', userId); // ✅ FIX 2: Save the numeric ID
-
-          print('Login Success! Token: $token, Role: $role, User ID: $userId');
-          
-          if (role == "borrower") {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const StudentMain()),
-            );
-          } else if (role == "lender") {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LenderMain()),
-            );
-          } else if (role == "staff") {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const StaffMain()),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Login successful, but unknown Role'),
-                backgroundColor: Colors.blue,
-              ),
-            );
-          }
-        } else if (response.statusCode == 401) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Incorrect username or password'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          String message = 'Login failed due to an error';
-          try {
-            final responseData = json.decode(response.body);
-            message = responseData['message'] ?? message;
-          } catch (_) {
-            message = 'Server Error: ${response.statusCode}';
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), backgroundColor: Colors.red),
-          );
-        }
-      } catch (e) {
+      } else if (role == 'lender') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LenderMain()),
+        );
+      } else if (role == 'staff') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const StaffMain()),
+        );
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cannot connect to server: $e'),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('Login successful, but unknown Role'),
+            backgroundColor: Colors.blue,
           ),
         );
       }
+    } else {
+      String message = 'Login failed';
+      try {
+        final errorData = json.decode(response.body);
+        message = errorData['message'] ?? message;
+      } catch (_) {}
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     }
+  } catch (e) {
+    setState(() => _loading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Cannot connect to server: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
   @override
   void dispose() {
@@ -142,7 +137,6 @@ class _LoginState extends State<Login> {
                   width: screenWidth * 0.25,
                   height: screenWidth * 0.25,
                 ),
-                // ... (Rest of the UI code is unchanged) ...
                 SizedBox(height: screenHeight * 0.02),
                 Text(
                   'LOGIN',
@@ -258,7 +252,7 @@ class _LoginState extends State<Login> {
                   width: 130,
                   height: screenHeight * 0.06,
                   child: ElevatedButton(
-                    onPressed: _handleLogin,
+                    onPressed: _loading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.deepOrange,
@@ -270,13 +264,15 @@ class _LoginState extends State<Login> {
                         ),
                       ),
                     ),
-                    child: Text(
-                      'LOGIN',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.04,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _loading
+                        ? const CircularProgressIndicator()
+                        : Text(
+                            'LOGIN',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.04,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ],
