@@ -13,8 +13,8 @@ const url = '10.0.2.2:3000';
 
 class HistoryLenderPage extends StatefulWidget {
   final int lenderId;
-  const HistoryLenderPage({super.key, required this.lenderId});
-
+   final String authToken; 
+  const HistoryLenderPage({super.key, required this.lenderId, required this.authToken});
   @override
   State<HistoryLenderPage> createState() => _HistoryLenderPageState();
 }
@@ -32,6 +32,7 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
   void initState() {
     super.initState();
     _loadTokenAndFetchHistory();
+      _fetchHistory();
   }
 
   @override
@@ -77,7 +78,7 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
         apiUri,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_jwtToken', // ใช้ Token ใน Header
+          'Authorization': 'Bearer ${widget.authToken}', 
         },
       ).timeout(const Duration(seconds: 15)); // เพิ่ม Timeout ให้ API
 

@@ -1,11 +1,46 @@
+// lib/Lender/lender_browse_list.dart
 import 'package:flutter/material.dart';
 import 'request_borrowing_lender.dart';
-import '/staff/staff_main.dart' show colour_main, colour_disable;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-final url = '10.0.2.2:3000'; // Local API
+final String url = '10.0.2.2:3000'; // Local API
+const Color colour_main = Colors.orange;
+
+dynamic _get(dynamic item, String key) {
+  if (item == null) return null;
+  if (item is Map<String, dynamic>) return item[key];
+  try {
+    final obj = item as dynamic;
+    switch (key) {
+      case 'gameName':
+        return obj.gameName;
+      case 'gameStyle':
+        return obj.gameStyle;
+      case 'picPath':
+        return obj.picPath;
+      case 'status':
+        return obj.status;
+      case 'minP':
+        return obj.minP;
+      case 'maxP':
+        return obj.maxP;
+      case 'game_id':
+        return obj.game_id;
+      case 'gTime':
+        return obj.gTime;
+      case 'g_link':
+        return obj.g_link;
+      case 'gameGroup':
+        return obj.gameGroup;
+      default:
+        return null;
+    }
+  } catch (_) {
+    return null;
+  }
+}
 
 class BrowseLender extends StatefulWidget {
   const BrowseLender({super.key});
@@ -31,10 +66,17 @@ class _BrowseLenderState extends State<BrowseLender> {
     _searchController.addListener(_runFilter);
   }
 
+  @override
+  void dispose() {
+    _searchController.removeListener(_runFilter);
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadLenderName() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _lenderName = prefs.getString('lender_name') ?? 'Lender';
+      _lenderName = prefs.getString('username') ?? 'Lender';
     });
   }
 
@@ -63,7 +105,7 @@ class _BrowseLenderState extends State<BrowseLender> {
   void _buildCategories() {
     final Set<String> styleSet = {};
     for (final g in _allGames) {
-      final style = g['gameStyle']?.toString().trim() ?? '';
+      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
       if (style.isNotEmpty) styleSet.add(style);
     }
     categories = ['All', ...styleSet.toList()];
@@ -74,7 +116,7 @@ class _BrowseLenderState extends State<BrowseLender> {
 
     if (selectedCategory != 'All') {
       results = results.where((game) {
-        final style = (game['gameStyle'] ?? '').toString().toLowerCase();
+        final style = (_get(game, 'gameStyle') ?? '').toString().toLowerCase();
         return style == selectedCategory.toLowerCase();
       }).toList();
     }
@@ -82,7 +124,7 @@ class _BrowseLenderState extends State<BrowseLender> {
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       results = results.where((game) {
-        final name = (game['gameName'] ?? '').toString().toLowerCase();
+        final name = (_get(game, 'gameName') ?? '').toString().toLowerCase();
         return name.contains(query);
       }).toList();
     }
@@ -187,42 +229,61 @@ class _BrowseLenderState extends State<BrowseLender> {
     }
 
     if (_filteredGames.isEmpty) {
-      return Center(
-        child: Text('No games found.', style: TextStyle(color: Colors.grey)),
+      return RefreshIndicator(
+        onRefresh: _fetchGames,
+        color: colour_main,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 100),
+            Center(
+              child: Text('No games found.',
+                  style: TextStyle(color: Colors.grey, fontSize: 18)),
+            ),
+          ],
+        ),
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14),
-      itemCount: _filteredGames.length,
-      itemBuilder: (context, index) {
-        final game = _filteredGames[index];
-        final name = game['gameName'] ?? '';
-        final pic = game['picPath'] ?? '';
-        final status = game['status'] ?? 'Available';
+    return RefreshIndicator(
+      onRefresh: _fetchGames,
+      color: colour_main,
+      child: GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14),
+        itemCount: _filteredGames.length,
+        itemBuilder: (context, index) {
+          final game = _filteredGames[index];
+          final name = _get(game, 'gameName') ?? '';
+          final pic = _get(game, 'picPath') ?? '';
+          final status = _get(game, 'status') ?? 'Available';
+          final gameId = _get(game, 'game_id');
 
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
                   builder: (_) => RequestBorrowingLenderPage(
-                        gameName: name,
-                        imageAssetPath: pic,
-                        gameStyle: game['gameStyle'] ?? '',
-                        players:
-                            "${game['minP'] ?? 0}-${game['maxP'] ?? 0} players",
-                        time: "${game['gTime'] ?? 0} min",
-                        gameGroup: game['gameGroup'] ?? '',
-                        glink: game['g_link'] ?? '',
-                      )),
-            );
-          },
-          child: GameCard(title: name, imagePath: pic, status: status),
-        );
-      },
+                    gameId: gameId,
+                    currentStatus: status,
+                    gameName: name,
+                    imageAssetPath: pic,
+                    gameStyle: _get(game, 'gameStyle') ?? '',
+                    players:
+                        "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} players",
+                    time: "${_get(game, 'gTime') ?? 0} min",
+                    gameGroup: _get(game, 'gameGroup') ?? '',
+                    glink: _get(game, 'g_link') ?? '',
+                  ),
+                ),
+              );
+            },
+            child: GameCard(title: name, imagePath: pic, status: status),
+          );
+        },
+      ),
     );
   }
 }

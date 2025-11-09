@@ -11,7 +11,7 @@ const colour_main = Color(0xFFFF8000);
 const colour_available = Color(0xFF729382);
 const colour_disable = Color(0xFFFF7C7C);
 const colour_borrow = Color(0xFFEFA34B);
-final url = 'http://10.0.2.2:3000'; // เพิ่ม protocol
+final url = '10.0.2.2:3000'; // ✅ ตัด http:// ออกให้เหมือน StudentMain
 
 class LenderMain extends StatefulWidget {
   const LenderMain({super.key});
@@ -21,34 +21,43 @@ class LenderMain extends StatefulWidget {
 }
 
 class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
-  late final TabController _tabController;
+  late TabController _tabController;
   final int _tabCount = 4;
+
   int? _lenderId;
-  bool _loading = true;
+  String? _authToken; // ✅ เก็บ token ที่ได้จาก login
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabCount, vsync: this);
-    _loadLenderId();
+    _loadUserData();
   }
 
-  Future<void> _loadLenderId() async {
+  /// ✅ โหลด user_id และ auth_token จาก SharedPreferences
+  Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final lenderId = prefs.getInt('user_id');
+    final authToken = prefs.getString('token');
+
     if (!mounted) return;
 
-    if (lenderId == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const Login()),
-      );
+    if (lenderId == null || authToken == null) {
+      // ถ้าไม่มีข้อมูล -> กลับไปหน้า Login
+      await prefs.remove('user_id');
+      await prefs.remove('token');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const Login()),
+        );
+      }
       return;
     }
 
     setState(() {
       _lenderId = lenderId;
-      _loading = false;
+      _authToken = authToken;
     });
   }
 
@@ -60,54 +69,60 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
+    if (_lenderId == null || _authToken == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator(color: colour_main)),
       );
     }
 
-    return Scaffold(
-      body: TabBarView(
-        controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          BrowseLender(), // ไม่ต้องมี Scaffold หรือ BottomNav
-          SeeLenderRequests(lenderId: _lenderId!), // ลบ BottomNav ออก
-          HistoryLenderPage(lenderId: _lenderId!), // ลบ AppBar/BottomNav ออก
-          const Center(child: Text('')), // Logout placeholder
-        ],
+    return DefaultTabController(
+      length: _tabCount,
+      child: Scaffold(
+        bottomNavigationBar: Container(
+          height: 75,
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(width: 0.5, color: colour_main)),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            labelColor: colour_main,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: colour_main,
+            onTap: (index) {
+              if (index == _tabCount - 1) {
+                _showLogoutDialog();
+                _tabController.index = _tabController.previousIndex;
+              }
+            },
+            tabs: const [
+              Tab(icon: Icon(FontAwesomeIcons.gamepad)), // Browse
+              Tab(icon: Icon(Icons.inbox)), // Requests
+              Tab(icon: Icon(FontAwesomeIcons.history)), // History
+              Tab(icon: Icon(Icons.logout)), // Logout
+            ],
+          ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            const BrowseLender(), // Tab 1
+            SeeLenderRequests(
+              lenderId: _lenderId!,
+              authToken: _authToken!,
+            ), // Tab 2
+            HistoryLenderPage(
+              lenderId: _lenderId!,
+              authToken: _authToken!,
+            ), // Tab 3
+            const Center(child: Text('')), // Tab 4 (logout)
+          ],
+        ),
       ),
-      bottomNavigationBar: _buildTabBar(),
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      height: 75,
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(width: 0.5, color: colour_main)),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        labelColor: colour_main,
-        unselectedLabelColor: Colors.grey,
-        indicatorColor: colour_main,
-        onTap: (index) {
-          if (index == _tabCount - 1) {
-            _showLogoutDialog();
-            _tabController.index = _tabController.previousIndex;
-          }
-        },
-        tabs: const [
-          Tab(icon: Icon(FontAwesomeIcons.gamepad)),
-          Tab(icon: Icon(Icons.inbox)),
-          Tab(icon: Icon(FontAwesomeIcons.history)),
-          Tab(icon: Icon(Icons.logout)),
-        ],
-      ),
-    );
-  }
-
+  /// ✅ Popup logout
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -121,7 +136,10 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
             Text(
               "Log Out",
               style: TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: colour_disable),
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: colour_disable,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -146,13 +164,18 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
                     backgroundColor: colour_disable,
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const Login()),
-                      (route) => false,
-                    );
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('user_id');
+                    await prefs.remove('auth_token');
+                    if (mounted) {
+                      Navigator.pop(dialogContext);
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const Login()),
+                        (route) => false,
+                      );
+                    }
                   },
                   child: const Text("Confirm"),
                 ),
