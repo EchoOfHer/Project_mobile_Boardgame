@@ -96,7 +96,7 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
             },
             tabs: const [
               Tab(icon: Icon(FontAwesomeIcons.gamepad)), // Browse
-              Tab(icon: Icon(Icons.inbox)), // Requests
+              Tab(icon: Icon(Icons.pie_chart)), // Requests
               Tab(icon: Icon(FontAwesomeIcons.history)), // History
               Tab(icon: Icon(Icons.logout)), // Logout
             ],
