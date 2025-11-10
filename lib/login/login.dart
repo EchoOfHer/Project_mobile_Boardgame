@@ -6,8 +6,16 @@ import 'package:boardgame_app/login/register.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io' show Platform;
 
-const String baseUrl = '10.0.2.2:3000'; // สำหรับ Emulator เท่านั้น
+// Define both IP addresses
+const String _iosBaseUrl =
+    'http://192.168.1.123:3000'; // For iOS physical device or local network access
+const String _androidBaseUrl =
+    'http://10.0.2.2:3000'; // For Android emulator access
+
+// The final constant that selects the URL based on the platform
+final String baseUrl = Platform.isIOS ? _iosBaseUrl : _androidBaseUrl;
 
 class Login extends StatefulWidget {
   const Login({super.key});
