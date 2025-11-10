@@ -30,7 +30,7 @@ class ApiService {
     String query = '',
   }) async {
     final uri = Uri.parse(
-      '$baseUrl/lender-history',
+      '$baseUrl/HistoryLenderPage',
     ).replace(queryParameters: {'lender_id': lenderId.toString(), 'q': query});
 
     final res = await http.get(
@@ -314,9 +314,7 @@ class HistoryCard extends StatelessWidget {
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 12),
-
-          if (status != 'disapprove' && status != 'cancelled')
-            _row('Borrowed by:', item['borrowedBy'] ?? '-'),
+          _row('Borrowed by:', item['borrowedBy'] ?? '-'),
 
           Row(
             children: [

@@ -35,19 +35,19 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
   }
 
   /// ✅ โหลด user_id และ auth_token จาก SharedPreferences
-   Future<void> _loadUserId() async {
-  final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  final lenderId = prefs.getInt('user_id'); 
-  final token = prefs.getString('auth_token'); 
+    final lenderId = prefs.getInt('user_id');
+    final token = prefs.getString('auth_token');
 
-  if (mounted) {
-    setState(() {
-      _lenderId = lenderId;
-      _authToken = token;
-    });
+    if (mounted) {
+      setState(() {
+        _lenderId = lenderId;
+        _authToken = token;
+      });
+    }
   }
-}
 
   @override
   void dispose() {
@@ -99,10 +99,7 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
               lenderId: _lenderId!,
               // authToken: _authToken!,
             ), // Tab 2
-            HistoryLenderPage(
-              // lenderId: _lenderId!,
-              // // authToken: _authToken!,
-            ), // Tab 3
+            HistoryLenderPage(userId: _lenderId!), // Tab 3
             const Center(child: Text('')), // Tab 4 (logout)
           ],
         ),
