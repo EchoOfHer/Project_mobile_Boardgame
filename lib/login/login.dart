@@ -45,7 +45,7 @@ class _LoginState extends State<Login> {
     final password = _passwordController.text.trim();
 
     try {
-      final uri = Uri.parse('http://10.0.2.2:3000/api/login');
+      final uri = Uri.parse('$baseUrl/api/login');
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
