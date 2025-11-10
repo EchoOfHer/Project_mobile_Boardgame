@@ -30,59 +30,70 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
   }
 
   // --- Fetch Pending Requests ---
- Future<void> fetchPendingRequests() async {
-  try {
-    print('Fetching pending requests... URL: http://$url/lender/pending'); // Log URL เพื่อเช็คว่าถูกไหม
+  Future<void> fetchPendingRequests() async {
+    try {
+      print(
+        'Fetching pending requests... URL: http://$url/lender/pending',
+      ); // Log URL เพื่อเช็คว่าถูกไหม
 
-    final response = await http.get(Uri.parse('http://$url/lender/pending'));
+      final response = await http.get(Uri.parse('http://$url/lender/pending'));
 
-    print('Response status: ${response.statusCode}'); // Log status
-    print('Response body: ${response.body}'); // Log raw JSON เพื่อเช็คข้อมูลจริงๆ
+      print('Response status: ${response.statusCode}'); // Log status
+      print(
+        'Response body: ${response.body}',
+      ); // Log raw JSON เพื่อเช็คข้อมูลจริงๆ
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print('Decoded data length: ${data.length}'); // เช็คว่ามีข้อมูลกี่ตัว
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('Decoded data length: ${data.length}'); // เช็คว่ามีข้อมูลกี่ตัว
 
-      setState(() {
-        pendingRequests = List<Map<String, String>>.from(
-          data.map((item) {
-            print('Processing item: $item'); // Log แต่ละ item
+        setState(() {
+          pendingRequests = List<Map<String, String>>.from(
+            data.map((item) {
+              print('Processing item: $item'); // Log แต่ละ item
 
-            // Handle date parsing อย่างปลอดภัย
-            String month = '';
-            if (item['from_date'] != null && item['from_date'].toString().isNotEmpty) {
-              try {
-                final parsedDate = DateTime.parse(item['from_date'].toString());
-                month = parsedDate.month.toString();
-              } catch (e) {
-                print('Date parse error for ${item['from_date']}: $e');
-                month = ''; // ถ้า parse ไม่ได้ ให้เป็น empty
+              // Handle date parsing อย่างปลอดภัย
+              String month = '';
+              if (item['from_date'] != null &&
+                  item['from_date'].toString().isNotEmpty) {
+                try {
+                  final parsedDate = DateTime.parse(
+                    item['from_date'].toString(),
+                  );
+                  month = parsedDate.month.toString();
+                } catch (e) {
+                  print('Date parse error for ${item['from_date']}: $e');
+                  month = ''; // ถ้า parse ไม่ได้ ให้เป็น empty
+                }
               }
-            }
 
-            return {
-              'id': item['id']?.toString() ?? '',
-              'title': item['game_name']?.toString() ?? '',
-              'user': item['borrower_name']?.toString() ?? '',
-              'Fdate': item['from_date']?.toString() ?? '',
-              'Tdate': item['return_date']?.toString() ?? '',
-              'image': '',
-              'month': month,
-            };
-          }),
-        );
-      });
-      print('Set pendingRequests with ${pendingRequests.length} items'); // Log หลัง setState
-    } else {
-      print('HTTP Error: ${response.statusCode} - ${response.body}');
-      // Optional: แสดง snackbar หรือ dialog ให้ user รู้
-      // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to fetch: ${response.statusCode}')));
+              return {
+                'id': item['id']?.toString() ?? '',
+                'title': item['game_name']?.toString() ?? '',
+                'user': item['borrower_name']?.toString() ?? '',
+                'Fdate': item['from_date']?.toString() ?? '',
+                'Tdate': item['return_date']?.toString() ?? '',
+                'image': item['game_pic_path'] != null && item['game_pic_path'].toString().isNotEmpty
+    ? 'http://$url/${item['game_pic_path']}'
+    : '',
+                'month': month,
+              };
+            }),
+          );
+        });
+        print(
+          'Set pendingRequests with ${pendingRequests.length} items',
+        ); // Log หลัง setState
+      } else {
+        print('HTTP Error: ${response.statusCode} - ${response.body}');
+        // Optional: แสดง snackbar หรือ dialog ให้ user รู้
+        // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to fetch: ${response.statusCode}')));
+      }
+    } catch (e) {
+      print('Fetch error: $e'); // Catch ทุก exception เช่น network, JSON decode
+      // Optional: Handle UI error
     }
-  } catch (e) {
-    print('Fetch error: $e'); // Catch ทุก exception เช่น network, JSON decode
-    // Optional: Handle UI error
   }
-}
 
   // --- Approve Request ---
   Future<void> approveRequest(String borrowId) async {
@@ -116,10 +127,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
       final response = await http.post(
         Uri.parse('http://$url/lender/disapprove/$borrowId'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'reason': reason,
-          'lenderId': widget.lenderId,
-        }),
+        body: jsonEncode({'reason': reason, 'lenderId': widget.lenderId}),
       );
       if (response.statusCode == 200) {
         _showConfirmationDialog(
@@ -210,7 +218,9 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: lenderMain.colour_disable),
+                        borderSide: BorderSide(
+                          color: lenderMain.colour_disable,
+                        ),
                       ),
                     ),
                     validator: (value) => (value == null || value.isEmpty)
@@ -263,13 +273,22 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
           Row(
             children: [
               _buildStatusCardItem(
-                  count: borrowedCount, label: 'Borrowed', color: lenderMain.colour_borrow),
+                count: borrowedCount,
+                label: 'Borrowed',
+                color: lenderMain.colour_borrow,
+              ),
               const SizedBox(width: 12),
               _buildStatusCardItem(
-                  count: availableCount, label: 'Available', color: lenderMain.colour_available),
+                count: availableCount,
+                label: 'Available',
+                color: lenderMain.colour_available,
+              ),
               const SizedBox(width: 12),
               _buildStatusCardItem(
-                  count: disabledCount, label: 'Disabled', color: lenderMain.colour_disable),
+                count: disabledCount,
+                label: 'Disabled',
+                color: lenderMain.colour_disable,
+              ),
             ],
           ),
           const SizedBox(height: 30),
@@ -308,150 +327,178 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     required int count,
     required String label,
     required Color color,
-  }) =>
-      Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+  }) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
-          child: Column(
-            children: [
-              Text(
-                count.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            count.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-      );
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
-  Widget _buildRequestCard({
-    required int index,
-    required String title,
-    required String imagePath,
-    required String user,
-    required String fDate,
-    required String tDate,
-    required String month,
-  }) =>
-      Card(
-        elevation: 2,
-        margin: const EdgeInsets.only(bottom: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
+ Widget _buildRequestCard({
+  required int index,
+  required String title,
+  required String imagePath,
+  required String user,
+  required String fDate,
+  required String tDate,
+  required String month,
+}) => Card(
+  elevation: 2,
+  margin: const EdgeInsets.only(bottom: 16),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+  child: Padding(
+    padding: const EdgeInsets.all(12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // เปลี่ยนจาก Image.asset() เป็น Image.network()
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: imagePath.isNotEmpty && imagePath.startsWith('http')  // เช็คว่าเป็น URL จริง
+              ? Image.network(
                   imagePath,
                   width: 125,
                   height: 125,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 60,
-                    height: 80,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;  // โหลดเสร็จ
+                    return Container(
+                      width: 125,
+                      height: 125,
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: CircularProgressIndicator(),  // Loading spinner
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Image load error for $imagePath: $error');  // Log error ใน console
+                    return Container(
+                      width: 125,
+                      height: 125,
+                      color: Colors.grey[200],
+                      child: const Icon(
+                        Icons.broken_image,
+                        color: Colors.grey,
+                        size: 50,
+                      ),
+                    );
+                  },
+                )
+              : Container(  // ถ้าไม่มี URL แสดง placeholder
+                  width: 125,
+                  height: 125,
+                  color: Colors.grey[200],
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey,
+                    size: 50,
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      'From : $user',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                    Text(
-                      'Duration : $fDate - $tDate $month',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => _showDisapprovalDialog(index),
-                          style: TextButton.styleFrom(
-                            backgroundColor: lenderMain.colour_disable,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text(
-                            'Disapprove',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () =>
-                              approveRequest(pendingRequests[index]['id']!),
-                          style: TextButton.styleFrom(
-                            backgroundColor: lenderMain.colour_available,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 4,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text(
-                            'Approve',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                'From : $user',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              Text(
+                'Duration : $fDate - $tDate',  // ลบ $month ถ้าไม่จำเป็น (Fdate มีเดือนอยู่แล้ว)
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => _showDisapprovalDialog(index),
+                    style: TextButton.styleFrom(
+                      backgroundColor: lenderMain.colour_disable,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Disapprove',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () =>
+                        approveRequest(pendingRequests[index]['id']!),
+                    style: TextButton.styleFrom(
+                      backgroundColor: lenderMain.colour_available,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Approve',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      );
+      ],
+    ),
+  ),
+);
 }
