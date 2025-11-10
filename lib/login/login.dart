@@ -10,7 +10,7 @@ import 'dart:io' show Platform;
 
 // Define both IP addresses
 const String _iosBaseUrl =
-    'http://192.168.1.123:3000'; // For iOS physical device or local network access
+    'http://localhost:3000'; // For iOS physical device or local network access
 const String _androidBaseUrl =
     'http://10.0.2.2:3000'; // For Android emulator access
 
