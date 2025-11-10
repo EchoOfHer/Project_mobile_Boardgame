@@ -5,7 +5,12 @@ import '/Lender/lender_main.dart'
     show colour_main, colour_available, colour_disable, colour_borrow;
 
 import 'lender_browse_list.dart';
-import 'HistoryLenderPage.dart' hide colour_main, colour_disable, colour_borrow;
+import 'HistoryLenderPage.dart';
+
+const colour_main = Color(0xFFFF8000);
+const colour_available = Color(0xFF729382);
+const colour_disable = Color(0xFFFF7C7C);
+const colour_borrow = Color(0xFFEFA34B);
 
 class SeeLenderRequests extends StatefulWidget {
   final int lenderId;
@@ -152,34 +157,6 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     );
   }
 
-  // --- Bottom Navigation ---
-  void _onNavItemTapped(int index) {
-    const currentIndex = 1;
-    if (index == currentIndex) return;
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const BrowseLender()),
-        );
-        break;
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => HistoryLenderPage(
-              // lenderId: widget.lenderId
-            ),
-          ),
-        );
-        break;
-      case 3:
-        _showLogoutDialog();
-        break;
-    }
-  }
-
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -262,7 +239,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
   Widget _buildHeader() => Text(
     "Today's Status",
     style: TextStyle(
-      color: colour_main_orange,
+      color: colour_main,
       fontSize: 28,
       fontWeight: FontWeight.bold,
     ),
@@ -334,7 +311,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
   Widget _buildPendingTitle() => Text(
     'Pending Requests (${pendingRequests.length})',
     style: TextStyle(
-      color: colour_main_orange,
+      color: colour_main,
       fontSize: 22,
       fontWeight: FontWeight.bold,
     ),
