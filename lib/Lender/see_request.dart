@@ -1,103 +1,48 @@
+import 'package:boardgame_app/Student/student_history.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '/Lender/lender_main.dart' show colour_main, colour_available, colour_disable;
+import '/login/login.dart';
+import '/Lender/lender_main.dart'
+    show colour_main, colour_available, colour_disable, colour_borrow;
+
+import 'lender_browse_list.dart';
+import 'HistoryLenderPage.dart' hide colour_main, colour_disable, colour_borrow;
 
 class SeeLenderRequests extends StatefulWidget {
   final int lenderId;
-  final String authToken;
 
-  const SeeLenderRequests({
-    super.key,
-    required this.lenderId,
-    required this.authToken,
-  });
+  const SeeLenderRequests({super.key, required this.lenderId});
 
   @override
   State<SeeLenderRequests> createState() => _SeeLenderRequestsState();
 }
 
 class _SeeLenderRequestsState extends State<SeeLenderRequests> {
-  bool isLoading = true;
-  List<dynamic> pendingRequests = [];
-  final baseUrl = 'http://10.0.2.2:3000';
+  final int borrowedCount = 12;
+  final int availableCount = 38;
+  final int disabledCount = 3;
 
-  // Header สำหรับ API ที่ต้องการ Token
-  Map<String, String> get _authHeaders => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${widget.authToken}',
-      };
+  List<Map<String, String>> pendingRequests = [
+    {
+      'title': 'Castle Panic',
+      'image': 'image/Castle_Panic.webp',
+      'user': 'Anonymous',
+      'Fdate': '29',
+      'Tdate': '30',
+      'month': 'October',
+    },
+    {
+      'title': 'Champions of Hara',
+      'image': 'image/Champions_of_Hara.webp',
+      'user': 'Anonymous',
+      'Fdate': '29',
+      'Tdate': '30',
+      'month': 'October',
+    },
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    fetchPendingRequests();
-  }
-
-  // ==============================
-  // ดึงข้อมูลคำขอจาก API
-  // ==============================
-  Future<void> fetchPendingRequests() async {
-    setState(() => isLoading = true);
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/lender/requests'),
-        headers: _authHeaders,
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          pendingRequests = data['requests'] ?? [];
-          isLoading = false;
-        });
-        debugPrint('✅ Loaded ${pendingRequests.length} pending requests.');
-      } else {
-        debugPrint('❌ Failed to load requests: ${response.statusCode}. Body: ${response.body}');
-        setState(() => isLoading = false);
-      }
-    } catch (e) {
-      debugPrint('⚠️ Error fetching requests: $e');
-      setState(() => isLoading = false);
-    }
-  }
-
-  // ==============================
-  // ส่งผลการอนุมัติ / ปฏิเสธ
-  // ==============================
-  Future<void> updateApproval(int borrowId, String action, {String? reason}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/borrow/approval/$borrowId'),
-        headers: _authHeaders,
-        body: json.encode({
-          'lender_id': widget.lenderId,
-          'action': action,
-          if (reason != null) 'reason': reason,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        _showConfirmationDialog(
-          title: action == 'approve' ? 'Approved' : 'Disapproved',
-          icon: action == 'approve'
-              ? Icons.assignment_turned_in_outlined
-              : Icons.block,
-          color: action == 'approve' ? colour_available : colour_disable,
-        );
-        fetchPendingRequests();
-      } else {
-        debugPrint('❌ Failed approval: ${response.statusCode}. Body: ${response.body}');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Approval Error: $e');
-    }
-  }
-
-  // ==============================
-  // Dialog แสดงผลอนุมัติ/ปฏิเสธ
-  // ==============================
+  // --- Dialogs ---
   void _showConfirmationDialog({
+    required BuildContext context,
     required String title,
     required IconData icon,
     required Color color,
@@ -128,18 +73,20 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     );
   }
 
-  // ==============================
-  // Dialog ปฏิเสธ + เหตุผล
-  // ==============================
-  void _showDisapprovalDialog({required int borrowId}) {
+  void _showDisapprovalDialog({
+    required BuildContext context,
+    required int index,
+  }) {
     final _formKey = GlobalKey<FormState>();
     final _reasonController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (context, setStateDialog) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Form(
@@ -147,12 +94,13 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Reason for Disapproval',
                     style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: colour_disable),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: colour_disable,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -165,7 +113,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: colour_disable),
+                        borderSide: BorderSide(color: colour_disable),
                       ),
                     ),
                     validator: (value) => (value == null || value.isEmpty)
@@ -184,11 +132,13 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
                         Navigator.pop(context);
-                        updateApproval(
-                          borrowId,
-                          'reject',
-                          reason: _reasonController.text,
+                        _showConfirmationDialog(
+                          context: context,
+                          title: 'Disapproved',
+                          icon: Icons.block,
+                          color: colour_disable,
                         );
+                        setState(() => pendingRequests.removeAt(index));
                       }
                     },
                     child: const Text('Submit'),
@@ -202,91 +152,84 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     );
   }
 
-  // ==============================
-  // UI
-  // ==============================
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : pendingRequests.isEmpty
-                ? Center(
-                    child: Text(
-                      "No pending requests",
-                      style: TextStyle(color: Colors.grey[700], fontSize: 18),
-                    ),
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                    children: [
-                      Text(
-                        "Pending Approval Requests",
-                        style: TextStyle(
-                            color: colour_main,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Requests (${pendingRequests.length})',
-                        style: TextStyle(
-                            color: colour_main,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      ...pendingRequests.map((req) => _buildRequestCard(req)).toList(),
-                    ],
-                  ),
-      ),
-    );
+  // --- Bottom Navigation ---
+  void _onNavItemTapped(int index) {
+    const currentIndex = 1;
+    if (index == currentIndex) return;
+
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const BrowseLender()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HistoryLenderPage(
+              // lenderId: widget.lenderId
+            ),
+          ),
+        );
+        break;
+      case 3:
+        _showLogoutDialog();
+        break;
+    }
   }
 
-  Widget _buildRequestCard(dynamic request) {
-    final borrowId = request['borrow_id'];
-    final gameName = request['game_name'] ?? 'Unknown Game';
-    final borrower = request['borrower_username'] ?? 'Anonymous';
-    final fromDate = request['from_date']?.toString().split('T')[0] ?? '';
-    final toDate = request['return_date']?.toString().split('T')[0] ?? '';
-
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(gameName,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text('From: $borrower', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-            Text('Duration: $fromDate → $toDate', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-            const SizedBox(height: 12),
+            Icon(Icons.logout, size: 60, color: colour_disable),
+            const SizedBox(height: 16),
+            Text(
+              "Log Out",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: colour_disable,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Are you sure you want to log out of your account?",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                TextButton(
-                  onPressed: () => _showDisapprovalDialog(borrowId: borrowId),
-                  style: TextButton.styleFrom(
-                      backgroundColor: colour_disable,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
-                  child: const Text('Disapprove', style: TextStyle(fontSize: 12)),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300],
+                    foregroundColor: Colors.black54,
+                  ),
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text("Cancel"),
                 ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => updateApproval(borrowId, 'approve'),
-                  style: TextButton.styleFrom(
-                      backgroundColor: colour_available,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6)),
-                  child: const Text('Approve', style: TextStyle(fontSize: 12)),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colour_disable,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const Login()),
+                      (route) => false,
+                    );
+                  },
+                  child: const Text("Confirm"),
                 ),
               ],
             ),
@@ -295,4 +238,242 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
       ),
     );
   }
+
+  // --- Widgets ---
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 20),
+          _buildStatusCards(),
+          const SizedBox(height: 30),
+          _buildPendingTitle(),
+          const SizedBox(height: 20),
+          _buildRequestsList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() => Text(
+    "Today's Status",
+    style: TextStyle(
+      color: colour_main_orange,
+      fontSize: 28,
+      fontWeight: FontWeight.bold,
+    ),
+  );
+
+  Widget _buildStatusCards() => Row(
+    children: [
+      _buildStatusCardItem(
+        count: borrowedCount,
+        label: 'Borrowed',
+        color: colour_borrow,
+      ),
+      const SizedBox(width: 12),
+      _buildStatusCardItem(
+        count: availableCount,
+        label: 'Available',
+        color: colour_available,
+      ),
+      const SizedBox(width: 12),
+      _buildStatusCardItem(
+        count: disabledCount,
+        label: 'Disabled',
+        color: colour_disable,
+      ),
+    ],
+  );
+
+  Widget _buildStatusCardItem({
+    required int count,
+    required String label,
+    required Color color,
+  }) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            count.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _buildPendingTitle() => Text(
+    'Pending Requests (${pendingRequests.length})',
+    style: TextStyle(
+      color: colour_main_orange,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+    ),
+  );
+
+  Widget _buildRequestsList() => ListView.builder(
+    shrinkWrap: true,
+    padding: EdgeInsets.zero,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: pendingRequests.length,
+    itemBuilder: (context, index) {
+      final request = pendingRequests[index];
+      return _buildRequestCard(
+        index: index,
+        title: request['title']!,
+        imagePath: request['image']!,
+        user: request['user']!,
+        fDate: request['Fdate']!,
+        tDate: request['Tdate']!,
+        month: request['month']!,
+      );
+    },
+  );
+
+  Widget _buildRequestCard({
+    required int index,
+    required String title,
+    required String imagePath,
+    required String user,
+    required String fDate,
+    required String tDate,
+    required String month,
+  }) => Card(
+    elevation: 2,
+    margin: const EdgeInsets.only(bottom: 16),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              imagePath,
+              width: 125,
+              height: 125,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 60,
+                height: 80,
+                color: Colors.grey[200],
+                child: const Icon(Icons.broken_image, color: Colors.grey),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'From : $user',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                Text(
+                  'Duration : $fDate - $tDate $month',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => _showDisapprovalDialog(
+                        context: context,
+                        index: index,
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: colour_disable,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Disapprove',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        _showConfirmationDialog(
+                          context: context,
+                          title: 'Approved',
+                          icon: Icons.assignment_turned_in_outlined,
+                          color: colour_available,
+                        );
+                        setState(() => pendingRequests.removeAt(index));
+                      },
+                      style: TextButton.styleFrom(
+                        backgroundColor: colour_available,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Approve',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
