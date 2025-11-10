@@ -29,68 +29,73 @@ class _LoginState extends State<Login> {
   }
 
   Future<void> _handleLogin() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _loading = true);
+    setState(() => _loading = true);
 
-  final username = _usernameController.text.trim();
-  final password = _passwordController.text.trim();
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-  try {
-    final uri = Uri.parse('http://10.0.2.2:3000/api/login');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
+    try {
+      final uri = Uri.parse('http://10.0.2.2:3000/api/login');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      );
 
-    setState(() => _loading = false);
+      setState(() => _loading = false);
 
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', data['token'] ?? '');
-      await prefs.setString('role', data['role'] ?? '');
-      await prefs.setInt('user_id', data['user_id'] ?? 0);
-      await prefs.setString('username', data['username'] ?? '');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', data['token'] ?? '');
+        await prefs.setString('role', data['role'] ?? '');
+        await prefs.setInt('user_id', data['user_id'] ?? 0);
+        await prefs.setString('username', data['username'] ?? '');
 
-      // เลือกหน้า Main ตาม role
-      Widget nextPage;
-      switch (data['role']) {
-        case 'borrower':
-          nextPage = const StudentMain();
-          break;
-        case 'lender':
-          nextPage = const LenderMain();
-          break;
-        case 'staff':
-          nextPage = const StaffMain();
-          break;
-        default:
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Unknown role.')));
-          return;
+        // เลือกหน้า Main ตาม role
+        Widget nextPage;
+        switch (data['role']) {
+          case 'borrower':
+            nextPage = const StudentMain();
+            break;
+          case 'lender':
+            nextPage = const LenderMain();
+            break;
+          case 'staff':
+            nextPage = const StaffMain();
+            break;
+          default:
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Unknown role.')));
+            return;
+        }
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => nextPage),
+        );
+      } else {
+        final body = jsonDecode(response.body);
+        final message = body['message'] ?? 'Login failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
       }
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => nextPage));
-    } else {
-      final body = jsonDecode(response.body);
-      final message = body['message'] ?? 'Login failed';
+    } catch (e) {
+      setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red));
+        SnackBar(
+          content: Text('Cannot connect to server.\n$e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-  } catch (e) {
-    setState(() => _loading = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Cannot connect to server.\n$e'),
-      backgroundColor: Colors.red,
-    ));
   }
-}
-
 
   @override
   void dispose() {
@@ -142,7 +147,6 @@ class _LoginState extends State<Login> {
                 _buildTextField(
                   controller: _usernameController,
                   hint: 'Username',
-                  icon: Icons.person,
                   validatorMsg: 'Please enter your Username',
                 ),
                 SizedBox(height: screenHeight * 0.015),
@@ -209,7 +213,7 @@ class _LoginState extends State<Login> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
-    required IconData icon,
+    IconData? icon,
     required String validatorMsg,
     bool isPassword = false,
     VoidCallback? onIconTap,
@@ -219,7 +223,10 @@ class _LoginState extends State<Login> {
       obscureText: isPassword && _obscureText,
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: Icon(Icons.person, color: Colors.deepOrange),
+        // *** ADDED contentPadding to increase left space ***
+        contentPadding: const EdgeInsets.fromLTRB(25.0, 15.0, 20.0, 15.0),
+
+        prefixIcon: null,
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(icon, color: Colors.deepOrange),
