@@ -12,14 +12,26 @@ const Color colour_disable = Color(0xFFFF7C7C);
 
 // --- Date Formatting Helper (YYYY-MM-DD) ---
 String _formatDate(dynamic dateInput) {
-  if (dateInput == null) return '-';
+  if (dateInput == null) return '';
   try {
-    // Attempt to parse the date/timestamp string
-    final dateTime = DateTime.parse(dateInput.toString());
+    String dateStr = dateInput.toString();
+    DateTime dateTime;
+
+    // 1. ตรวจสอบว่ามี Time Zone Indicator (Z/+/T) หรือไม่
+    if (dateStr.contains('T') ||
+        dateStr.contains('+') ||
+        dateStr.endsWith('Z')) {
+      // ถ้ามี Time Zone Indicator: แปลงเป็น Local Time (เพื่อแก้ปัญหา Offset จาก Express)
+      dateTime = DateTime.parse(dateStr).toLocal();
+    } else {
+      // 2. ถ้ามีแค่ YYYY-MM-DD (จากคอลัมน์ DATE ใน MySQL):
+      // ตีความว่าเป็น Local Date (Non-UTC) ณ เวลา 00:00:00 เพื่อป้องกันการปัดวันที่ถอยหลัง
+      dateTime = DateTime.parse(dateStr);
+    }
+
     // Format to YYYY-MM-DD
     return DateFormat('yyyy-MM-dd').format(dateTime);
   } catch (e) {
-    // Return the original string or a fallback if parsing fails
     return dateInput.toString();
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '/staff/staff_main.dart'
+import '/lender/lender_main.dart'
     show colour_available, colour_disable, colour_main;
 import '/staff/game_data.dart'; // ← ต้อง import เพื่อใช้ gameList
 
@@ -10,18 +10,23 @@ class RequestBorrowingLenderPage extends StatefulWidget {
   final String gameStyle;
   final String players;
   final String time;
-  final String gameGroup; // ← เพิ่ม: ต้องส่ง gameGroup มา
+  final String gameGroup; 
   final String? glink;
+  final dynamic gameId;          
+  final String currentStatus; 
 
   const RequestBorrowingLenderPage({
     super.key,
+    required this.gameId,
+    required this.currentStatus,
     required this.gameName,
     required this.imageAssetPath,
     required this.gameStyle,
     required this.players,
     required this.time,
     required this.gameGroup,
-    this.glink,
+    required this.glink,
+
   });
 
   @override

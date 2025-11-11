@@ -1,15 +1,17 @@
-// lender_main.dart
-
-import 'package:boardgame_app/Lender/see_request.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'lender_browse_list.dart';
-import 'lender_seerequests.dart';
-import 'HistoryLenderPage.dart'; // ⭐️ 1. Import หน้า History
-import 'lender_logout.dart';
+import 'see_request.dart';
+import 'HistoryLenderPage.dart';
+import '/login/login.dart';
 
 const colour_main = Color(0xFFFF8000);
+const colour_available = Color(0xFF729382);
+const colour_disable = Color(0xFFFF7C7C);
+const colour_borrow = Color(0xFFEFA34B);
+final url = '10.0.2.2:3000'; // ✅ ตัด http:// ออกให้เหมือน StudentMain
 
 class LenderMain extends StatefulWidget {
   const LenderMain({super.key});
@@ -20,19 +22,32 @@ class LenderMain extends StatefulWidget {
 
 class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
   late TabController _tabController;
-
-  // ⭐️ 2. เปลี่ยนจำนวนแท็บเป็น 4
   final int _tabCount = 4;
+
+  int? _lenderId;
+  String? _authToken; // ✅ เก็บ token ที่ได้จาก login
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: _tabCount,
-      vsync: this,
-      initialIndex: 0,
-    );
+    _tabController = TabController(length: _tabCount, vsync: this);
+    _loadUserId();
   }
+
+  /// ✅ โหลด user_id และ auth_token จาก SharedPreferences
+   Future<void> _loadUserId() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final lenderId = prefs.getInt('user_id'); 
+  final token = prefs.getString('auth_token'); 
+
+  if (mounted) {
+    setState(() {
+      _lenderId = lenderId;
+      _authToken = token;
+    });
+  }
+}
 
   @override
   void dispose() {
@@ -42,6 +57,12 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    if (_lenderId == null || _authToken == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: colour_main)),
+      );
+    }
+
     return DefaultTabController(
       length: _tabCount,
       child: Scaffold(
@@ -55,35 +76,99 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
             labelColor: colour_main,
             unselectedLabelColor: Colors.grey,
             indicatorColor: colour_main,
-
-            // ⭐️ 3. ตรรกะ Logout (แท็บสุดท้ายตอนนี้คือ index 3)
             onTap: (index) {
               if (index == _tabCount - 1) {
-                // 3 คือแท็บสุดท้าย
-                LenderLogout.show(context);
+                _showLogoutDialog();
                 _tabController.index = _tabController.previousIndex;
               }
             },
-
-            // ⭐️ 4. เพิ่มไอคอน History
             tabs: const [
-              Tab(icon: Icon(FontAwesomeIcons.gamepad)),
-              Tab(icon: Icon(Icons.pie_chart)),
-              Tab(icon: Icon(FontAwesomeIcons.calendarMinus)),
-              Tab(icon: Icon(Icons.logout)), // 3: Logout
+              Tab(icon: Icon(FontAwesomeIcons.gamepad)), // Browse
+              Tab(icon: Icon(Icons.pie_chart)), // Requests
+              Tab(icon: Icon(FontAwesomeIcons.history)), // History
+              Tab(icon: Icon(Icons.logout)), // Logout
             ],
           ),
         ),
-
-        // ⭐️ 5. เพิ่มหน้า History ใน TabBarView
         body: TabBarView(
           controller: _tabController,
           physics: const NeverScrollableScrollPhysics(),
-          children: const [
-            BrowseLender(), // 0
-            SeeLenderRequests(), // 1
-            HistoryLenderPage(), // 2 (หน้าที่เพิ่มใหม่)
-            Center(child: Text('')), // 3 (หน้าเปล่าสำหรับ Logout)
+          children: [
+            const BrowseLender(), // Tab 1
+            SeeLenderRequests(
+              lenderId: _lenderId!,
+              // authToken: _authToken!,
+            ), // Tab 2
+            HistoryLenderPage(
+              // lenderId: _lenderId!,
+              // // authToken: _authToken!,
+            ), // Tab 3
+            const Center(child: Text('')), // Tab 4 (logout)
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ✅ Popup logout
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.logout, size: 60, color: colour_disable),
+            const SizedBox(height: 16),
+            Text(
+              "Log Out",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: colour_disable,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Are you sure you want to log out?",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300],
+                    foregroundColor: Colors.black54,
+                  ),
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colour_disable,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('user_id');
+                    await prefs.remove('auth_token');
+                    if (mounted) {
+                      Navigator.pop(dialogContext);
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const Login()),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  child: const Text("Confirm"),
+                ),
+              ],
+            ),
           ],
         ),
       ),

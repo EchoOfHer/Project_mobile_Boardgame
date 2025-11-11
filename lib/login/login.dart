@@ -1,13 +1,21 @@
-import 'package:boardgame_app/Lender/lender_main.dart';
 import 'package:flutter/material.dart';
-import 'register.dart';
+import 'package:boardgame_app/Lender/lender_main.dart';
 import 'package:boardgame_app/Student/student_main.dart';
 import 'package:boardgame_app/Staff/staff_main.dart';
+import 'package:boardgame_app/login/register.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-final url = '10.0.2.2:3000'; 
+import 'dart:io' show Platform;
 
+// Define both IP addresses
+const String _iosBaseUrl =
+    'http://192.168.1.123:3000'; // For iOS physical device or local network access
+const String _androidBaseUrl =
+    'http://10.0.2.2:3000'; // For Android emulator access
+
+// The final constant that selects the URL based on the platform
+final String baseUrl = Platform.isIOS ? _iosBaseUrl : _androidBaseUrl;
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -20,95 +28,80 @@ class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _obscureText = true;
+  bool _loading = false;
 
   void _togglePasswordVisibility() {
     setState(() => _obscureText = !_obscureText);
   }
 
-  void _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      String username = _usernameController.text;
-      String password = _passwordController.text;
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      final Uri apiUrl = Uri.http(url,'/api/login');
+    setState(() => _loading = true);
 
-      try {
-        final response = await http.post(
-          apiUrl,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'username': username, 'password': password}),
-        );
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-        if (response.statusCode == 200) {
-          final responseData = json.decode(response.body);
-          final String token = responseData['token'];
-          final String role = responseData['role'];
-          
-          // 💡 FIX 1: Get the numeric user_id
-          final int userId = responseData['user_id'];
-          final String loggedInUsername = responseData['username'];
+    try {
+      final uri = Uri.parse('http://10.0.2.2:3000/api/login');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      );
 
-          // 🔑 Save data
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('token', token);
-          await prefs.setString('role', role);
-          await prefs.setString('username', loggedInUsername);
-          await prefs.setInt('user_id', userId); // ✅ FIX 2: Save the numeric ID
+      setState(() => _loading = false);
 
-          print('Login Success! Token: $token, Role: $role, User ID: $userId');
-          
-          if (role == "borrower") {
-            Navigator.pushReplacement(
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', data['token'] ?? '');
+        await prefs.setString('role', data['role'] ?? '');
+        await prefs.setInt('user_id', data['user_id'] ?? 0);
+        await prefs.setString('username', data['username'] ?? '');
+
+        // เลือกหน้า Main ตาม role
+        Widget nextPage;
+        switch (data['role']) {
+          case 'borrower':
+            nextPage = const StudentMain();
+            break;
+          case 'lender':
+            nextPage = const LenderMain();
+            break;
+          case 'staff':
+            nextPage = const StaffMain();
+            break;
+          default:
+            ScaffoldMessenger.of(
               context,
-              MaterialPageRoute(builder: (context) => const StudentMain()),
-            );
-          } else if (role == "lender") {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LenderMain()),
-            );
-          } else if (role == "staff") {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const StaffMain()),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Login successful, but unknown Role'),
-                backgroundColor: Colors.blue,
-              ),
-            );
-          }
-        } else if (response.statusCode == 401) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Incorrect username or password'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          String message = 'Login failed due to an error';
-          try {
-            final responseData = json.decode(response.body);
-            message = responseData['message'] ?? message;
-          } catch (_) {
-            message = 'Server Error: ${response.statusCode}';
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), backgroundColor: Colors.red),
-          );
+            ).showSnackBar(const SnackBar(content: Text('Unknown role.')));
+            return;
         }
-      } catch (e) {
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => nextPage),
+        );
+      } else {
+        final body = jsonDecode(response.body);
+        final message = body['message'] ?? 'Login failed';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cannot connect to server: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
         );
       }
+    } catch (e) {
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot connect to server.\n$e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -142,7 +135,6 @@ class _LoginState extends State<Login> {
                   width: screenWidth * 0.25,
                   height: screenWidth * 0.25,
                 ),
-                // ... (Rest of the UI code is unchanged) ...
                 SizedBox(height: screenHeight * 0.02),
                 Text(
                   'LOGIN',
@@ -160,95 +152,35 @@ class _LoginState extends State<Login> {
                   ),
                 ),
                 SizedBox(height: screenHeight * 0.04),
-                TextFormField(
+                _buildTextField(
                   controller: _usernameController,
-                  decoration: InputDecoration(
-                    hintText: 'username',
-                    hintStyle: TextStyle(color: Colors.red.shade400),
-                    contentPadding: EdgeInsets.symmetric(
-                      vertical: screenHeight * 0.015,
-                      horizontal: screenWidth * 0.05,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30.0),
-                      borderSide: BorderSide(
-                        color: Colors.orange.shade200,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30.0),
-                      borderSide: const BorderSide(
-                        color: Colors.deepOrange,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter your Username' : null,
+                  hint: 'Username',
+                  validatorMsg: 'Please enter your Username',
                 ),
                 SizedBox(height: screenHeight * 0.015),
-                TextFormField(
+                _buildTextField(
                   controller: _passwordController,
-                  obscureText: _obscureText,
-                  decoration: InputDecoration(
-                    hintText: 'password',
-                    hintStyle: TextStyle(color: Colors.red.shade400),
-                    contentPadding: EdgeInsets.symmetric(
-                      vertical: screenHeight * 0.015,
-                      horizontal: screenWidth * 0.05,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureText ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.red.shade400,
-                      ),
-                      onPressed: _togglePasswordVisibility,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30.0),
-                      borderSide: BorderSide(
-                        color: Colors.orange.shade200,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30.0),
-                      borderSide: const BorderSide(
-                        color: Colors.deepOrange,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter your Password' : null,
+                  hint: 'Password',
+                  icon: _obscureText ? Icons.visibility : Icons.visibility_off,
+                  isPassword: true,
+                  validatorMsg: 'Please enter your Password',
+                  onIconTap: _togglePasswordVisibility,
                 ),
                 SizedBox(height: screenHeight * 0.02),
-                SizedBox(
-                  width: double.infinity,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const Register(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Register',
-                        style: TextStyle(
-                          color: Colors.deepOrange,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const Register()),
+                      );
+                    },
+                    child: const Text(
+                      'Register',
+                      style: TextStyle(
+                        color: Colors.deepOrange,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -258,25 +190,24 @@ class _LoginState extends State<Login> {
                   width: 130,
                   height: screenHeight * 0.06,
                   child: ElevatedButton(
-                    onPressed: _handleLogin,
+                    onPressed: _loading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.deepOrange,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30.0),
-                        side: const BorderSide(
-                          color: Colors.deepOrange,
-                          width: 1.5,
-                        ),
+                        side: const BorderSide(color: Colors.deepOrange),
                       ),
                     ),
-                    child: Text(
-                      'LOGIN',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.04,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _loading
+                        ? const CircularProgressIndicator()
+                        : Text(
+                            'LOGIN',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.04,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -284,6 +215,43 @@ class _LoginState extends State<Login> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    IconData? icon,
+    required String validatorMsg,
+    bool isPassword = false,
+    VoidCallback? onIconTap,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword && _obscureText,
+      decoration: InputDecoration(
+        hintText: hint,
+        // *** ADDED contentPadding to increase left space ***
+        contentPadding: const EdgeInsets.fromLTRB(25.0, 15.0, 20.0, 15.0),
+
+        prefixIcon: null,
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(icon, color: Colors.deepOrange),
+                onPressed: onIconTap,
+              )
+            : null,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30.0),
+          borderSide: BorderSide(color: Colors.orange.shade200),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(30.0)),
+          borderSide: BorderSide(color: Colors.deepOrange, width: 2),
+        ),
+      ),
+      validator: (value) =>
+          value == null || value.isEmpty ? validatorMsg : null,
     );
   }
 }

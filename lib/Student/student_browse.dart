@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert'; // For JSON decoding
 import 'package:http/http.dart' as http; // For network requests
+import 'package:shared_preferences/shared_preferences.dart';
 import '/login/login.dart';
 import 'student_main.dart' show colour_main, url;
 import 'student_borrowing.dart'; // ← BorrowGamePage
@@ -12,7 +13,6 @@ final url = '10.0.2.2:3000';
 /// Shared _get helper (same as in BorrowGamePage)
 dynamic _get(dynamic item, String key) {
   if (item == null) return null;
-  // This supports both Map<String, dynamic> from JSON and dynamic objects
   if (item is Map<String, dynamic>) return item[key];
   try {
     final obj = item as dynamic;
@@ -59,11 +59,13 @@ class _BrowseStudentState extends State<BrowseStudent> {
   late List<String> categories = ['All'];
   String selectedCategory = 'All';
   bool _isLoading = true;
+  String? _username; // ✅ add username field
 
   @override
   void initState() {
     super.initState();
     _filteredGames = [];
+    _fetchUsername(); // ✅ load username from SharedPreferences
     _fetchGames();
     _searchController.addListener(_runFilter);
   }
@@ -75,9 +77,19 @@ class _BrowseStudentState extends State<BrowseStudent> {
     super.dispose();
   }
 
+  /// ✅ Load username from SharedPreferences
+  Future<void> _fetchUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('username') ?? 'Student';
+    if (mounted) {
+      setState(() {
+        _username = name;
+      });
+    }
+  }
+
   /// 🌐 Fetch games from Express API
   Future<void> _fetchGames() async {
-    // Set loading state only if it's the initial load or a manual refresh
     if (_allGames.isEmpty && mounted) setState(() => _isLoading = true);
 
     try {
@@ -168,8 +180,12 @@ class _BrowseStudentState extends State<BrowseStudent> {
                       ),
                     ),
                     Text(
-                      'Welcome Student',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 18),
+                      'Welcome ${_username ?? 'Student'}', // ✅ show actual username
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     _buildSearchBar(),
@@ -259,7 +275,6 @@ class _BrowseStudentState extends State<BrowseStudent> {
     }
 
     if (_filteredGames.isEmpty) {
-      // Pull-to-refresh on empty list
       return RefreshIndicator(
         onRefresh: _fetchGames,
         color: Colors.orange,
@@ -278,7 +293,6 @@ class _BrowseStudentState extends State<BrowseStudent> {
       );
     }
 
-    // Pull-to-refresh on populated list
     return RefreshIndicator(
       onRefresh: _fetchGames,
       color: Colors.orange,
@@ -336,7 +350,6 @@ class _BrowseStudentState extends State<BrowseStudent> {
 
 // -------------------------------------------------------------------
 
-// === Game Card (Includes Status Badge, Grayscale Filter, and Network Image) ===
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -439,7 +452,6 @@ class GameCard extends StatelessWidget {
     );
   }
 
-  /// ✅ Fixed image loading from server
   Widget _buildImageOrPlaceholder() {
     Widget imageWidget;
     if (imagePath.trim().isEmpty) {
@@ -448,8 +460,6 @@ class GameCard extends StatelessWidget {
         child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
       );
     } else {
-      // 🛠️ FIX: Use Image.network and construct the full URL
-      // http://10.0.2.2:3000/image/Castle_Panic.webp
       imageWidget = Image.network(
         'http://$url/$imagePath',
         fit: BoxFit.cover,
@@ -462,7 +472,6 @@ class GameCard extends StatelessWidget {
       );
     }
 
-    // Apply grayscale filter if Borrowing or Disabled
     if (status == 'Borrowing' || status == 'Disabled') {
       return ColorFiltered(
         colorFilter: const ColorFilter.matrix(<double>[

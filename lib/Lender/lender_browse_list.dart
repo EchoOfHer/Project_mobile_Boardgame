@@ -1,10 +1,46 @@
+// lib/Lender/lender_browse_list.dart
 import 'package:flutter/material.dart';
-import 'see_request.dart';
-import '/login/login.dart';
-import 'HistoryLenderPage.dart';
 import 'request_borrowing_lender.dart';
-import 'package:boardgame_app/Staff/game_data.dart'; // ← Use shared game data
-import '/staff/staff_main.dart' show colour_main, colour_disable;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+final String url = '10.0.2.2:3000'; // Local API
+const Color colour_main = Colors.orange;
+
+dynamic _get(dynamic item, String key) {
+  if (item == null) return null;
+  if (item is Map<String, dynamic>) return item[key];
+  try {
+    final obj = item as dynamic;
+    switch (key) {
+      case 'gameName':
+        return obj.gameName;
+      case 'gameStyle':
+        return obj.gameStyle;
+      case 'picPath':
+        return obj.picPath;
+      case 'status':
+        return obj.status;
+      case 'minP':
+        return obj.minP;
+      case 'maxP':
+        return obj.maxP;
+      case 'game_id':
+        return obj.game_id;
+      case 'gTime':
+        return obj.gTime;
+      case 'g_link':
+        return obj.g_link;
+      case 'gameGroup':
+        return obj.gameGroup;
+      default:
+        return null;
+    }
+  } catch (_) {
+    return null;
+  }
+}
 
 class BrowseLender extends StatefulWidget {
   const BrowseLender({super.key});
@@ -15,82 +51,69 @@ class BrowseLender extends StatefulWidget {
 
 class _BrowseLenderState extends State<BrowseLender> {
   final TextEditingController _searchController = TextEditingController();
-  late List<dynamic> _filteredGames;
-  late List<String> categories;
+  List<dynamic> _allGames = [];
+  List<dynamic> _filteredGames = [];
+  List<String> categories = ['All'];
   String selectedCategory = 'All';
+  bool _isLoading = true;
+  String? _lenderName;
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize with one game per group
-    _filteredGames = _getUniqueGames(gameList);
-
-    // Extract unique styles from gameList
-    final Set<String> styleSet = <String>{};
-    for (final g in gameList) {
-      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
-      if (style.isNotEmpty) styleSet.add(style);
-    }
-    categories = ['All', ...styleSet.toList()];
-
+    _loadLenderName();
+    _fetchGames();
     _searchController.addListener(_runFilter);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_runFilter);
     _searchController.dispose();
     super.dispose();
   }
 
-  // Safely access dynamic fields
-  dynamic _get(dynamic item, String key) {
-    if (item == null) return null;
-    if (item is Map<String, dynamic>) return item[key];
+  Future<void> _loadLenderName() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _lenderName = prefs.getString('username') ?? 'Lender';
+    });
+  }
 
+  Future<void> _fetchGames() async {
+    setState(() => _isLoading = true);
     try {
-      switch (key) {
-        case 'gameName':
-          return (item as dynamic).gameName;
-        case 'gameStyle':
-          return (item as dynamic).gameStyle;
-        case 'picPath':
-          return (item as dynamic).picPath;
-        case 'minP':
-          return (item as dynamic).minP;
-        case 'maxP':
-          return (item as dynamic).maxP;
-        case 'gTime':
-          return (item as dynamic).gTime;
-        case 'g_link':
-          return (item as dynamic).g_link;
-        case 'gameGroup':
-          return (item as dynamic).gameGroup;
-        default:
-          return (item as dynamic)[key];
+      final response = await http.get(Uri.parse('http://$url/api/games'));
+      if (response.statusCode == 200) {
+        final List<dynamic> fetchedGames = json.decode(response.body);
+        setState(() {
+          _allGames = fetchedGames;
+          _buildCategories();
+          _runFilter();
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        debugPrint('Failed to fetch games: ${response.statusCode}');
       }
-    } catch (_) {
-      return null;
+    } catch (e) {
+      setState(() => _isLoading = false);
+      debugPrint('Error fetching games: $e');
     }
   }
 
-  // Get one representative per gameGroup
-  List<dynamic> _getUniqueGames(List<dynamic> games) {
-    final Map<String, dynamic> uniqueMap = {};
-    for (var g in games) {
-      final group = _get(g, 'gameGroup')?.toString() ?? '';
-      if (group.isNotEmpty && !uniqueMap.containsKey(group)) {
-        uniqueMap[group] = g;
-      }
+  void _buildCategories() {
+    final Set<String> styleSet = {};
+    for (final g in _allGames) {
+      final style = _get(g, 'gameStyle')?.toString().trim() ?? '';
+      if (style.isNotEmpty) styleSet.add(style);
     }
-    return uniqueMap.values.toList();
+    categories = ['All', ...styleSet.toList()];
   }
 
-  // Filter games
   void _runFilter() {
-    List<dynamic> results = List<dynamic>.from(gameList);
+    List<dynamic> results = List<dynamic>.from(_allGames);
 
-    // Filter by category
     if (selectedCategory != 'All') {
       results = results.where((game) {
         final style = (_get(game, 'gameStyle') ?? '').toString().toLowerCase();
@@ -98,56 +121,48 @@ class _BrowseLenderState extends State<BrowseLender> {
       }).toList();
     }
 
-    // Filter by search
-    final String searchQuery = _searchController.text.toLowerCase();
-    if (searchQuery.isNotEmpty) {
+    final query = _searchController.text.toLowerCase();
+    if (query.isNotEmpty) {
       results = results.where((game) {
         final name = (_get(game, 'gameName') ?? '').toString().toLowerCase();
-        return name.contains(searchQuery);
+        return name.contains(query);
       }).toList();
     }
 
-    setState(() {
-      _filteredGames = _getUniqueGames(results);
-    });
+    if (mounted) setState(() => _filteredGames = results);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Container(
-          color: Colors.white,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'BOARD GAME SS',
-                      style: TextStyle(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'BOARD GAME SS',
+                    style: TextStyle(
                         color: colour_main,
                         fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Welcome Lender',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 18),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSearchBar(),
-                    const SizedBox(height: 16),
-                    _buildCategoryFilters(),
-                  ],
-                ),
+                        fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Welcome ${_lenderName ?? 'Lender'}',
+                    style: TextStyle(color: Colors.grey[700], fontSize: 18),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildSearchBar(),
+                  const SizedBox(height: 16),
+                  _buildCategoryFilters(),
+                ],
               ),
-              const SizedBox(height: 10),
-              Expanded(child: _buildGameGrid()),
-            ],
-          ),
+            ),
+            Expanded(child: _buildGameGrid()),
+          ],
         ),
       ),
     );
@@ -163,15 +178,7 @@ class _BrowseLenderState extends State<BrowseLender> {
         fillColor: Colors.grey[100],
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: colour_main),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: colour_main),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: colour_main, width: 2),
+          borderSide: const BorderSide(color: colour_main),
         ),
       ),
     );
@@ -188,12 +195,9 @@ class _BrowseLenderState extends State<BrowseLender> {
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = category == selectedCategory;
-
           return GestureDetector(
             onTap: () {
-              setState(() {
-                selectedCategory = category;
-              });
+              setState(() => selectedCategory = category);
               _runFilter();
             },
             child: Container(
@@ -207,10 +211,9 @@ class _BrowseLenderState extends State<BrowseLender> {
                 child: Text(
                   category,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13),
                 ),
               ),
             ),
@@ -221,121 +224,65 @@ class _BrowseLenderState extends State<BrowseLender> {
   }
 
   Widget _buildGameGrid() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: colour_main));
+    }
+
     if (_filteredGames.isEmpty) {
-      return const Center(
-        child: Text(
-          'No games found.',
-          style: TextStyle(color: Colors.grey, fontSize: 18),
+      return RefreshIndicator(
+        onRefresh: _fetchGames,
+        color: colour_main,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 100),
+            Center(
+              child: Text('No games found.',
+                  style: TextStyle(color: Colors.grey, fontSize: 18)),
+            ),
+          ],
         ),
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: 0.75,
-      ),
-      itemCount: _filteredGames.length,
-      itemBuilder: (context, index) {
-        final game = _filteredGames[index];
+    return RefreshIndicator(
+      onRefresh: _fetchGames,
+      color: colour_main,
+      child: GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14),
+        itemCount: _filteredGames.length,
+        itemBuilder: (context, index) {
+          final game = _filteredGames[index];
+          final name = _get(game, 'gameName') ?? '';
+          final pic = _get(game, 'picPath') ?? '';
+          final status = _get(game, 'status') ?? 'Available';
+          final gameId = _get(game, 'game_id');
 
-        final String gameName = _get(game, 'gameName')?.toString() ?? '';
-        final String picPath = _get(game, 'picPath')?.toString() ?? '';
-        final String gameGroup = _get(game, 'gameGroup')?.toString() ?? '';
-        final String? glink = _get(game, 'g_link')?.toString(); // Optional
-
-        // Count available copies in group
-        final int remaining = gameList.where((g) {
-          final gg = _get(g, 'gameGroup')?.toString() ?? '';
-          final st = _get(g, 'status')?.toString().toLowerCase() ?? '';
-          return gg == gameGroup && st == 'available';
-        }).length;
-
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RequestBorrowingLenderPage(
-                  gameName: gameName,
-                  imageAssetPath: picPath,
-                  gameStyle: _get(game, 'gameStyle')?.toString() ?? '',
-                  players:
-                      "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} players",
-                  time: "${_get(game, 'gTime') ?? 0} min",
-                  gameGroup: gameGroup,
-                  glink: glink, // Safe: can be null
-                ),
-              ),
-            );
-          },
-          child: GameCard(title: gameName, imagePath: picPath),
-        );
-      },
-    );
-  }
-
-  void _showLogoutDialog() {
-    const Color logoutColor = Color(0xFFFF7C7C);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.logout, size: 60, color: logoutColor),
-            const SizedBox(height: 16),
-            const Text(
-              "Log Out",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: logoutColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Are you sure you want to log out?",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[300],
-                  ),
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text(
-                    "Cancel",
-                    style: TextStyle(color: Colors.black54),
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RequestBorrowingLenderPage(
+                    gameId: gameId,
+                    currentStatus: status,
+                    gameName: name,
+                    imageAssetPath: pic,
+                    gameStyle: _get(game, 'gameStyle') ?? '',
+                    players:
+                        "${_get(game, 'minP') ?? 0}-${_get(game, 'maxP') ?? 0} players",
+                    time: "${_get(game, 'gTime') ?? 0} min",
+                    gameGroup: _get(game, 'gameGroup') ?? '',
+                    glink: _get(game, 'g_link') ?? '',
                   ),
                 ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: logoutColor),
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const Login()),
-                      (route) => false,
-                    );
-                  },
-                  child: const Text(
-                    "Confirm",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              );
+            },
+            child: GameCard(title: name, imagePath: pic, status: status),
+          );
+        },
       ),
     );
   }
@@ -344,8 +291,14 @@ class _BrowseLenderState extends State<BrowseLender> {
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
+  final String status;
 
-  const GameCard({super.key, required this.title, required this.imagePath});
+  const GameCard({
+    super.key,
+    required this.title,
+    required this.imagePath,
+    required this.status,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -356,9 +309,9 @@ class GameCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _buildImageOrPlaceholder()),
+          Expanded(child: _buildImageWithStatus()),
           Padding(
-            padding: const EdgeInsets.all(10.0),
+            padding: const EdgeInsets.all(10),
             child: Text(
               title,
               textAlign: TextAlign.center,
@@ -372,22 +325,46 @@ class GameCard extends StatelessWidget {
     );
   }
 
+  Widget _buildImageWithStatus() {
+    return Stack(
+      children: [
+        Positioned.fill(child: _buildImageOrPlaceholder()),
+        if (status != 'Available')
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: status == 'Borrowing'
+                    ? Colors.red.shade600
+                    : Colors.grey.shade700,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                status,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildImageOrPlaceholder() {
-    if (imagePath.trim().isEmpty) {
+    if (imagePath.isEmpty) {
       return Container(
         color: Colors.grey[200],
         child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
       );
     }
-    return Image.asset(
-      imagePath,
+    return Image.network(
+      'http://$url/$imagePath',
       fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: Colors.grey[200],
-          child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-        );
-      },
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+      ),
     );
   }
 }
