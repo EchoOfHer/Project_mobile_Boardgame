@@ -150,10 +150,23 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
     }
   }
 
-  Future<void> _launchUrl(String link) async {
-    final uri = Uri.parse(link.startsWith('http') ? link : 'http://$link');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _launchUrl(String? url) async {
+    if (url == null || url.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No link available.')));
+      return;
+    }
+
+    final String fullUrl = url.startsWith('http') ? url : 'http://$url';
+    final Uri uri = Uri.parse(fullUrl);
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the link.')),
+        );
+      }
     }
   }
 

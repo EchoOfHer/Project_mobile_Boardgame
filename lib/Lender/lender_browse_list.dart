@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// NOTE: ควรใช้ constant ที่ Platform-aware (มาจาก login.dart หรือไฟล์แยก)
 final String url = '10.0.2.2:3000'; // Local API
 const Color colour_main = Colors.orange;
 
@@ -52,7 +53,7 @@ class BrowseLender extends StatefulWidget {
 class _BrowseLenderState extends State<BrowseLender> {
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _allGames = [];
-  List<dynamic> _filteredGames = [];
+  late List<dynamic> _filteredGames; // เปลี่ยนเป็น late
   List<String> categories = ['All'];
   String selectedCategory = 'All';
   bool _isLoading = true;
@@ -61,6 +62,7 @@ class _BrowseLenderState extends State<BrowseLender> {
   @override
   void initState() {
     super.initState();
+    _filteredGames = []; // Initialized here
     _loadLenderName();
     _fetchGames();
     _searchController.addListener(_runFilter);
@@ -81,24 +83,28 @@ class _BrowseLenderState extends State<BrowseLender> {
   }
 
   Future<void> _fetchGames() async {
-    setState(() => _isLoading = true);
+    if (_allGames.isEmpty && mounted) setState(() => _isLoading = true);
+
     try {
+      // ✅ ใช้ API เดียวกัน
       final response = await http.get(Uri.parse('http://$url/api/games'));
       if (response.statusCode == 200) {
         final List<dynamic> fetchedGames = json.decode(response.body);
-        setState(() {
-          _allGames = fetchedGames;
-          _buildCategories();
-          _runFilter();
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _allGames = fetchedGames;
+            _buildCategories();
+            _runFilter();
+            _isLoading = false;
+          });
+        }
       } else {
-        setState(() => _isLoading = false);
         debugPrint('Failed to fetch games: ${response.statusCode}');
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
       debugPrint('Error fetching games: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -129,6 +135,21 @@ class _BrowseLenderState extends State<BrowseLender> {
       }).toList();
     }
 
+    // ⭐ เพิ่ม LOGIC การจัดเรียงตาม Student Page
+    results.sort((a, b) {
+      final groupA = _get(a, 'gameGroup')?.toString() ?? '';
+      final groupB = _get(b, 'gameGroup')?.toString() ?? '';
+      final statusA = _get(a, 'status')?.toString() ?? '';
+      final statusB = _get(b, 'status')?.toString() ?? '';
+
+      final groupComparison = groupA.compareTo(groupB);
+      if (groupComparison != 0) return groupComparison;
+
+      if (statusA == 'Available' && statusB != 'Available') return -1;
+      if (statusA != 'Available' && statusB == 'Available') return 1;
+      return 0;
+    });
+
     if (mounted) setState(() => _filteredGames = results);
   }
 
@@ -146,13 +167,18 @@ class _BrowseLenderState extends State<BrowseLender> {
                   const Text(
                     'BOARD GAME SS',
                     style: TextStyle(
-                        color: colour_main,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold),
+                      color: colour_main,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Text(
                     'Welcome ${_lenderName ?? 'Lender'}',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 18),
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold, // Match Student style
+                    ),
                   ),
                   const SizedBox(height: 20),
                   _buildSearchBar(),
@@ -179,6 +205,14 @@ class _BrowseLenderState extends State<BrowseLender> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
           borderSide: const BorderSide(color: colour_main),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: colour_main),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: colour_main, width: 2),
         ),
       ),
     );
@@ -211,9 +245,10 @@ class _BrowseLenderState extends State<BrowseLender> {
                 child: Text(
                   category,
                   style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13),
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
@@ -237,8 +272,10 @@ class _BrowseLenderState extends State<BrowseLender> {
           children: const [
             SizedBox(height: 100),
             Center(
-              child: Text('No games found.',
-                  style: TextStyle(color: Colors.grey, fontSize: 18)),
+              child: Text(
+                'No games found.',
+                style: TextStyle(color: Colors.grey, fontSize: 18),
+              ),
             ),
           ],
         ),
@@ -251,7 +288,11 @@ class _BrowseLenderState extends State<BrowseLender> {
       child: GridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14),
+          crossAxisCount: 2,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 0.75, // ⭐ FIX: Match Student aspect ratio
+        ),
         itemCount: _filteredGames.length,
         itemBuilder: (context, index) {
           final game = _filteredGames[index];
@@ -288,6 +329,8 @@ class _BrowseLenderState extends State<BrowseLender> {
   }
 }
 
+// -------------------------------------------------------------------
+// ✅ GameCard implementation unified to match the Student page
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -311,7 +354,7 @@ class GameCard extends StatelessWidget {
         children: [
           Expanded(child: _buildImageWithStatus()),
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10.0),
             child: Text(
               title,
               textAlign: TextAlign.center,
@@ -329,42 +372,116 @@ class GameCard extends StatelessWidget {
     return Stack(
       children: [
         Positioned.fill(child: _buildImageOrPlaceholder()),
-        if (status != 'Available')
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: status == 'Borrowing'
-                    ? Colors.red.shade600
-                    : Colors.grey.shade700,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                status,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          ),
+        Positioned(
+          top: 8.0,
+          right: 8.0,
+          child: status != 'Available'
+              ? _buildStatusBadge(status)
+              : const SizedBox.shrink(),
+        ),
       ],
     );
   }
 
+  Widget _buildStatusBadge(String text) {
+    Color backgroundColor;
+    IconData icon;
+
+    switch (text) {
+      case 'Borrowing':
+        backgroundColor = Colors.red.shade600;
+        icon = Icons.handshake;
+        break;
+      case 'Disabled':
+        backgroundColor = Colors.grey.shade700;
+        icon = Icons.block;
+        break;
+      default:
+        backgroundColor = Colors.blue.shade600;
+        icon = Icons.info_outline;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildImageOrPlaceholder() {
-    if (imagePath.isEmpty) {
-      return Container(
+    Widget imageWidget;
+    if (imagePath.trim().isEmpty) {
+      imageWidget = Container(
         color: Colors.grey[200],
         child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
       );
+    } else {
+      imageWidget = Image.network(
+        'http://$url/$imagePath',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+          );
+        },
+      );
     }
-    return Image.network(
-      'http://$url/$imagePath',
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
-        color: Colors.grey[200],
-        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-      ),
-    );
+
+    // Apply grayscale filter if status is 'Borrowing' or 'Disabled'
+    if (status == 'Borrowing' || status == 'Disabled') {
+      return ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+        ]),
+        child: imageWidget,
+      );
+    } else {
+      return imageWidget;
+    }
   }
 }

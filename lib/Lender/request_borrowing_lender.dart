@@ -10,10 +10,10 @@ class RequestBorrowingLenderPage extends StatefulWidget {
   final String gameStyle;
   final String players;
   final String time;
-  final String gameGroup; 
+  final String gameGroup;
   final String? glink;
-  final dynamic gameId;          
-  final String currentStatus; 
+  final dynamic gameId;
+  final String currentStatus;
 
   const RequestBorrowingLenderPage({
     super.key,
@@ -26,7 +26,6 @@ class RequestBorrowingLenderPage extends StatefulWidget {
     required this.time,
     required this.gameGroup,
     required this.glink,
-
   });
 
   @override
@@ -123,8 +122,6 @@ class _RequestBorrowingLenderPageState
 
   @override
   Widget build(BuildContext context) {
-    final int remaining = currentRemaining; // คำนวณสดทุกครั้ง
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -186,10 +183,12 @@ class _RequestBorrowingLenderPageState
                   const Divider(thickness: 1, color: colour_main),
                   const SizedBox(height: 20),
 
-                  // ข้อมูล 2 คอลัมน์
+                  // ข้อมูล 2 คอลัมน์ (แก้ไขการจัดเรียง)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment:
+                        MainAxisAlignment.center, // จัดให้อยู่กึ่งกลาง
                     children: [
+                      // คอลัมน์ Label
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
@@ -197,11 +196,12 @@ class _RequestBorrowingLenderPageState
                           _Label('Game Style :'),
                           _Label('Players :'),
                           _Label('Time :'),
-                          _Label('Remaining :'),
                           _Label('How to play :'),
                         ],
                       ),
                       const SizedBox(width: 12),
+                      // คอลัมน์ Value
+                      // **สำคัญ: ลบ Expanded ออกเพื่อให้ Row สามารถจัดให้อยู่ตรงกลางได้**
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -209,25 +209,14 @@ class _RequestBorrowingLenderPageState
                           _Value(widget.gameStyle),
                           _Value(widget.players),
                           _Value(widget.time),
-                          _Value(
-                            '$remaining board${remaining != 1 ? 's' : ''}',
-                            color: remaining == 0
-                                ? colour_disable
-                                : Colors.black,
-                          ),
                           InkWell(
                             onTap: () => _launchUrl(widget.glink),
-                            child: Text(
+                            child: _Value(
                               widget.glink?.isNotEmpty == true
                                   ? widget.glink!
                                   : 'No link available',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Colors.black,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                              bold: true,
+                              color: colour_main,
                             ),
                           ),
                         ],
@@ -237,7 +226,7 @@ class _RequestBorrowingLenderPageState
 
                   const SizedBox(height: 30),
 
-                  // ปุ่มยืม
+                  // ปุ่มยืม (ส่วนนี้จะถูกซ่อนไว้ตามโค้ดเดิมที่ไม่มีปุ่มอยู่แล้ว)
                 ],
               ),
             ),
@@ -301,7 +290,7 @@ class _Label extends StatelessWidget {
   const _Label(this.text);
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
+    padding: const EdgeInsets.symmetric(vertical: 8), // Padding ที่สม่ำเสมอ
     child: Text(text, style: TextStyle(color: Colors.grey[600], fontSize: 18)),
   );
 }
@@ -310,17 +299,22 @@ class _Value extends StatelessWidget {
   final String text;
   final Color? color;
   final bool bold;
-  const _Value(this.text, {this.color, this.bold = false});
+  final TextDecoration? decoration; // เพิ่ม decoration สำหรับ Link
+  const _Value(this.text, {this.color, this.bold = false, this.decoration});
+
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
+    padding: const EdgeInsets.symmetric(vertical: 8), // Padding ที่สม่ำเสมอ
     child: Text(
       text,
       style: TextStyle(
         fontSize: 18,
         fontWeight: bold ? FontWeight.bold : FontWeight.normal,
         color: color ?? Colors.black,
+        decoration: decoration,
       ),
+      maxLines: 2, // จำกัดบรรทัดเผื่อ Link ยาว
+      overflow: TextOverflow.ellipsis,
     ),
   );
 }
