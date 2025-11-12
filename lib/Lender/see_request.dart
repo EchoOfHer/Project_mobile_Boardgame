@@ -1,9 +1,7 @@
-import 'package:boardgame_app/Student/student_history.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '/login/login.dart';
-import '/Lender/lender_main.dart'
-    show colour_main, colour_available, colour_disable, colour_borrow;
-
 import 'lender_browse_list.dart';
 import 'HistoryLenderPage.dart';
 
@@ -14,38 +12,197 @@ const colour_borrow = Color(0xFFEFA34B);
 
 class SeeLenderRequests extends StatefulWidget {
   final int lenderId;
+  final String authToken;
 
-  const SeeLenderRequests({super.key, required this.lenderId});
+  const SeeLenderRequests({
+    super.key,
+    required this.lenderId,
+    required this.authToken,
+  });
 
   @override
   State<SeeLenderRequests> createState() => _SeeLenderRequestsState();
 }
 
 class _SeeLenderRequestsState extends State<SeeLenderRequests> {
-  final int borrowedCount = 12;
-  final int availableCount = 38;
-  final int disabledCount = 3;
+  final String url = '10.0.2.2:3000';
 
-  List<Map<String, String>> pendingRequests = [
-    {
-      'title': 'Castle Panic',
-      'image': 'image/Castle_Panic.webp',
-      'user': 'Anonymous',
-      'Fdate': '29',
-      'Tdate': '30',
-      'month': 'October',
-    },
-    {
-      'title': 'Champions of Hara',
-      'image': 'image/Champions_of_Hara.webp',
-      'user': 'Anonymous',
-      'Fdate': '29',
-      'Tdate': '30',
-      'month': 'October',
-    },
-  ];
+  int borrowedCount = 0;
+  int availableCount = 0;
+  int disabledCount = 0;
+  bool _isLoadingStatus = true;
+  List<Map<String, String>> pendingRequests = [];
 
-  // --- Dialogs ---
+  @override
+  void initState() {
+    super.initState();
+    fetchStatusSummary();
+    fetchPendingRequests();
+  }
+
+  // Fetch Status Summary API (/api/status-summary)
+  Future<void> fetchStatusSummary() async {
+    setState(() {
+      _isLoadingStatus = true;
+    });
+    try {
+      final response = await http.get(
+        Uri.parse('http://$url/api/status-summary'),
+        headers: {
+          'Authorization': 'Bearer ${widget.authToken}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            borrowedCount =
+                int.tryParse(data['data']['borrowed'].toString()) ?? 0;
+            availableCount =
+                int.tryParse(data['data']['available'].toString()) ?? 0;
+            disabledCount =
+                int.tryParse(data['data']['disabled'].toString()) ?? 0;
+          });
+        }
+      } else {
+        print(
+          'HTTP Status Error fetching status: ${response.statusCode} - ${response.body}',
+        );
+      }
+    } catch (e) {
+      print('Fetch Status Summary Error: $e');
+    } finally {
+      setState(() {
+        _isLoadingStatus = false;
+      });
+    }
+  }
+
+  // Fetch Pending Requests
+  Future<void> fetchPendingRequests() async {
+    try {
+      print('Fetching pending requests... URL: http://$url/lender/pending');
+      final response = await http.get(
+        Uri.parse('http://$url/lender/pending'),
+        headers: {'Authorization': 'Bearer ${widget.authToken}'},
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('Decoded data length: ${data.length}');
+
+        setState(() {
+          if (data is List) {
+            pendingRequests = List<Map<String, String>>.from(
+              data.map((item) {
+                String month = '';
+                if (item['from_date'] != null &&
+                    item['from_date'].toString().isNotEmpty) {
+                  try {
+                    final parsedDate = DateTime.parse(
+                      item['from_date'].toString(),
+                    );
+                    month = parsedDate.month.toString();
+                  } catch (e) {
+                    print('Date parse error for ${item['from_date']}: $e');
+                  }
+                }
+                return {
+                  'id': item['id']?.toString() ?? '',
+                  'title': item['game_name']?.toString() ?? '',
+                  'user': item['borrower_name']?.toString() ?? '',
+                  'Fdate': item['from_date']?.toString() ?? '',
+                  'Tdate': item['return_date']?.toString() ?? '',
+                  'image':
+                      item['game_pic_path'] != null &&
+                          item['game_pic_path'].toString().isNotEmpty
+                      ? 'http://$url/${item['game_pic_path']}'
+                      : '',
+                  'month': month,
+                };
+              }),
+            );
+          } else {
+            print('Error: API response is not a List.');
+          }
+        });
+        print('Set pendingRequests with ${pendingRequests.length} items');
+      } else {
+        print('HTTP Error: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Fetch error: $e');
+    }
+  }
+
+  // Approve Request
+  Future<void> approveRequest(String borrowId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://$url/lender/approve/$borrowId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.authToken}',
+        },
+        body: jsonEncode({'lenderId': widget.lenderId}),
+      );
+
+      if (response.statusCode == 200) {
+        _showConfirmationDialog(
+          context: context,
+          title: 'Approved',
+          icon: Icons.assignment_turned_in_outlined,
+          color: lenderMain.colour_available,
+        );
+        setState(() {
+          pendingRequests.removeWhere((item) => item['id'] == borrowId);
+        });
+        fetchStatusSummary();
+      } else {
+        print("Approve Error: ${response.body}");
+      }
+    } catch (e) {
+      print("Approve Exception: $e");
+    }
+  }
+
+  // Disapprove Request
+  Future<void> disapproveRequest(String borrowId, String reason) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://$url/lender/disapprove/$borrowId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.authToken}',
+        },
+        body: jsonEncode({'reason': reason, 'lenderId': widget.lenderId}),
+      );
+
+      if (response.statusCode == 200) {
+        _showConfirmationDialog(
+          context: context,
+          title: 'Disapproved',
+          icon: Icons.block,
+          color: lenderMain.colour_disable,
+        );
+        setState(() {
+          pendingRequests.removeWhere((item) => item['id'] == borrowId);
+        });
+        fetchStatusSummary();
+      } else {
+        print("Disapprove Error: ${response.body}");
+      }
+    } catch (e) {
+      print("Disapprove Exception: $e");
+    }
+  }
+
+  // Dialogs
   void _showConfirmationDialog({
     required BuildContext context,
     required String title,
@@ -78,12 +235,10 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     );
   }
 
-  void _showDisapprovalDialog({
-    required BuildContext context,
-    required int index,
-  }) {
+  void _showDisapprovalDialog(int index) {
     final _formKey = GlobalKey<FormState>();
     final _reasonController = TextEditingController();
+    final borrowId = pendingRequests[index]['id']!;
 
     showDialog(
       context: context,
@@ -104,7 +259,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: colour_disable,
+                      color: lenderMain.colour_disable,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -118,7 +273,9 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: colour_disable),
+                        borderSide: BorderSide(
+                          color: lenderMain.colour_disable,
+                        ),
                       ),
                     ),
                     validator: (value) => (value == null || value.isEmpty)
@@ -128,7 +285,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: colour_disable,
+                      backgroundColor: lenderMain.colour_disable,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -137,13 +294,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
                         Navigator.pop(context);
-                        _showConfirmationDialog(
-                          context: context,
-                          title: 'Disapproved',
-                          icon: Icons.block,
-                          color: colour_disable,
-                        );
-                        setState(() => pendingRequests.removeAt(index));
+                        disapproveRequest(borrowId, _reasonController.text);
                       }
                     },
                     child: const Text('Submit'),
@@ -157,58 +308,76 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     );
   }
 
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await fetchStatusSummary();
+          await fetchPendingRequests();
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
           children: [
-            Icon(Icons.logout, size: 60, color: colour_disable),
-            const SizedBox(height: 16),
             Text(
-              "Log Out",
+              "Today's Status",
               style: TextStyle(
-                fontSize: 22,
+                color: lenderMain.colour_main,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: colour_disable,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              "Are you sure you want to log out of your account?",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+            const SizedBox(height: 20),
+            _isLoadingStatus
+                ? const Center(child: CircularProgressIndicator())
+                : Row(
+                    children: [
+                      _buildStatusCardItem(
+                        count: borrowedCount,
+                        label: 'Borrowed',
+                        color: lenderMain.colour_borrow,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatusCardItem(
+                        count: availableCount,
+                        label: 'Available',
+                        color: lenderMain.colour_available,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatusCardItem(
+                        count: disabledCount,
+                        label: 'Disabled',
+                        color: lenderMain.colour_disable,
+                      ),
+                    ],
+                  ),
+            const SizedBox(height: 30),
+            Text(
+              'Pending Requests (${pendingRequests.length})',
+              style: TextStyle(
+                color: lenderMain.colour_main,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[300],
-                    foregroundColor: Colors.black54,
-                  ),
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text("Cancel"),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colour_disable,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const Login()),
-                      (route) => false,
-                    );
-                  },
-                  child: const Text("Confirm"),
-                ),
-              ],
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: pendingRequests.length,
+              itemBuilder: (context, index) {
+                final request = pendingRequests[index];
+                return _buildRequestCard(
+                  index: index,
+                  title: request['title']!,
+                  imagePath: request['image']!,
+                  user: request['user']!,
+                  fDate: request['Fdate']!,
+                  tDate: request['Tdate']!,
+                  month: request['month']!,
+                );
+              },
             ),
           ],
         ),
@@ -308,34 +477,6 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     ),
   );
 
-  Widget _buildPendingTitle() => Text(
-    'Pending Requests (${pendingRequests.length})',
-    style: TextStyle(
-      color: colour_main,
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-    ),
-  );
-
-  Widget _buildRequestsList() => ListView.builder(
-    shrinkWrap: true,
-    padding: EdgeInsets.zero,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: pendingRequests.length,
-    itemBuilder: (context, index) {
-      final request = pendingRequests[index];
-      return _buildRequestCard(
-        index: index,
-        title: request['title']!,
-        imagePath: request['image']!,
-        user: request['user']!,
-        fDate: request['Fdate']!,
-        tDate: request['Tdate']!,
-        month: request['month']!,
-      );
-    },
-  );
-
   Widget _buildRequestCard({
     required int index,
     required String title,
@@ -355,18 +496,45 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              imagePath,
-              width: 125,
-              height: 125,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 60,
-                height: 80,
-                color: Colors.grey[200],
-                child: const Icon(Icons.broken_image, color: Colors.grey),
-              ),
-            ),
+            child: imagePath.isNotEmpty && imagePath.startsWith('http')
+                ? Image.network(
+                    imagePath,
+                    width: 125,
+                    height: 125,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 125,
+                        height: 125,
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Image load error for $imagePath: $error');
+                      return Container(
+                        width: 125,
+                        height: 125,
+                        color: Colors.grey[200],
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.grey,
+                          size: 50,
+                        ),
+                      );
+                    },
+                  )
+                : Container(
+                    width: 125,
+                    height: 125,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey,
+                      size: 50,
+                    ),
+                  ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -387,7 +555,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 Text(
-                  'Duration : $fDate - $tDate $month',
+                  'Duration : $fDate - $tDate',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 20),
@@ -395,12 +563,9 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => _showDisapprovalDialog(
-                        context: context,
-                        index: index,
-                      ),
+                      onPressed: () => _showDisapprovalDialog(index),
                       style: TextButton.styleFrom(
-                        backgroundColor: colour_disable,
+                        backgroundColor: lenderMain.colour_disable,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -418,17 +583,10 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed: () {
-                        _showConfirmationDialog(
-                          context: context,
-                          title: 'Approved',
-                          icon: Icons.assignment_turned_in_outlined,
-                          color: colour_available,
-                        );
-                        setState(() => pendingRequests.removeAt(index));
-                      },
+                      onPressed: () =>
+                          approveRequest(pendingRequests[index]['id']!),
                       style: TextButton.styleFrom(
-                        backgroundColor: colour_available,
+                        backgroundColor: lenderMain.colour_available,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
