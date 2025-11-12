@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import '/login/login.dart';
 import 'lender_browse_list.dart';
 import 'HistoryLenderPage.dart';
 
+// Constants
 const colour_main = Color(0xFFFF8000);
 const colour_available = Color(0xFF729382);
 const colour_disable = Color(0xFFFF7C7C);
@@ -38,6 +40,26 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     super.initState();
     fetchStatusSummary();
     fetchPendingRequests();
+  }
+
+  // --- Format date to DD/MM ---
+  String formatDateRange(String fDateStr, String tDateStr) {
+    try {
+      final fromDate = DateTime.parse(fDateStr);
+      final toDate = DateTime.parse(tDateStr);
+
+      // รูปแบบ: DD - DD/MMM
+      final fromDay = DateFormat('dd').format(fromDate);
+      final toDay = DateFormat('dd').format(toDate);
+      final monthAbbr = DateFormat(
+        'MMM',
+      ).format(toDate); // ใช้เดือนจากวันสุดท้าย
+
+      return '$fromDay - $toDay $monthAbbr';
+    } catch (e) {
+      print('Date range parse error: $e');
+      return '$fDateStr - $tDateStr';
+    }
   }
 
   // Fetch Status Summary API (/api/status-summary)
@@ -83,19 +105,13 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
   // Fetch Pending Requests
   Future<void> fetchPendingRequests() async {
     try {
-      print('Fetching pending requests... URL: http://$url/lender/pending');
       final response = await http.get(
         Uri.parse('http://$url/lender/pending'),
         headers: {'Authorization': 'Bearer ${widget.authToken}'},
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('Decoded data length: ${data.length}');
-
         setState(() {
           if (data is List) {
             pendingRequests = List<Map<String, String>>.from(
@@ -104,9 +120,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                 if (item['from_date'] != null &&
                     item['from_date'].toString().isNotEmpty) {
                   try {
-                    final parsedDate = DateTime.parse(
-                      item['from_date'].toString(),
-                    );
+                    final parsedDate = DateTime.parse(item['from_date']);
                     month = parsedDate.month.toString();
                   } catch (e) {
                     print('Date parse error for ${item['from_date']}: $e');
@@ -131,7 +145,6 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
             print('Error: API response is not a List.');
           }
         });
-        print('Set pendingRequests with ${pendingRequests.length} items');
       } else {
         print('HTTP Error: ${response.statusCode} - ${response.body}');
       }
@@ -140,16 +153,15 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     }
   }
 
-  // Approve Request
   Future<void> approveRequest(String borrowId) async {
     try {
       final response = await http.post(
-        Uri.parse('http://$url/lender/approve/$borrowId'),
+        Uri.parse('http://$url/api/borrow/approval/$borrowId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${widget.authToken}',
         },
-        body: jsonEncode({'lenderId': widget.lenderId}),
+        body: jsonEncode({'status': 'approved', 'lender_id': widget.lenderId}),
       );
 
       if (response.statusCode == 200) {
@@ -157,30 +169,49 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
           context: context,
           title: 'Approved',
           icon: Icons.assignment_turned_in_outlined,
-          color: lenderMain.colour_available,
+          color: colour_available,
         );
         setState(() {
           pendingRequests.removeWhere((item) => item['id'] == borrowId);
         });
         fetchStatusSummary();
+        fetchPendingRequests();
       } else {
-        print("Approve Error: ${response.body}");
+        final responseBody = jsonDecode(response.body);
+        final errorMessage =
+            responseBody['message'] ?? 'Failed to approve request.';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: colour_disable,
+            ),
+          );
+        }
       }
     } catch (e) {
       print("Approve Exception: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Connection Error: $e')));
+      }
     }
   }
 
-  // Disapprove Request
   Future<void> disapproveRequest(String borrowId, String reason) async {
     try {
       final response = await http.post(
-        Uri.parse('http://$url/lender/disapprove/$borrowId'),
+        Uri.parse('http://$url/api/borrow/approval/$borrowId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${widget.authToken}',
         },
-        body: jsonEncode({'reason': reason, 'lenderId': widget.lenderId}),
+        body: jsonEncode({
+          'status': 'disapproved',
+          'lender_id': widget.lenderId,
+          'reason': reason,
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -188,27 +219,46 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
           context: context,
           title: 'Disapproved',
           icon: Icons.block,
-          color: lenderMain.colour_disable,
+          color: colour_disable,
         );
         setState(() {
           pendingRequests.removeWhere((item) => item['id'] == borrowId);
         });
         fetchStatusSummary();
+        fetchPendingRequests();
       } else {
-        print("Disapprove Error: ${response.body}");
+        final responseBody = jsonDecode(response.body);
+        final errorMessage =
+            responseBody['message'] ?? 'Failed to disapprove request.';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: colour_disable,
+            ),
+          );
+        }
       }
     } catch (e) {
       print("Disapprove Exception: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Connection Error: $e')));
+      }
     }
   }
 
-  // Dialogs
   void _showConfirmationDialog({
     required BuildContext context,
     required String title,
     required IconData icon,
     required Color color,
   }) {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    });
+
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -259,7 +309,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: lenderMain.colour_disable,
+                      color: colour_disable,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -273,9 +323,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: lenderMain.colour_disable,
-                        ),
+                        borderSide: BorderSide(color: colour_disable),
                       ),
                     ),
                     validator: (value) => (value == null || value.isEmpty)
@@ -285,7 +333,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: lenderMain.colour_disable,
+                      backgroundColor: colour_disable,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -307,134 +355,6 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await fetchStatusSummary();
-          await fetchPendingRequests();
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
-          children: [
-            Text(
-              "Today's Status",
-              style: TextStyle(
-                color: lenderMain.colour_main,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _isLoadingStatus
-                ? const Center(child: CircularProgressIndicator())
-                : Row(
-                    children: [
-                      _buildStatusCardItem(
-                        count: borrowedCount,
-                        label: 'Borrowed',
-                        color: lenderMain.colour_borrow,
-                      ),
-                      const SizedBox(width: 12),
-                      _buildStatusCardItem(
-                        count: availableCount,
-                        label: 'Available',
-                        color: lenderMain.colour_available,
-                      ),
-                      const SizedBox(width: 12),
-                      _buildStatusCardItem(
-                        count: disabledCount,
-                        label: 'Disabled',
-                        color: lenderMain.colour_disable,
-                      ),
-                    ],
-                  ),
-            const SizedBox(height: 30),
-            Text(
-              'Pending Requests (${pendingRequests.length})',
-              style: TextStyle(
-                color: lenderMain.colour_main,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: pendingRequests.length,
-              itemBuilder: (context, index) {
-                final request = pendingRequests[index];
-                return _buildRequestCard(
-                  index: index,
-                  title: request['title']!,
-                  imagePath: request['image']!,
-                  user: request['user']!,
-                  fDate: request['Fdate']!,
-                  tDate: request['Tdate']!,
-                  month: request['month']!,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- Widgets ---
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 20),
-          _buildStatusCards(),
-          const SizedBox(height: 30),
-          _buildPendingTitle(),
-          const SizedBox(height: 20),
-          _buildRequestsList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() => Text(
-    "Today's Status",
-    style: TextStyle(
-      color: colour_main,
-      fontSize: 28,
-      fontWeight: FontWeight.bold,
-    ),
-  );
-
-  Widget _buildStatusCards() => Row(
-    children: [
-      _buildStatusCardItem(
-        count: borrowedCount,
-        label: 'Borrowed',
-        color: colour_borrow,
-      ),
-      const SizedBox(width: 12),
-      _buildStatusCardItem(
-        count: availableCount,
-        label: 'Available',
-        color: colour_available,
-      ),
-      const SizedBox(width: 12),
-      _buildStatusCardItem(
-        count: disabledCount,
-        label: 'Disabled',
-        color: colour_disable,
-      ),
-    ],
-  );
 
   Widget _buildStatusCardItem({
     required int count,
@@ -554,10 +474,12 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                   'From : $user',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
+                SizedBox(height: 10),
                 Text(
-                  'Duration : $fDate - $tDate',
+                  'Duration : ${formatDateRange(fDate, tDate)}',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
+
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -565,7 +487,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     TextButton(
                       onPressed: () => _showDisapprovalDialog(index),
                       style: TextButton.styleFrom(
-                        backgroundColor: lenderMain.colour_disable,
+                        backgroundColor: colour_disable,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -581,12 +503,12 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                         style: TextStyle(fontSize: 12),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     TextButton(
                       onPressed: () =>
                           approveRequest(pendingRequests[index]['id']!),
                       style: TextButton.styleFrom(
-                        backgroundColor: lenderMain.colour_available,
+                        backgroundColor: colour_available,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -611,4 +533,90 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
       ),
     ),
   );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await fetchStatusSummary();
+          await fetchPendingRequests();
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+          children: [
+            Text(
+              "Today's Status",
+              style: TextStyle(
+                color: colour_main,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            _isLoadingStatus
+                ? const Center(child: CircularProgressIndicator())
+                : Row(
+                    children: [
+                      _buildStatusCardItem(
+                        count: borrowedCount,
+                        label: 'Borrowed',
+                        color: colour_borrow,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatusCardItem(
+                        count: availableCount,
+                        label: 'Available',
+                        color: colour_available,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildStatusCardItem(
+                        count: disabledCount,
+                        label: 'Disabled',
+                        color: colour_disable,
+                      ),
+                    ],
+                  ),
+            const SizedBox(height: 30),
+            Text(
+              'Pending Requests (${pendingRequests.length})',
+              style: TextStyle(
+                color: colour_main,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            pendingRequests.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Text(
+                        'No pending requests found.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: pendingRequests.length,
+                    itemBuilder: (context, index) {
+                      final request = pendingRequests[index];
+                      return _buildRequestCard(
+                        index: index,
+                        title: request['title']!,
+                        imagePath: request['image']!,
+                        user: request['user']!,
+                        fDate: request['Fdate']!,
+                        tDate: request['Tdate']!,
+                        month: request['month']!,
+                      );
+                    },
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
 }
