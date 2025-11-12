@@ -3,8 +3,12 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '/login/login.dart';
 import 'lender_browse_list.dart';
-import 'HistoryLenderPage.dart' hide colour_main, colour_disable, colour_borrow;
-import '/Lender/lender_main.dart' as lenderMain;
+import 'HistoryLenderPage.dart';
+
+const colour_main = Color(0xFFFF8000);
+const colour_available = Color(0xFF729382);
+const colour_disable = Color(0xFFFF7C7C);
+const colour_borrow = Color(0xFFEFA34B);
 
 class SeeLenderRequests extends StatefulWidget {
   final int lenderId;
@@ -380,6 +384,57 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
       ),
     );
   }
+
+  // --- Widgets ---
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+        children: [
+          _buildHeader(),
+          const SizedBox(height: 20),
+          _buildStatusCards(),
+          const SizedBox(height: 30),
+          _buildPendingTitle(),
+          const SizedBox(height: 20),
+          _buildRequestsList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() => Text(
+    "Today's Status",
+    style: TextStyle(
+      color: colour_main,
+      fontSize: 28,
+      fontWeight: FontWeight.bold,
+    ),
+  );
+
+  Widget _buildStatusCards() => Row(
+    children: [
+      _buildStatusCardItem(
+        count: borrowedCount,
+        label: 'Borrowed',
+        color: colour_borrow,
+      ),
+      const SizedBox(width: 12),
+      _buildStatusCardItem(
+        count: availableCount,
+        label: 'Available',
+        color: colour_available,
+      ),
+      const SizedBox(width: 12),
+      _buildStatusCardItem(
+        count: disabledCount,
+        label: 'Disabled',
+        color: colour_disable,
+      ),
+    ],
+  );
 
   Widget _buildStatusCardItem({
     required int count,

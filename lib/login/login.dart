@@ -6,8 +6,16 @@ import 'package:boardgame_app/login/register.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io' show Platform;
 
-const String baseUrl = '10.0.2.2:3000'; // สำหรับ Emulator เท่านั้น
+// Define both IP addresses
+const String _iosBaseUrl =
+    'http://localhost:3000'; // For iOS physical device or local network access
+const String _androidBaseUrl =
+    'http://10.0.2.2:3000'; // For Android emulator access
+
+// The final constant that selects the URL based on the platform
+final String baseUrl = Platform.isIOS ? _iosBaseUrl : _androidBaseUrl;
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -37,7 +45,7 @@ class _LoginState extends State<Login> {
     final password = _passwordController.text.trim();
 
     try {
-      final uri = Uri.parse('http://10.0.2.2:3000/api/login');
+      final uri = Uri.parse('$baseUrl/api/login');
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json'},
