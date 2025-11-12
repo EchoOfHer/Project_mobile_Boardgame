@@ -53,7 +53,7 @@ class BrowseLender extends StatefulWidget {
 class _BrowseLenderState extends State<BrowseLender> {
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _allGames = [];
-  late List<dynamic> _filteredGames; // เปลี่ยนเป็น late
+  late List<dynamic> _filteredGames;
   List<String> categories = ['All'];
   String selectedCategory = 'All';
   bool _isLoading = true;
@@ -62,7 +62,7 @@ class _BrowseLenderState extends State<BrowseLender> {
   @override
   void initState() {
     super.initState();
-    _filteredGames = []; // Initialized here
+    _filteredGames = [];
     _loadLenderName();
     _fetchGames();
     _searchController.addListener(_runFilter);
@@ -77,8 +77,14 @@ class _BrowseLenderState extends State<BrowseLender> {
 
   Future<void> _loadLenderName() async {
     final prefs = await SharedPreferences.getInstance();
+    final name =
+        prefs.getString('username') ??
+        prefs.getString('lenderName') ??
+        prefs.getString('name') ??
+        'Lender';
+
     setState(() {
-      _lenderName = prefs.getString('username') ?? 'Lender';
+      _lenderName = name.trim().isEmpty ? 'Lender' : name;
     });
   }
 
@@ -86,7 +92,6 @@ class _BrowseLenderState extends State<BrowseLender> {
     if (_allGames.isEmpty && mounted) setState(() => _isLoading = true);
 
     try {
-      // ✅ ใช้ API เดียวกัน
       final response = await http.get(Uri.parse('http://$url/api/games'));
       if (response.statusCode == 200) {
         final List<dynamic> fetchedGames = json.decode(response.body);
@@ -135,7 +140,6 @@ class _BrowseLenderState extends State<BrowseLender> {
       }).toList();
     }
 
-    // ⭐ เพิ่ม LOGIC การจัดเรียงตาม Student Page
     results.sort((a, b) {
       final groupA = _get(a, 'gameGroup')?.toString() ?? '';
       final groupB = _get(b, 'gameGroup')?.toString() ?? '';
@@ -177,7 +181,7 @@ class _BrowseLenderState extends State<BrowseLender> {
                     style: TextStyle(
                       color: Colors.grey[700],
                       fontSize: 18,
-                      fontWeight: FontWeight.bold, // Match Student style
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -291,7 +295,7 @@ class _BrowseLenderState extends State<BrowseLender> {
           crossAxisCount: 2,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: 0.75, // ⭐ FIX: Match Student aspect ratio
+          childAspectRatio: 0.75,
         ),
         itemCount: _filteredGames.length,
         itemBuilder: (context, index) {
@@ -453,7 +457,6 @@ class GameCard extends StatelessWidget {
       );
     }
 
-    // Apply grayscale filter if status is 'Borrowing' or 'Disabled'
     if (status == 'Borrowing' || status == 'Disabled') {
       return ColorFiltered(
         colorFilter: const ColorFilter.matrix(<double>[
