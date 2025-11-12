@@ -407,7 +407,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     required String month,
   }) => Card(
     elevation: 2,
-    margin: const EdgeInsets.only(bottom: 16),
+    margin: const EdgeInsets.only(bottom: 12),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
     child: Padding(
       padding: const EdgeInsets.all(12),
@@ -539,12 +539,13 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: RefreshIndicator(
+        
         onRefresh: () async {
           await fetchStatusSummary();
           await fetchPendingRequests();
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
           children: [
             Text(
               "Today's Status",
@@ -578,7 +579,9 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                       ),
                     ],
                   ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
+            
+            
             Text(
               'Pending Requests (${pendingRequests.length})',
               style: TextStyle(
@@ -587,10 +590,12 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 15), 
+
             pendingRequests.isEmpty
                 ? const Center(
                     child: Padding(
-                      padding: EdgeInsets.only(top: 40),
+                      padding: EdgeInsets.only(top: 20),
                       child: Text(
                         'No pending requests found.',
                         style: TextStyle(fontSize: 16, color: Colors.grey),
@@ -598,6 +603,7 @@ class _SeeLenderRequestsState extends State<SeeLenderRequests> {
                     ),
                   )
                 : ListView.builder(
+                    padding: EdgeInsets.zero, // ลบ padding ด้านบน
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: pendingRequests.length,
