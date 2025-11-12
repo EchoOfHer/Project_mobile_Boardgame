@@ -296,7 +296,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                             child: Text(
                               widget.glink.isEmpty ? 'N/A' : widget.glink,
                               style: const TextStyle(
-                                color: Colors.blue,
+                                color: colour_main,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
                               ),

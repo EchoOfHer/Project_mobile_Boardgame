@@ -10,7 +10,7 @@ const Color colour_available = Color(0xFF729382);
 const Color colour_borrow = Color(0xFFEFA34B);
 const Color colour_disable = Color(0xFFFF7C7C);
 
-// --- Date Formatting Helper (YYYY-MM-DD) ---
+// --- Date Formatting Helper (DD Mon. - e.g., 12 Nov) ---
 String _formatDate(dynamic dateInput) {
   if (dateInput == null) return '';
   try {
@@ -29,8 +29,8 @@ String _formatDate(dynamic dateInput) {
       dateTime = DateTime.parse(dateStr);
     }
 
-    // Format to YYYY-MM-DD
-    return DateFormat('yyyy-MM-dd').format(dateTime);
+    // Format to DD Mon. (e.g., 12 Nov) <--- FIXED FORMAT
+    return DateFormat('dd MMM').format(dateTime);
   } catch (e) {
     return dateInput.toString();
   }
@@ -269,7 +269,7 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Dates are already formatted as YYYY-MM-DD
+                  // Dates are now formatted as DD Mon. (e.g., 12 Nov)
                   Text("From: ${item.fromDate}\nTo: ${item.returnDate}"),
                   const SizedBox(height: 10),
                   Row(
