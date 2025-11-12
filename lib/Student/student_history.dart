@@ -86,6 +86,7 @@ class _StudentHistoryState extends State<StudentHistory> {
   Future<void> _loadAuthData() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('auth_token');
+    print('DEBUG: loaded token = $_token');
   }
 
   Future<void> _fetch() async {
