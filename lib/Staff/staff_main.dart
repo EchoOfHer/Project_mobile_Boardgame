@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'staff_dashboard.dart';
 import 'staff_browse.dart';
 import 'staff_return_asset.dart';
@@ -10,6 +12,7 @@ const colour_main = Color(0xFFFF8000);
 const colour_available = Color(0xFF729382);
 const colour_disable = Color(0xFFFF7C7C);
 const colour_borrow = Color(0xFFEFA34B);
+final url = '10.0.2.2:3000';
 
 class StaffMain extends StatefulWidget {
   const StaffMain({super.key});
@@ -20,11 +23,26 @@ class StaffMain extends StatefulWidget {
 
 class _StaffMainState extends State<StaffMain> with TickerProviderStateMixin {
   late TabController _tabController;
+  final int _tabCount = 5;
+
+  String? _authToken;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this, initialIndex: 0);
+    _tabController = TabController(length: _tabCount, vsync: this);
+    _loadAuthToken();
+  }
+
+  Future<void> _loadAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (mounted) {
+      setState(() {
+        _authToken = token;
+      });
+    }
   }
 
   @override
@@ -35,8 +53,15 @@ class _StaffMainState extends State<StaffMain> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // รอโหลด authToken
+    if (_authToken == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: colour_main)),
+      );
+    }
+
     return DefaultTabController(
-      length: 5,
+      length: _tabCount,
       child: Scaffold(
         bottomNavigationBar: Container(
           height: 75,
@@ -50,9 +75,7 @@ class _StaffMainState extends State<StaffMain> with TickerProviderStateMixin {
             indicatorColor: colour_main,
             onTap: (index) {
               if (index == 4) {
-                // กดแท็บ Logout → แสดง dialog แทนการเปลี่ยนหน้า
                 StaffLogout.show(context);
-                // ป้องกันไม่ให้เปลี่ยนไปแท็บที่ 5
                 _tabController.index = _tabController.previousIndex;
               }
             },
@@ -67,12 +90,13 @@ class _StaffMainState extends State<StaffMain> with TickerProviderStateMixin {
         ),
         body: TabBarView(
           controller: _tabController,
-          children: const [
-            StaffBrowse(),
-            StaffDashboard(),
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            StaffBrowse( ), // ส่ง token ให้ widget ลูก
+            StaffDashboard(authToken: _authToken!),
             StaffReturnAsset(),
-            StaffHistory(),
-            Center(child: Text('')), // หน้าเปล่าสำหรับแท็บ Logout (ไม่แสดง)
+            StaffHistory( ),
+            const Center(child: Text('')), // หน้าเปล่าสำหรับแท็บ Logout
           ],
         ),
       ),
