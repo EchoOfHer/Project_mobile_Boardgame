@@ -1,6 +1,23 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'staff_main.dart' show colour_available, colour_main;
-import 'game_data.dart'; // <<< Ensure this import path is correct
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'staff_main.dart' show colour_main, colour_available;
+
+// ----------------------------
+// CORRECT BASE URL
+// ----------------------------
+// NOTE: Both iOS and Android MUST use the network IP
+// to connect to your computer's server.
+// '127.0.0.1' only works for the iOS Simulator.
+const String _networkIP = '127.0.0.1';  //IP
+
+const String _iosBaseUrl = _networkIP;
+const String _androidBaseUrl = _networkIP;
+
+final String baseUrl = Platform.isIOS ? _iosBaseUrl : _androidBaseUrl;
+const int serverPort = 3000;
 
 class StaffReturnAsset extends StatefulWidget {
   const StaffReturnAsset({super.key});
@@ -10,208 +27,247 @@ class StaffReturnAsset extends StatefulWidget {
 }
 
 class _StaffReturnAssetState extends State<StaffReturnAsset> {
-  // 1. ⭐️ CORRECT TYPE DECLARATION: This must be List<GameItem>
-  //    (The previous list of Maps was REMOVED/commented out)
-  List<GameItem> borrowedGames = [];
-
-  String searchQuery = "";
+  List<dynamic> returningList = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-
-    // 2. ⭐️ CORRECT INITIALIZATION: Filter the global gameList.
-    //    This filters the List<GameItem> and assigns the result to borrowedGames.
-    borrowedGames = gameList
-        .where((game) => game.status == 'Borrowing')
-        .toList();
+    fetchReturningList();
   }
 
-  // Function now accepts a GameItem object
-  void markAsReturned(GameItem game) {
-    // 1. UPDATE THE GLOBAL LIST (gameList)
-    final itemToReturn = gameList.firstWhere(
-      (item) => item.gameId == game.gameId,
+  // ----------------------------
+  // GET returning list
+  // ----------------------------
+  Future<void> fetchReturningList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString("auth_token");
+
+    if (token == null) {
+      setState(() => isLoading = false);
+      // Handle missing token, e.g., navigate to login
+      return;
+    }
+    
+    final url = Uri.http("$baseUrl:$serverPort", "/api/staff/returning-list");
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          returningList = jsonDecode(response.body)["data"];
+          isLoading = false;
+        });
+      } else {
+        // Handle error (e.g., show a snackbar)
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      // Handle network error
+      setState(() => isLoading = false);
+      print("Network Error: $e");
+    }
+  }
+
+  // ----------------------------
+  // PUT confirm return
+  // ----------------------------
+  Future<void> confirmReturn(int borrowId, String gameName) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString("auth_token");
+
+    if (token == null) return; // Should not happen if page loaded
+
+    final url = Uri.http(
+      "$baseUrl:$serverPort",
+      "/api/staff/confirm-return/$borrowId",
     );
 
-    // Action: Change status to 'Available'
-    itemToReturn.status = 'Available';
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
 
-    // 2. UPDATE THE LOCAL STATE (borrowedGames)
-    setState(() {
-      // Remove the returned game from the local list displayed on this screen
-      borrowedGames.removeWhere((g) => g.gameId == game.gameId);
-    });
+      if (response.statusCode == 200) {
+        showReturnPopup(gameName);
+        setState(() {
+          returningList.removeWhere((item) => item['borrow_id'] == borrowId);
+        });
+      } else {
+        // Handle error (e.g., show snackbar)
+      }
+    } catch (e) {
+      // Handle network error
+      print("Network Error: $e");
+    }
+  }
 
-    // Show SnackBar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "${game.gameName} (ID: ${game.gameId}) has been returned and is now Available!",
+  // ----------------------------
+  // POPUP
+  // ----------------------------
+  void showReturnPopup(String name) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(25),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          // Use Material widget for default text styles
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.loop, size: 60, color: colour_available),
+                const SizedBox(height: 10),
+                Text(
+                  name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  "Returned",
+                  style: TextStyle(color: Colors.green, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
         ),
-        duration: const Duration(seconds: 3),
       ),
     );
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    });
   }
 
-  // The build method and buildGameCard widget use the correct GameItem properties:
-  // game.gameName, game.gameId, game.picPath, etc., which solves all map access errors.
-
+  // ----------------------------
+  // UI
+  // ----------------------------
   @override
   Widget build(BuildContext context) {
-    // ... (Code that uses filteredList.length and ListView.builder remains correct)
-    final filteredList = borrowedGames
-        .where(
-          (game) => game.gameName.toString().toLowerCase().contains(
-            searchQuery.toLowerCase(),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Return Asset",
+                style: TextStyle(
+                  color: colour_main,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Assets waiting to return (${returningList.length})",
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: colour_main))
+                    : returningList.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "No items awaiting return.",
+                              style: TextStyle(color: Colors.grey, fontSize: 16),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: returningList.length,
+                            itemBuilder: (context, i) =>
+                                buildGameCard(returningList[i]),
+                          ),
+              ),
+            ],
           ),
-        )
-        .toList();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ... (Other widgets)
-            const Text(
-              "Return Asset",
-              style: TextStyle(
-                color: colour_main,
-                fontWeight: FontWeight.w600,
-                fontSize: 30,
-              ),
-            ),
-            const SizedBox(height: 30),
-            TextField(
-              // The InputDecoration must NOT be const if it uses a non-const variable like colour_main.
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                // 1. 'border' is the general default state
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30), // Standard radius
-                  borderSide: BorderSide(color: colour_main),
-                ),
-                // 2. 'enabledBorder' defines the look when the field is NOT focused
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: colour_main),
-                ),
-                // 3. 'focusedBorder' defines the look when the field IS focused
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(
-                    color: colour_main,
-                    width: 2,
-                  ), // Thicker border when focused
-                ),
-                hintText: "Search",
-                hintStyle: const TextStyle(color: Colors.grey),
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 0, 20, 0),
-                  child: Icon(Icons.search, color: Colors.grey[400]),
-                ),
-                // ⭐️ FIX: The conflicting 'border: InputBorder.none,' was removed from here.
-              ),
-              onChanged: (value) {
-                setState(() => searchQuery = value);
-              },
-            ),
-            const SizedBox(height: 20),
-
-            Text(
-              "Assets waiting to return (${filteredList.length})...",
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            Expanded(
-              child: filteredList.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "All assets have been returned 🎉",
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: filteredList.length,
-                      itemBuilder: (context, index) {
-                        final game = filteredList[index];
-                        return buildGameCard(game);
-                      },
-                    ),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  Widget buildGameCard(GameItem game) {
+  // ----------------------------
+  // Card UI
+  // ----------------------------
+  Widget buildGameCard(dynamic item) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 3,
+      margin: const EdgeInsets.only(bottom: 15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                game.picPath,
-                width: 125,
-                height: 125,
+              child: Image.network(
+                "http://$baseUrl:$serverPort/${item['game_pic_path']}",
+                width: 100,
+                height: 100,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    width: 70,
-                    height: 90,
+                    width: 100,
+                    height: 100,
                     color: Colors.grey[200],
                     child: const Icon(Icons.broken_image, color: Colors.grey),
                   );
                 },
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 15),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    game.gameName,
+                    item['game_name'],
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text("ID : ${game.gameId}"),
-                  Text("Borrowed by : Anonymous"),
-                  const SizedBox(height: 6),
+                  Text("By: ${item['borrower_name']}"),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      const Text(
-                        "Mark as ",
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(width: 5),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colour_available,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () => markAsReturned(game),
-                        child: const Text("Return"),
+                        onPressed: () =>
+                            confirmReturn(item['borrow_id'], item['game_name']),
+                        child: const Text("Returned"),
                       ),
                     ],
                   ),
