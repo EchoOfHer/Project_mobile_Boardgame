@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:boardgame_app/Staff/game_input_form.dart';
 import 'package:boardgame_app/Staff/staff_main.dart'
-    show colour_available, colour_main, colour_available, colour_main;
-// import 'staff_dashboard.dart';
+    show colour_available, colour_main;
 import 'game_data.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -11,12 +10,14 @@ class EditGame extends StatelessWidget {
   final GameItem game;
   final int groupCount;
   final Function(int newCount) onCountChanged;
+  final String authToken;
 
   const EditGame({
     super.key,
     required this.game,
     required this.groupCount,
     required this.onCountChanged,
+    required this.authToken,
   });
 
   @override
@@ -35,6 +36,7 @@ class EditGame extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // ส่วนแสดงรูป + ข้อมูลเดิม
             Container(
               height: 200,
               child: Row(
@@ -45,10 +47,23 @@ class EditGame extends StatelessWidget {
                     height: 190,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
-                      child: Image.asset(game.picPath, fit: BoxFit.cover),
+                      child: Image.network(
+                        game.picPath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[300],
+                            child: const Icon(
+                              Icons.broken_image,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                  SizedBox(width: 20),
+                  const SizedBox(width: 20),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,13 +77,12 @@ class EditGame extends StatelessWidget {
                         ),
                         Text(
                           game.gameName,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
-                          overflow:
-                              TextOverflow.ellipsis, // <-- This will now work
                         ),
+                        const SizedBox(height: 8),
                         Text(
                           'Game Style : ',
                           style: TextStyle(
@@ -76,7 +90,11 @@ class EditGame extends StatelessWidget {
                             color: Colors.grey[600],
                           ),
                         ),
-                        Text(game.gameStyle, style: TextStyle(fontSize: 16)),
+                        Text(
+                          game.gameStyle,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           'Player : ',
                           style: TextStyle(
@@ -86,8 +104,9 @@ class EditGame extends StatelessWidget {
                         ),
                         Text(
                           "${game.minP} - ${game.maxP} peoples",
-                          style: TextStyle(fontSize: 16),
+                          style: const TextStyle(fontSize: 16),
                         ),
+                        const SizedBox(height: 8),
                         Text(
                           'Time : ',
                           style: TextStyle(
@@ -97,7 +116,7 @@ class EditGame extends StatelessWidget {
                         ),
                         Text(
                           "${game.gTime} min",
-                          style: TextStyle(fontSize: 16),
+                          style: const TextStyle(fontSize: 16),
                         ),
                       ],
                     ),
@@ -106,9 +125,14 @@ class EditGame extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
+
+            // ฟอร์มแก้ไข
             GameInputForm(
               key: formKey,
               isEditing: true,
+              authToken: authToken,
+              gameId: game.gameId,
+              currentImageUrl: game.picPath,
               initialData: {
                 'game_name': game.gameName,
                 'game_style': game.gameStyle,
@@ -120,7 +144,10 @@ class EditGame extends StatelessWidget {
               },
               onCountChanged: onCountChanged,
             ),
-            const SizedBox(height: 30),
+
+            const SizedBox(height: 40),
+
+            // ปุ่ม Confirm
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: colour_main,
@@ -131,32 +158,45 @@ class EditGame extends StatelessWidget {
               ),
               onPressed: () async {
                 final data = formKey.currentState?.getFormData();
-
                 if (data == null) return;
+
+                // ดึงค่าออกมาอย่างปลอดภัย (แก้ error String? → String)
+                final String newName =
+                    (data['game_name']?.trim().isNotEmpty == true)
+                    ? data['game_name']!.trim()
+                    : game.gameName;
+
+                final String newStyle =
+                    (data['game_style']?.trim().isNotEmpty == true)
+                    ? data['game_style']!.trim()
+                    : game.gameStyle;
+
+                final String newLink = data['game_how2']?.trim() ?? game.g_link;
 
                 final updated = GameItem(
                   gameId: game.gameId,
-                  gameName: data['game_name']?.toString() ?? game.gameName,
-                  gameGroup: data['game_name'],
-                  gameStyle: data['game_style']?.toString() ?? game.gameStyle,
-                  gTime:
-                      int.tryParse(data['game_time']?.toString() ?? '0') ?? 0,
-                  minP: int.tryParse(data['min_P']?.toString() ?? '0') ?? 0,
-                  maxP: int.tryParse(data['max_P']?.toString() ?? '0') ?? 0,
-                  picPath: game.picPath,
-                  g_link: data['game_how2']?.toString() ?? game.g_link,
+                  gameName: newName,
+                  gameGroup: newName, // ใช้ชื่อเดียวกันเป็น group
+                  gameStyle: newStyle,
+                  gTime: int.tryParse(data['game_time'] ?? '0') ?? game.gTime,
+                  minP: int.tryParse(data['min_P'] ?? '0') ?? game.minP,
+                  maxP: int.tryParse(data['max_P'] ?? '0') ?? game.maxP,
+                  picPath:
+                      data['new_image_path'] ??
+                      game.picPath, // ถ้ามีรูปใหม่จะได้ path
+                  g_link: newLink,
                   status: game.status,
                 );
 
-                // Show Success Alert Dialog
+                // แสดง Dialog สำเร็จ
                 await showDialog(
                   context: context,
-                  barrierDismissible: false, // Must tap OK to close
+                  barrierDismissible: false,
                   builder: (context) => AlertDialog(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    icon: Icon(
+                    icon: const Icon(
                       FontAwesomeIcons.circleCheck,
                       color: colour_available,
                       size: 60,
@@ -170,7 +210,7 @@ class EditGame extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     content: Text(
-                      'Game "${updated.gameName}" has been updated.',
+                      'Game "$newName" has been updated.',
                       style: const TextStyle(fontSize: 16),
                       textAlign: TextAlign.center,
                     ),
@@ -178,11 +218,11 @@ class EditGame extends StatelessWidget {
                       Center(
                         child: TextButton(
                           onPressed: () {
-                            Navigator.of(context).pop(); // Close dialog
+                            Navigator.of(context).pop(); // ปิด dialog
                             Navigator.pop(
                               context,
                               updated,
-                            ); // Return updated game
+                            ); // ส่งข้อมูลกลับไป Dashboard
                           },
                           style: TextButton.styleFrom(
                             backgroundColor: colour_available,
@@ -215,22 +255,6 @@ class EditGame extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _infoLine(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
       ),
     );
   }

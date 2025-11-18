@@ -1,12 +1,11 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:boardgame_app/Staff/Add_New_Game.dart';
+import 'package:boardgame_app/Staff/EditGame.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'EditGame.dart';
 import 'staff_main.dart'
     show colour_available, colour_borrow, colour_disable, colour_main;
-
 import 'game_data.dart';
 
 final String url = '10.0.2.2:3000';
@@ -61,6 +60,7 @@ class GameCard extends StatelessWidget {
   final GameItem game;
   final VoidCallback? onStatusTap;
   final String authToken;
+
   const GameCard({
     super.key,
     required this.game,
@@ -156,6 +156,26 @@ class GameCard extends StatelessWidget {
     );
   }
 
+  Future<bool> _updateGameStatus(int inventoryId, String newStatus) async {
+    try {
+      final response = await http.put(
+        Uri.parse('http://$url/staff/game/status/$inventoryId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+        body: jsonEncode({'status': newStatus}),
+      );
+
+      print("Update: ${response.statusCode} ${response.body}");
+      return response.statusCode == 200 &&
+          jsonDecode(response.body)['success'] == true;
+    } catch (e) {
+      print("Update error: $e");
+      return false;
+    }
+  }
+
   void _showStatusPopup(BuildContext context, String status) {
     final isEnabled = status == 'Available';
     late BuildContext dialogContext;
@@ -164,7 +184,7 @@ class GameCard extends StatelessWidget {
       context: context,
       barrierDismissible: true,
       builder: (ctx) {
-        dialogContext = ctx; // เก็บ context ของ dialog
+        dialogContext = ctx;
         return Center(
           child: Material(
             color: Colors.transparent,
@@ -214,26 +234,6 @@ class GameCard extends StatelessWidget {
     });
   }
 
-  // --- อัปเดตสถานะไป Backend ---
-  Future<bool> _updateGameStatus(int inventoryId, String newStatus) async {
-  try {
-    final response = await http.put(
-      Uri.parse('http://$url/staff/game/status/$inventoryId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $authToken', // ใช้ได้!
-      },
-      body: jsonEncode({'status': newStatus}),
-    );
-
-    print("Update: ${response.statusCode} ${response.body}");
-    return response.statusCode == 200 && jsonDecode(response.body)['success'] == true;
-  } catch (e) {
-    print("Update error: $e");
-    return false;
-  }
-}
-
   ({Color color, IconData icon}) _getStatusConfig(
     String status,
     bool isBorrowed,
@@ -248,30 +248,18 @@ class GameCard extends StatelessWidget {
   }
 }
 
-({Color color, IconData icon}) _getStatusConfig(
-  String status,
-  bool isBorrowed,
-) {
-  if (isBorrowed || status == 'Borrowing')
-    return (color: Colors.grey.shade400, icon: Icons.lock_outline);
-  return switch (status) {
-    'Available' => (color: colour_available, icon: Icons.play_disabled),
-    'Disabled' => (color: colour_disable, icon: FontAwesomeIcons.play),
-    _ => (color: Colors.grey, icon: Icons.help),
-  };
-}
-
 class GroupedGameList extends StatelessWidget {
   final List<GameItem> games;
   final Function(int gameId) onStatusToggle;
-  final String authToken; // เพิ่ม
+  final String authToken;
 
   const GroupedGameList({
     super.key,
     required this.games,
     required this.onStatusToggle,
-    required this.authToken, // เพิ่ม
+    required this.authToken,
   });
+
   @override
   Widget build(BuildContext context) {
     if (games.isEmpty) {
@@ -289,7 +277,6 @@ class GroupedGameList extends StatelessWidget {
     for (int i = 0; i < games.length; i++) {
       final game = games[i];
       final isNewGroup = lastGroup != game.gameGroup;
-
       final isLastInGroup =
           i == games.length - 1 || games[i + 1].gameGroup != game.gameGroup;
 
@@ -320,6 +307,7 @@ class GroupedGameList extends StatelessWidget {
                         builder: (_) => EditGame(
                           game: game,
                           groupCount: groupCount,
+                          authToken: authToken,
                           onCountChanged: (newCount) {
                             final parent = context
                                 .findAncestorStateOfType<
@@ -357,7 +345,7 @@ class GroupedGameList extends StatelessWidget {
           key: ValueKey(game.gameId),
           game: game,
           onStatusTap: () => onStatusToggle(game.gameId),
-          authToken: authToken,// ส่งต่อ
+          authToken: authToken,
         ),
       );
 
@@ -380,7 +368,7 @@ class GroupedGameList extends StatelessWidget {
 }
 
 class StaffDashboard extends StatefulWidget {
-  final String authToken; // เพิ่ม
+  final String authToken;
   const StaffDashboard({super.key, required this.authToken});
 
   @override
@@ -391,49 +379,48 @@ class _StaffDashboardState extends State<StaffDashboard> {
   late List<GameItem> _filteredGames;
   int borrowedCount = 0, availableCount = 0, disabledCount = 0;
   bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
     _filteredGames = [];
-    gameList.clear(); // ล้างข้อมูลเก่า
-    fetchDashboardData(); // เรียกแค่ครั้งเดียว
+    gameList.clear();
+    fetchDashboardData();
   }
 
   Future<void> fetchDashboardData() async {
-  if (!mounted) return;
-  setState(() => _isLoading = true);
+    if (!mounted) return;
+    setState(() => _isLoading = true);
 
- try {
-    print("Fetching dashboard...");
-    final response = await http.get(
-      Uri.parse('http://$url/staff/dashboard'),
-      headers: {
-        'Authorization': 'Bearer ${widget.authToken}', // เพิ่มบรรทัดนี้
-      },
-    );
+    try {
+      print("Fetching dashboard...");
+      final response = await http.get(
+        Uri.parse('http://$url/staff/dashboard'),
+        headers: {'Authorization': 'Bearer ${widget.authToken}'},
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print("Dashboard response: $data");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print("Dashboard response: $data");
 
-      if (data['success'] == true) {
-        final summary = data['summary'] ?? {};
-        setState(() {
-          borrowedCount = summary['pending_bookings'] ?? 0;
-          availableCount = summary['approved_bookings'] ?? 0;
-          disabledCount = summary['rejected_bookings'] ?? 0;
-        });
+        if (data['success'] == true) {
+          final summary = data['summary'] ?? {};
+          setState(() {
+            borrowedCount = summary['pending_bookings'] ?? 0;
+            availableCount = summary['approved_bookings'] ?? 0;
+            disabledCount = summary['rejected_bookings'] ?? 0;
+          });
+        }
       }
-    }
 
-    await fetchGames();
-  } catch (e) {
-    print("Dashboard ERROR: $e");
-    await fetchGames();
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
+      await fetchGames();
+    } catch (e) {
+      print("Dashboard ERROR: $e");
+      await fetchGames();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
-}
 
   Future<void> fetchGames() async {
     try {
@@ -508,7 +495,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       'borrowing' => 'Borrowing',
       'available' => 'Available',
       'disabled' => 'Disabled',
-      _ => s ?? 'Available', // ใช้ raw status ถ้าไม่ match
+      _ => s ?? 'Available',
     };
   }
 
@@ -633,7 +620,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
   }
 
   void _addNewGames(Map newGameData) {
-    // Safely parse count, default to 1
     final count =
         int.tryParse(newGameData['game_count']?.toString() ?? '1') ?? 1;
     final maxId = gameList.isEmpty
@@ -642,24 +628,24 @@ class _StaffDashboardState extends State<StaffDashboard> {
     final baseId = maxId + 1;
 
     final String gameName = newGameData['game_name']?.toString() ?? 'Unknown';
-
     final String link = newGameData['game_how2']?.toString() ?? '';
     final String picPath =
-        'image/${newGameData['game_imageP'] ?? 'default.jpg'}';
+        'http://$url/image/${newGameData['game_imageP'] ?? 'default.jpg'}';
 
     for (int i = 0; i < count; i++) {
       gameList.add(
         GameItem(
+          gameId: baseId + i,
           gameName: gameName,
           gameGroup: gameName,
           gameStyle: newGameData['game_style']?.toString() ?? '',
-          gameId: baseId + i,
-          minP: int.tryParse(newGameData['min_P'].toString()) ?? 1,
-          maxP: int.tryParse(newGameData['max_P'].toString()) ?? 1,
-          gTime: int.tryParse(newGameData['game_time'].toString()) ?? 60,
-          status: 'Available',
-          picPath: picPath,
+          gTime:
+              int.tryParse(newGameData['game_time']?.toString() ?? '60') ?? 60,
+          minP: int.tryParse(newGameData['min_P']?.toString() ?? '1') ?? 1,
+          maxP: int.tryParse(newGameData['max_P']?.toString() ?? '1') ?? 1,
           g_link: link,
+          picPath: picPath,
+          status: 'Available',
         ),
       );
     }
@@ -751,7 +737,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   GroupedGameList(
                     games: _filteredGames,
                     onStatusToggle: _toggleAvailableDisabled,
-                    authToken: widget.authToken, // ส่งต่อ
+                    authToken: widget.authToken,
                   ),
                 ],
               ),
@@ -765,12 +751,18 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 onPressed: () async {
                   final result = await Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const AddNewGame()),
+                    MaterialPageRoute(
+                      builder: (_) => AddNewGame(
+                        authToken:
+                            widget.authToken, // ส่ง JWT ไปให้หน้าเพิ่มเกมใหม่
+                      ),
+                    ),
                   );
+
                   if (result is Map &&
                       result['game_name']?.toString().isNotEmpty == true) {
                     _addNewGames(result);
-                    await fetchGames(); // รีเฟรช
+                    await fetchGames(); // รีเฟรชข้อมูลจริงจากเซิร์ฟเวอร์
                   }
                 },
                 child: const Icon(Icons.add, color: Colors.white),

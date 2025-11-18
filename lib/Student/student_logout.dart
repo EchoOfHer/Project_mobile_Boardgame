@@ -1,9 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart'; // 🔑 NEW: Import SharedPreferences
+import 'package:shared_preferences/shared_preferences.dart';
 import 'student_main.dart' show url;
 import '/login/login.dart';
+
+// 💡 NEW: Logic การ Logout ที่สมบูรณ์แบบ
+class AppLogout {
+  static Future<void> logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // ลบ Token / User Data
+    await prefs.remove('token');
+    await prefs.remove('user_id');
+    await prefs.remove('username');
+    await prefs.remove('role');
+
+    // กลับไปหน้า Login และล้าง navigation stack
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const Login()),
+      (route) => false,
+    );
+  }
+}
 
 class StudentLogout {
   static void show(BuildContext context) {
@@ -11,7 +31,7 @@ class StudentLogout {
 
     showDialog(
       context: context,
-      barrierDismissible: false, // ป้องกันการกดนอกกรอบแล้วปิด
+      barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -47,6 +67,7 @@ class StudentLogout {
                     ),
                     onPressed: () {
                       Navigator.pop(dialogContext); // ปิด Dialog
+                      // หากเป็นการกด 'Cancel' ต้องกลับไปที่ Tab แรก (Index 0)
                       DefaultTabController.of(context).animateTo(0);
                     },
                     child: const Text("Cancel"),
@@ -57,36 +78,27 @@ class StudentLogout {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () async {
+                      // 1. ปิด Dialog ก่อน
                       Navigator.pop(dialogContext);
 
+                      // 2. เรียก API Logout (ถ้าจำเป็น)
                       try {
-                        const String apiUrl =
-                            'http://localhost:3000/api/logout';
+                        // 🔹 ใช้ตัวแปร url ที่ Import มา (ซึ่งควรเป็น '10.0.2.2:3000')
+                        final String apiUrl = 'http://$url/api/logout';
 
-                        // 🔹 ตัวอย่างการเรียก API logout (ไม่จำเป็นต้องรอผล)
+                        // Note: ไม่จำเป็นต้องรอผลตอบรับของ Logout API
                         await http.post(
                           Uri.parse(apiUrl),
                           headers: {'Content-Type': 'application/json'},
                         );
-
-                        // 🔑 FIX: เคลียร์ข้อมูล Token และ User จาก SharedPreferences
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.remove('token');
-                        await prefs.remove('username');
-                        await prefs.remove('user_id');
-                        // Note: การใช้ remove() เป็นวิธีที่ปลอดภัยที่สุดในการเคลียร์ Session
                       } catch (e) {
                         debugPrint(
-                          'Logout process error (API call or clear storage failed): $e',
+                          'Logout API call failed, proceeding with local logout: $e',
                         );
                       }
 
-                      // 🔹 กลับไปหน้า Login
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Login()),
-                        (Route<dynamic> route) => false,
-                      );
+                      // 3. 🔑 ล้างข้อมูลและนำทางไปหน้า Login โดยใช้ AppLogout
+                      await AppLogout.logout(context);
                     },
                     child: const Text("Confirm"),
                   ),
