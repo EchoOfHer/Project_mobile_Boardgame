@@ -1,6 +1,54 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+// --- Color Definitions ---
+const Color colour_main_orange = Color(0xFFE67E22);
+const Color colour_available_green = Color(0xFF486E5A);
+const Color colour_disable_red = Color(0xFFDD4430);
+
+// --- API Service ---
+class ApiService {
+  static String get baseUrl {
+    if (Platform.isIOS) {
+      return 'http://localhost:3000';
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:3000';
+    } else {
+      return 'http://192.168.1.123:3000';
+    }
+  }
+
+  // Fetch ALL history for STAFF
+  static Future<List<Map<String, dynamic>>> fetchStaffHistory({
+    required String token,
+    String query = '',
+  }) async {
+    final uri = Uri.parse(
+      '$baseUrl/StaffHistory',
+    ).replace(queryParameters: {'q': query});
+
+    final res = await http.get(
+      uri,
+      headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception(
+        'Failed to load staff history. Status: ${res.statusCode}',
+      );
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return (data['items'] as List).cast<Map<String, dynamic>>();
+  }
+}
+
+// --- STAFF HISTORY PAGE ---
 class StaffHistory extends StatefulWidget {
   const StaffHistory({super.key});
 
@@ -12,46 +60,80 @@ class _StaffHistoryState extends State<StaffHistory> {
   final TextEditingController _search = TextEditingController();
   Timer? _debounce;
 
-  // ----- mock data -----
-  final List<Map<String, String>> _all = [
-    {
-      'game': 'Exploding Kitten',
-      'id': '0001',
-      'borrower': 'Borrower',
-      'status': 'Approve',
-      'approvedBy': 'Lender 1',
-      'returnedTo': 'Steven',
-      'borrowedDate': '15 Oct 2025',
-      'returnedDate': '16 Oct 2025',
-    },
-    {
-      'game': 'Catan',
-      'id': '0003',
-      'borrower': 'lukpeach',
-      'status': 'Disapprove',
-      'reason': 'Board game is being repaired.',
-      'approvedBy': 'Lender 2',
-      'borrowedDate': '15 Oct 2025',
-      'returnedDate': '16 Oct 2025',
-    },
-    {
-      'game': 'One week werewolf',
-      'id': '0005',
-      'borrower': 'thomas',
-      'status': 'Approve',
-      'approvedBy': 'Lender 1',
-      'returnedTo': 'Steven',
-      'borrowedDate': '12 Oct 2025',
-      'returnedDate': '14 Oct 2025',
-    },
-  ];
+  List<Map<String, dynamic>> _filtered = [];
+  bool _loading = true;
+  String _error = '';
+  String? _token;
 
-  late List<Map<String, String>> _filtered;
+  DateTime _parseDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
+    try {
+      return DateFormat('dd MMM yyyy', 'en_US').parse(dateStr);
+    } catch (_) {
+      return DateTime(1900);
+    }
+  }
+
+  void _sortHistory(List<Map<String, dynamic>> list) {
+    list.sort((a, b) {
+      final dateA = _parseDate(a['borrowedDate']);
+      final dateB = _parseDate(b['borrowedDate']);
+      return dateB.compareTo(dateA);
+    });
+  }
+
+  Future<void> _loadAuthData() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('auth_token');
+  }
+
+  Future<void> _fetch() async {
+    await _loadAuthData();
+    if (_token == null) {
+      setState(() {
+        _error = 'Please log in again.';
+        _loading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = '';
+    });
+
+    try {
+      final items = await ApiService.fetchStaffHistory(
+        token: _token!,
+        query: _search.text.trim(),
+      );
+
+      _sortHistory(items);
+      setState(() => _filtered = items);
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _onSearchChange() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), _fetch);
+  }
+
+  void _clearSearch() {
+    _search.clear();
+    FocusScope.of(context).unfocus();
+    _fetch();
+  }
 
   @override
   void initState() {
     super.initState();
-    _filtered = List.from(_all);
+    _fetch();
     _search.addListener(_onSearchChange);
   }
 
@@ -62,77 +144,48 @@ class _StaffHistoryState extends State<StaffHistory> {
     super.dispose();
   }
 
-  void _onSearchChange() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), () {
-      final q = _search.text.trim().toLowerCase();
-      setState(() {
-        if (q.isEmpty) {
-          _filtered = List.from(_all);
-        } else {
-          _filtered = _all.where((m) {
-            return (m['game']!.toLowerCase().contains(q)) ||
-                (m['id']!.toLowerCase().contains(q)) ||
-                (m['borrower']!.toLowerCase().contains(q)) ||
-                (m['approvedBy']!.toLowerCase().contains(q)) ||
-                (m['returnedTo']?.toLowerCase().contains(q) ?? false) ||
-                (m['status']!.toLowerCase().contains(q));
-          }).toList();
-        }
-      });
-    });
-  }
-
-  void _clearSearch() {
-    _search.clear();
-    FocusScope.of(context).unfocus();
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Container(
-        color: const Color(0xFFF7F7F7),
-        child: Padding(
+      child: RefreshIndicator(
+        onRefresh: _fetch,
+        child: Container(
+          color: const Color(0xFFF7F7F7),
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'History',
+                'Staff History',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFE67E22),
+                  color: colour_main_orange,
                 ),
               ),
               const SizedBox(height: 12),
 
-              // Search bar
+              // SEARCH BAR
               TextField(
                 controller: _search,
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: 'Search by game, borrower . . .',
+                  hintText: 'Search by student, lender, game, status...',
                   prefixIcon: const Icon(
                     Icons.search,
-                    color: Color(0xFFE67E22),
+                    color: colour_main_orange,
                   ),
-                  suffixIcon: (_search.text.isEmpty)
+                  suffixIcon: _search.text.isEmpty
                       ? null
                       : IconButton(
-                          onPressed: _clearSearch,
                           icon: const Icon(
                             Icons.close,
-                            color: Color(0xFFE67E22),
+                            color: colour_main_orange,
                           ),
+                          onPressed: _clearSearch,
                         ),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: const BorderSide(
@@ -143,29 +196,36 @@ class _StaffHistoryState extends State<StaffHistory> {
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: const BorderSide(
-                      color: Color(0xFFE67E22),
+                      color: colour_main_orange,
                       width: 2.5,
                     ),
                   ),
-                  hintStyle: const TextStyle(color: Colors.black45),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // History List
               Expanded(
-                child: _filtered.isEmpty
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: colour_main_orange,
+                        ),
+                      )
+                    : _error.isNotEmpty
+                    ? Center(child: Text('Error: $_error'))
+                    : _filtered.isEmpty
                     ? const Center(
                         child: Text(
-                          'No results found',
+                          'No history found.',
                           style: TextStyle(color: Colors.black54),
                         ),
                       )
                     : ListView.separated(
                         itemCount: _filtered.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 16),
-                        itemBuilder: (_, i) => HistoryCard(item: _filtered[i]),
+                        itemBuilder: (_, i) =>
+                            StaffHistoryCard(item: _filtered[i]),
                       ),
               ),
             ],
@@ -176,23 +236,38 @@ class _StaffHistoryState extends State<StaffHistory> {
   }
 }
 
-// ==================== CARD ====================
-class HistoryCard extends StatelessWidget {
-  final Map<String, String> item;
-  const HistoryCard({super.key, required this.item});
+// --- STAFF HISTORY CARD ---
+class StaffHistoryCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+  const StaffHistoryCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final status = (item['status'] ?? '').toLowerCase();
-    final isApprove = status == 'approve';
-    const approveText = Color(0xFF486E5A);
-    const disapproveText = Color(0xFFDD4430);
+    final status = (item['status'] ?? '').toString().toLowerCase();
+
+    Color statusColor;
+    switch (status) {
+      case 'approve':
+        statusColor = colour_available_green;
+        break;
+      case 'disapprove':
+        statusColor = colour_disable_red;
+        break;
+      case 'returned':
+        statusColor = colour_available_green;
+        break;
+      case 'cancelled':
+        statusColor = Colors.grey;
+        break;
+      default:
+        statusColor = colour_main_orange;
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
             color: Color(0x1A000000),
@@ -204,84 +279,62 @@ class HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
           Text(
             item['game'] ?? '-',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
-          Text(
-            'ID : ${item['id'] ?? '-'}',
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-          const SizedBox(height: 12),
 
-          // Borrow Info
-          _row('Borrowed by :', item['borrower'] ?? '-'),
-          const SizedBox(height: 6),
-          _row('Approved by :', item['approvedBy'] ?? '-'),
-          const SizedBox(height: 6),
+          _row("Student:", item['borrowedBy'] ?? '-'),
+          _row("Lender:", item['lenderName'] ?? '-'),
 
-          // Status
           Row(
             children: [
               const SizedBox(
                 width: 130,
                 child: Text(
-                  'Status :',
+                  "Status:",
                   style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
               ),
               Text(
-                isApprove ? 'Approve' : 'Disapprove',
+                item['status'] ?? '',
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isApprove ? approveText : disapproveText,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
 
-          // Reason (เฉพาะ Disapprove)
-          if (!isApprove && (item['reason']?.isNotEmpty ?? false)) ...[
-            _row('Reason :', item['reason']!),
-            const SizedBox(height: 6),
-          ],
+          if ((item['reason'] ?? '').toString().isNotEmpty)
+            _row("Reason:", item['reason']),
 
-          // Returned to (เฉพาะ Approve)
-          if (isApprove) ...[
-            _row('Returned to :', item['returnedTo'] ?? '-'),
-            const SizedBox(height: 6),
-          ],
-
-          const Divider(height: 20, thickness: 0.5),
-
-          // Dates
-          _row('Borrowed date :', item['borrowedDate'] ?? '-'),
-          const SizedBox(height: 6),
-
-          // Returned date (เฉพาะ Approve)
-          if (isApprove) _row('Returned date :', item['returnedDate'] ?? '-'),
+          const Divider(height: 20),
+          _row("Borrowed:", item['borrowedDate'] ?? '-'),
+          _row("Returned:", item['returnedDate'] ?? '-'),
         ],
       ),
     );
   }
 
   static Widget _row(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 130,
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
           ),
-        ),
-        Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
-      ],
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
     );
   }
 }
