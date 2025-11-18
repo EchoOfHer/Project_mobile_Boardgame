@@ -13,6 +13,7 @@ import 'student_main.dart'
     show colour_main, colour_disable, colour_available, colour_borrow, url;
 
 // (ลบ final url = '...' ที่ซ้ำซ้อนออก)
+final url = '10.0.2.2:3000';
 
 // --- (โค้ดจากเวอร์ชันของทีม) ---
 class ThaiDate {
@@ -137,16 +138,19 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
       // 3. เรียก Endpoint ที่ถูกต้อง (ตาม SQL ล่าสุด)
       // (ต้องถามทีมว่า Endpoint คือ /borrow หรือ /request-borrowing)
       final res = await http.post(
-        Uri.parse('http://$url/borrow'), // <--- (A) ใช้ Endpoint ที่ตรงกับ SQL
+        Uri.parse(
+          'http://$url/request-borrowing',
+        ), // <--- (A) ใช้ Endpoint ที่ตรงกับ SQL
         headers: {'Content-Type': 'application/json'},
 
         // 4. ส่ง Body ที่ถูกต้อง (ตาม SQL ล่าสุด)
+        // (ใหม่) ส่วนที่ 4. ส่ง Body ที่ถูกต้อง (ตาม Express Route)
         body: jsonEncode({
           'game_id': widget.gameId,
-          'borrower_id': userId, // <--- (B) ใช้ 'borrower_id' และ ID จริง
-          'from_date': ThaiDate.ymd(_startDate!), // <--- (C) ใช้ 'from_date'
-          'return_date': ThaiDate.ymd(_endDate!), // <--- (D) ใช้ 'return_date'
-          'status': 'pending',
+          'student_id': userId,
+          'start_date': ThaiDate.ymd(_startDate!), // ✅ แก้ไขตรงนี้
+          'end_date': ThaiDate.ymd(_endDate!), // ✅ แก้ไขตรงนี้
+          'status': 'pending', // (ไม่จำเป็นต้องส่ง แต่เก็บไว้ได้)
         }),
       );
 
