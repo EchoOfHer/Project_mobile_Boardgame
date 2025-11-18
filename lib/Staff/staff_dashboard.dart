@@ -60,11 +60,8 @@ class GameCard extends StatelessWidget {
   final GameItem game;
   final VoidCallback? onStatusTap;
   final String authToken;
-<<<<<<< HEAD
-
-=======
   final VoidCallback? onEditPressed;
->>>>>>> e49fbff590e2f0c3e34a1996b6f780d66149cda7
+
   const GameCard({
     super.key,
     required this.game,
@@ -133,19 +130,24 @@ class GameCard extends StatelessWidget {
                 ],
               ),
             ),
+
             IconButton(
-              onPressed: isBorrowed ? null
+              onPressed: isBorrowed
+                  ? null
                   : () async {
                       final newStatus = game.status == 'Available'
                           ? 'Disabled'
                           : 'Available';
+
                       final success = await _updateGameStatus(
                         game.gameId,
                         newStatus,
                       );
+
                       if (success && context.mounted) {
                         _showStatusPopup(context, newStatus);
                       }
+
                       onStatusTap?.call();
                     },
               icon: Icon(config.icon, color: config.color, size: 40),
@@ -153,14 +155,15 @@ class GameCard extends StatelessWidget {
                   ? 'Cannot change while borrowed'
                   : 'Toggle Available/Disabled',
             ),
+
             const SizedBox(width: 8),
 
-    // เพิ่มปุ่ม Edit ตรงนี้
-    IconButton(
-      onPressed: onEditPressed,
-      icon: const Icon(Icons.edit, color: Colors.blue, size: 32),
-      tooltip: 'Edit Game',
-    ),
+            IconButton(
+              onPressed: onEditPressed,
+              icon: const Icon(Icons.edit, color: Colors.grey, size: 32),
+              tooltip: 'Edit Game',
+            ),
+
             const SizedBox(width: 20),
           ],
         ),
@@ -183,7 +186,7 @@ class GameCard extends StatelessWidget {
       return response.statusCode == 200 &&
           jsonDecode(response.body)['success'] == true;
     } catch (e) {
-      print("Update error: $e");
+      print("Update ERROR: $e");
       return false;
     }
   }
@@ -206,13 +209,6 @@ class GameCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -311,39 +307,6 @@ class GroupedGameList extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                ElevatedButton(
-                  onPressed: () async {
-                    final updatedGame = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditGame(
-                          game: game,
-                          groupCount: groupCount,
-                          authToken: authToken,
-                          onCountChanged: (newCount) {
-                            final parent = context
-                                .findAncestorStateOfType<
-                                  _StaffDashboardState
-                                >();
-                            parent?.adjustGroupCount(game.gameGroup, newCount);
-                          },
-                        ),
-                      ),
-                    );
-                    if (updatedGame != null && context.mounted) {
-                      final parent = context
-                          .findAncestorStateOfType<_StaffDashboardState>();
-                      parent?.updateGame(updatedGame);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colour_borrow,
-                  ),
-                  child: const Text(
-                    'Edit',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
               ],
             ),
           ),
@@ -353,38 +316,41 @@ class GroupedGameList extends StatelessWidget {
       }
 
       children.add(
-  GameCard(
-    key: ValueKey(game.gameId),
-    game: game,
-    onStatusTap: () => onStatusToggle(game.gameId),
-    onEditPressed: () async {
-      // ดึงข้อมูลกลุ่มทั้งหมด
-      final group = games.where((g) => g.gameGroup == game.gameGroup).toList();
-      final groupCount = group.length;
+        GameCard(
+          key: ValueKey(game.gameId),
+          game: game,
+          onStatusTap: () => onStatusToggle(game.gameId),
+          authToken: authToken,
+          onEditPressed: () async {
+            final group = games
+                .where((g) => g.gameGroup == game.gameGroup)
+                .toList();
+            final groupCount = group.length;
 
-      final updatedGame = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EditGame(
-            game: game,
-            groupCount: groupCount,
-            onCountChanged: (newCount) {
-              // เรียกกลับไปที่ StaffDashboard
-              final parent = context.findAncestorStateOfType<_StaffDashboardState>();
-              parent?.adjustGroupCount(game.gameGroup, newCount);
-            },
-          ),
+            final updatedGame = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => EditGame(
+                  game: game,
+                  groupCount: groupCount,
+                  authToken: authToken, // ★ FIXED
+                  onCountChanged: (newCount) {
+                    final parent = context
+                        .findAncestorStateOfType<_StaffDashboardState>();
+                    parent?.adjustGroupCount(game.gameGroup, newCount);
+                  },
+                ),
+              ),
+            );
+
+            if (updatedGame != null && context.mounted) {
+              final parent = context
+                  .findAncestorStateOfType<_StaffDashboardState>();
+              parent?.updateGame(updatedGame);
+            }
+          },
         ),
       );
-
-      if (updatedGame != null && context.mounted) {
-        final parent = context.findAncestorStateOfType<_StaffDashboardState>();
-        parent?.updateGame(updatedGame);
-      }
-    },
-    authToken: authToken,
-  ),
-);
 
       if (isLastInGroup) {
         children.add(
@@ -394,6 +360,7 @@ class GroupedGameList extends StatelessWidget {
           ),
         );
       }
+
       lastGroup = game.gameGroup;
     }
 
@@ -430,7 +397,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
     setState(() => _isLoading = true);
 
     try {
-      print("Fetching dashboard...");
       final response = await http.get(
         Uri.parse('http://$url/staff/dashboard'),
         headers: {'Authorization': 'Bearer ${widget.authToken}'},
@@ -438,7 +404,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print("Dashboard response: $data");
 
         if (data['success'] == true) {
           final summary = data['summary'] ?? {};
@@ -451,8 +416,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       }
 
       await fetchGames();
-    } catch (e) {
-      print("Dashboard ERROR: $e");
+    } catch (_) {
       await fetchGames();
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -461,28 +425,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
   Future<void> fetchGames() async {
     try {
-      print("Fetching games from http://$url/staff/games...");
       final response = await http.get(
         Uri.parse('http://$url/staff/games'),
         headers: {'Authorization': 'Bearer ${widget.authToken}'},
       );
 
-      print("Response status: ${response.statusCode}");
-      if (response.statusCode != 200) {
-        print("API Error: ${response.body}");
-        return;
-      }
+      if (response.statusCode != 200) return;
 
       final data = jsonDecode(response.body);
-      if (!data['success']) {
-        print("API not success: ${data['message']}");
-        return;
-      }
+      if (!data['success']) return;
 
       final List<dynamic> gamesJson = data['games'];
-      print("Found ${gamesJson.length} game groups");
 
-      final List<GameItem> loadedGames = [];
+      final List<GameItem> loaded = [];
 
       for (var json in gamesJson) {
         final List<String> ids =
@@ -493,46 +448,46 @@ class _StaffDashboardState extends State<StaffDashboard> {
         if (ids.isEmpty) continue;
 
         for (int i = 0; i < ids.length; i++) {
-          final status = i < statuses.length ? statuses[i] : 'Available';
-          loadedGames.add(
+          final status = (i < statuses.length) ? statuses[i] : "Available";
+
+          loaded.add(
             GameItem(
               gameId: int.tryParse(ids[i]) ?? 0,
               gameName: json['gameName']?.toString() ?? 'Unknown',
               gameGroup: json['gameName']?.toString() ?? 'Unknown',
-              gameStyle: (json['styleId'] ?? 0).toString(),
+              gameStyle: json['styleId'].toString(),
               gTime: int.tryParse(json['gameTime'].toString()) ?? 60,
               minP: int.tryParse(json['minPlayers'].toString()) ?? 1,
               maxP: int.tryParse(json['maxPlayers'].toString()) ?? 1,
-              g_link: json['howToLink']?.toString() ?? '',
-              picPath: 'http://$url/${json['picPath']}',
+              g_link: json['howToLink'] ?? "",
+              picPath: "http://$url/${json['picPath']}",
               status: _mapStatus(status),
             ),
           );
         }
       }
 
-      print("Loaded ${loadedGames.length} GameItems");
-
       setState(() {
         gameList
           ..clear()
-          ..addAll(loadedGames)
+          ..addAll(loaded)
           ..sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
+
         _filteredGames = List.from(gameList);
         _updateStatusCounts();
       });
     } catch (e) {
-      print("Load games ERROR: $e");
+      print("Load ERROR: $e");
     }
   }
 
-  String _mapStatus(String? s) {
-    final status = (s ?? '').toLowerCase().trim();
-    return switch (status) {
+  String _mapStatus(String? status) {
+    final s = (status ?? '').toLowerCase().trim();
+    return switch (s) {
       'borrowing' => 'Borrowing',
       'available' => 'Available',
       'disabled' => 'Disabled',
-      _ => s ?? 'Available',
+      _ => status ?? 'Available',
     };
   }
 
@@ -542,6 +497,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
         .length;
     availableCount = gameList.where((g) => g.status == 'Available').length;
     disabledCount = gameList.where((g) => g.status == 'Disabled').length;
+
     if (mounted) setState(() {});
   }
 
@@ -560,8 +516,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
   void _toggleAvailableDisabled(int gameId) {
     final game = gameList.firstWhere((g) => g.gameId == gameId);
     if (game.status == 'Borrowed' || game.status == 'Borrowing') return;
+
     setState(() {
-      game.status = game.status == 'Available' ? 'Disabled' : 'Available';
+      game.status = (game.status == 'Available') ? 'Disabled' : 'Available';
       _updateStatusCounts();
     });
   }
@@ -570,6 +527,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     final oldGroup = gameList
         .firstWhere((g) => g.gameId == updatedGame.gameId)
         .gameGroup;
+
     setState(() {
       for (int i = 0; i < gameList.length; i++) {
         if (gameList[i].gameGroup == oldGroup) {
@@ -610,9 +568,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
           ? 0
           : gameList.map((g) => g.gameId).reduce((a, b) => a > b ? a : b);
       final baseId = maxId + 1;
+
       final first = currentGames.first;
 
       final newItems = <GameItem>[];
+
       for (int i = currentCount; i < newCount; i++) {
         final newGame = GameItem(
           gameId: baseId + (i - currentCount),
@@ -632,9 +592,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
       final groupStartIndex = gameList.indexWhere(
         (g) => g.gameGroup == groupName,
       );
-      final groupEndIndex = groupStartIndex + currentCount;
+      final insertIndex = groupStartIndex + currentCount;
 
-      gameList.insertAll(groupEndIndex, newItems);
+      gameList.insertAll(insertIndex, newItems);
     } else if (newCount < currentCount) {
       final toRemove = currentGames
           .where((g) => g.status != 'Borrowed' && g.status != 'Borrowing')
@@ -644,6 +604,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       if (toRemove.length < removeCount) return;
 
       toRemove.sort((a, b) => b.gameId.compareTo(a.gameId));
+
       for (int i = 0; i < removeCount; i++) {
         final idToRemove = toRemove[i].gameId;
         gameList.removeWhere((g) => g.gameId == idToRemove);
@@ -659,9 +620,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
   void _addNewGames(Map newGameData) {
     final count =
         int.tryParse(newGameData['game_count']?.toString() ?? '1') ?? 1;
+
     final maxId = gameList.isEmpty
         ? 0
         : gameList.map((g) => g.gameId).reduce((a, b) => a > b ? a : b);
+
     final baseId = maxId + 1;
 
     final String gameName = newGameData['game_name']?.toString() ?? 'Unknown';
@@ -680,8 +643,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
               int.tryParse(newGameData['game_time']?.toString() ?? '60') ?? 60,
           minP: int.tryParse(newGameData['min_P']?.toString() ?? '1') ?? 1,
           maxP: int.tryParse(newGameData['max_P']?.toString() ?? '1') ?? 1,
-          g_link: link,
           picPath: picPath,
+          g_link: link,
           status: 'Available',
         ),
       );
@@ -717,6 +680,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
                   Row(
                     children: [
                       StatusCard(
@@ -738,7 +702,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
+
                   Text(
                     'Manage Board',
                     style: TextStyle(
@@ -747,7 +713,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+
                   const SizedBox(height: 15),
+
                   TextField(
                     onChanged: _filterGames,
                     decoration: InputDecoration(
@@ -770,15 +738,18 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       suffixIcon: Icon(Icons.search, color: Colors.grey[400]),
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
                   GroupedGameList(
                     games: _filteredGames,
                     onStatusToggle: _toggleAvailableDisabled,
-                    authToken: widget.authToken,
+                    authToken: widget.authToken, // ★ FIXED
                   ),
                 ],
               ),
             ),
+
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(
@@ -790,8 +761,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => AddNewGame(
-                        authToken:
-                            widget.authToken, // ส่ง JWT ไปให้หน้าเพิ่มเกมใหม่
+                        authToken: widget.authToken, // ★ FIXED
                       ),
                     ),
                   );
@@ -799,7 +769,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   if (result is Map &&
                       result['game_name']?.toString().isNotEmpty == true) {
                     _addNewGames(result);
-                    await fetchGames(); // รีเฟรชข้อมูลจริงจากเซิร์ฟเวอร์
+                    await fetchGames();
                   }
                 },
                 child: const Icon(Icons.add, color: Colors.white),
