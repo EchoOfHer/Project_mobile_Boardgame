@@ -99,7 +99,7 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
               lenderId: _lenderId!,
               authToken: _authToken!,
             ), // Tab 2
-            HistoryLenderPage(userId: _lenderId!), // Tab 3
+            HistoryLenderPage(), // Tab 3
             const Center(child: Text('')), // Tab 4 (logout)
           ],
         ),
