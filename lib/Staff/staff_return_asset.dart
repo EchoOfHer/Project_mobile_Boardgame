@@ -1,23 +1,22 @@
+// lib/Staff/StaffReturnAsset.dart (FIXED for Network Connection)
+
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'staff_main.dart' show colour_main, colour_available;
 
 // ----------------------------
-// CORRECT BASE URL
+// ✅ FIXED BASE URL CONFIGURATION
 // ----------------------------
-// NOTE: Both iOS and Android MUST use the network IP
-// to connect to your computer's server.
-// '127.0.0.1' only works for the iOS Simulator.
-const String _networkIP = '127.0.0.1';  //IP
-
-const String _iosBaseUrl = _networkIP;
-const String _androidBaseUrl = _networkIP;
-
-final String baseUrl = Platform.isIOS ? _iosBaseUrl : _androidBaseUrl;
+// We define the FULL URL prefix to avoid issues with Uri.http/Uri.parse.
+const String _hostIP = '10.0.2.2';
 const int serverPort = 3000;
+
+// FINAL BASE URL with protocol and port included
+// e.g., 'http://10.0.2.2:3000'
+final String apiBaseUrl = 'http://$_hostIP:$serverPort';
 
 class StaffReturnAsset extends StatefulWidget {
   const StaffReturnAsset({super.key});
@@ -33,7 +32,17 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   @override
   void initState() {
     super.initState();
-    fetchReturningList();
+    // Use Future.microtask to delay fetch and ensure context/mounted is ready
+    Future.microtask(() => fetchReturningList());
+  }
+
+  Future<void> _handleError(String message) async {
+    if (mounted) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   // ----------------------------
@@ -44,32 +53,37 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
     String? token = prefs.getString("auth_token");
 
     if (token == null) {
-      setState(() => isLoading = false);
-      // Handle missing token, e.g., navigate to login
-      return;
+      return _handleError("Authentication failed. Please log in.");
     }
-    
-    final url = Uri.http("$baseUrl:$serverPort", "/api/staff/returning-list");
+
+    // ✅ Use Uri.parse with the full, final URL
+    final urlString = "$apiBaseUrl/api/staff/returning-list";
+    print("Fetching Returning List from: $urlString");
 
     try {
       final response = await http.get(
-        url,
+        Uri.parse(urlString),
         headers: {"Authorization": "Bearer $token"},
       );
 
       if (response.statusCode == 200) {
-        setState(() {
-          returningList = jsonDecode(response.body)["data"];
-          isLoading = false;
-        });
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            // Ensure data is accessed safely
+            returningList = data["data"] ?? [];
+            isLoading = false;
+          });
+        }
       } else {
-        // Handle error (e.g., show a snackbar)
-        setState(() => isLoading = false);
+        print("API Error: ${response.statusCode} - ${response.body}");
+        _handleError(
+          "Failed to load list. Server responded with ${response.statusCode}",
+        );
       }
     } catch (e) {
-      // Handle network error
-      setState(() => isLoading = false);
-      print("Network Error: $e");
+      print("Network Error Catch: $e");
+      _handleError("Network connection failed. Check API URL.");
     }
   }
 
@@ -80,16 +94,13 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString("auth_token");
 
-    if (token == null) return; // Should not happen if page loaded
+    if (token == null) return;
 
-    final url = Uri.http(
-      "$baseUrl:$serverPort",
-      "/api/staff/confirm-return/$borrowId",
-    );
+    final urlString = "$apiBaseUrl/api/staff/confirm-return/$borrowId";
 
     try {
       final response = await http.put(
-        url,
+        Uri.parse(urlString),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -98,20 +109,25 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
 
       if (response.statusCode == 200) {
         showReturnPopup(gameName);
-        setState(() {
-          returningList.removeWhere((item) => item['borrow_id'] == borrowId);
-        });
+        if (mounted) {
+          // Remove the item immediately for quick UI feedback
+          setState(() {
+            returningList.removeWhere((item) => item['borrow_id'] == borrowId);
+          });
+        }
       } else {
-        // Handle error (e.g., show snackbar)
+        _handleError(
+          "Confirmation failed: Server status ${response.statusCode}",
+        );
       }
     } catch (e) {
-      // Handle network error
-      print("Network Error: $e");
+      print("Network Error (Confirm): $e");
+      _handleError("Network error during confirmation.");
     }
   }
 
   // ----------------------------
-  // POPUP
+  // POPUP (Remains the same)
   // ----------------------------
   void showReturnPopup(String name) {
     showDialog(
@@ -124,7 +140,6 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
           ),
-          // Use Material widget for default text styles
           child: Material(
             color: Colors.transparent,
             child: Column(
@@ -160,7 +175,7 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   }
 
   // ----------------------------
-  // UI
+  // UI (Remains the same, added RefreshIndicator)
   // ----------------------------
   @override
   Widget build(BuildContext context) {
@@ -187,21 +202,25 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: colour_main))
-                    : returningList.isEmpty
-                        ? const Center(
-                            child: Text(
-                              "No items awaiting return.",
-                              style: TextStyle(color: Colors.grey, fontSize: 16),
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: returningList.length,
-                            itemBuilder: (context, i) =>
-                                buildGameCard(returningList[i]),
+                child: RefreshIndicator(
+                  onRefresh: fetchReturningList,
+                  child: isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: colour_main),
+                        )
+                      : returningList.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "No items awaiting return.",
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
                           ),
+                        )
+                      : ListView.builder(
+                          itemCount: returningList.length,
+                          itemBuilder: (context, i) =>
+                              buildGameCard(returningList[i]),
+                        ),
+                ),
               ),
             ],
           ),
@@ -211,7 +230,7 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   }
 
   // ----------------------------
-  // Card UI
+  // Card UI (Fixed Image URL construction)
   // ----------------------------
   Widget buildGameCard(dynamic item) {
     return Card(
@@ -224,8 +243,9 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
+              // ✅ Fixed Image URL: uses the full apiBaseUrl
               child: Image.network(
-                "http://$baseUrl:$serverPort/${item['game_pic_path']}",
+                "$apiBaseUrl/${item['game_pic_path']}",
                 width: 100,
                 height: 100,
                 fit: BoxFit.cover,
