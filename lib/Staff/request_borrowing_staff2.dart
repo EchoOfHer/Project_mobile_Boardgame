@@ -1,24 +1,29 @@
+// request_borrowing_staff2.dart
 import 'package:flutter/material.dart';
-import 'staff_main.dart' show colour_available, colour_disable, colour_main;
+import 'staff_main.dart' show colour_main;
 import 'package:url_launcher/url_launcher.dart';
 
+final String baseUrl = '10.0.2.2:3000';
+
 class RequestBorrowingStaffPage extends StatefulWidget {
+  final dynamic gameId;
+  final String currentStatus;
   final String gameName;
-  final String imageAssetPath;
+  final String imageAssetPath; // เช่น "games/catan.jpg"
   final String gameStyle;
   final String players;
   final String time;
-  final int remaining;
   final String glink;
 
   const RequestBorrowingStaffPage({
     super.key,
+    required this.gameId,
+    required this.currentStatus,
     required this.gameName,
     required this.imageAssetPath,
     required this.gameStyle,
     required this.players,
     required this.time,
-    required this.remaining,
     required this.glink,
   });
 
@@ -28,42 +33,12 @@ class RequestBorrowingStaffPage extends StatefulWidget {
 }
 
 class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
-  bool isBorrowed = false;
-  bool showRequestPopup = false;
-  late int currentRemaining;
-
-  @override
-  void initState() {
-    super.initState();
-    currentRemaining = widget.remaining;
-  }
-
-  void handleBorrow() async {
-    setState(() {
-      showRequestPopup = true;
-      isBorrowed = true;
-      if (currentRemaining > 0) {
-        currentRemaining--;
-      }
-    });
-
-    await Future.delayed(const Duration(seconds: 3));
-
-    if (mounted) {
-      setState(() {
-        showRequestPopup = false;
-      });
-    }
-  }
-
   Future<void> _launchUrl(String url) async {
-    // Prefix with http if missing, but only if the URL is not empty
-    final String fullUrl = url.trim().isNotEmpty && !url.startsWith('http')
-        ? 'http://$url'
-        : url;
+    if (url.trim().isEmpty) return;
+
+    final String fullUrl = url.startsWith('http') ? url : 'http://$url';
     final Uri uri = Uri.parse(fullUrl);
 
-    // Check if the link can be opened
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -86,145 +61,126 @@ class _RequestBorrowingStaffPageState extends State<RequestBorrowingStaffPage> {
             fontWeight: FontWeight.w500,
           ),
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: Stack(
-        alignment: Alignment.center,
-        children: [
-          // ⬇️ ⬇️ ⬇️ 1. ห่อหุ้มเนื้อหาด้วย SingleChildScrollView ⬇️ ⬇️ ⬇️
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      child: ClipRRect(
-                        // 1. ClipRRect needs the borderRadius property
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          // 2. Image.asset takes the asset path, width, and fit
-                          widget.imageAssetPath,
-                          width: 275,
-                          fit: BoxFit.cover,
-                          // NOTE: borderRadius property has been removed from here
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // รูปภาพ (ใช้ network เหมือน Lender)
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.network(
+                    'http://$baseUrl/${widget.imageAssetPath}',
+                    width: 275,
+                    height: 275,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 275,
+                        height: 275,
+                        color: Colors.grey[200],
+                        child: const Icon(
+                          Icons.broken_image,
+                          size: 80,
+                          color: Colors.grey,
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
+                ),
+              ),
 
-                  const SizedBox(height: 20),
-                  const Divider(thickness: 1, color: colour_main),
-                  const SizedBox(height: 20),
+              const SizedBox(height: 20),
+              const Divider(thickness: 1, color: colour_main),
+              const SizedBox(height: 20),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Name : ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 18,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Game Style : ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 18,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Players : ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 18,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Time : ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 18,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Remaining : ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 18,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'How to play : ',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
+              // ข้อมูลเกม (เหมือนเดิมทุกอย่าง)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Label
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Name : ',
+                        style: TextStyle(color: Colors.grey, fontSize: 18),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.gameName,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            widget.gameStyle,
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          SizedBox(height: 16),
-                          Text(widget.players, style: TextStyle(fontSize: 18)),
-                          SizedBox(height: 16),
-                          Text(widget.time, style: TextStyle(fontSize: 18)),
-                          SizedBox(height: 16),
-                          Text(
-                            '$currentRemaining board',
-                            style: TextStyle(
-                              color: currentRemaining == 0
-                                  ? colour_disable
-                                  : Colors.black, // Use conditional color
-                              fontSize: 18,
-                              // fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          InkWell(
-                            onTap: () => _launchUrl(widget.glink),
-                            child: Text(
-                              widget.glink,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      SizedBox(height: 16),
+                      Text(
+                        'Game Style : ',
+                        style: TextStyle(color: Colors.grey, fontSize: 18),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Players : ',
+                        style: TextStyle(color: Colors.grey, fontSize: 18),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Time : ',
+                        style: TextStyle(color: Colors.grey, fontSize: 18),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'How to play : ',
+                        style: TextStyle(color: Colors.grey, fontSize: 18),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(width: 20),
+                  // Value
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.gameName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        widget.gameStyle,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        widget.players,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(widget.time, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(height: 16),
+                      InkWell(
+                        onTap: () => _launchUrl(widget.glink),
+                        child: Text(
+                          widget.glink.isEmpty ? 'No link' : widget.glink,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: widget.glink.isEmpty
+                                ? Colors.grey
+                                : colour_main,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ),
+              const SizedBox(height: 30),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
