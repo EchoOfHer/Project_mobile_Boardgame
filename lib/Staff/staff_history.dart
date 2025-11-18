@@ -239,13 +239,14 @@ class _StaffHistoryState extends State<StaffHistory> {
 // --- STAFF HISTORY CARD ---
 class StaffHistoryCard extends StatelessWidget {
   final Map<String, dynamic> item;
+
   const StaffHistoryCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
     final status = (item['status'] ?? '').toString().toLowerCase();
-
     Color statusColor;
+
     switch (status) {
       case 'approve':
         statusColor = colour_available_green;
@@ -285,6 +286,14 @@ class StaffHistoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
 
+          // Game ID
+          Text(
+            'ID: ${item['gameId'] ?? '-'}',
+            style: const TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+
+          const SizedBox(height: 12),
+
           _row("Student:", item['borrowedBy'] ?? '-'),
           _row("Lender:", item['lenderName'] ?? '-'),
 
@@ -312,6 +321,7 @@ class StaffHistoryCard extends StatelessWidget {
             _row("Reason:", item['reason']),
 
           const Divider(height: 20),
+
           _row("Borrowed:", item['borrowedDate'] ?? '-'),
           _row("Returned:", item['returnedDate'] ?? '-'),
         ],
