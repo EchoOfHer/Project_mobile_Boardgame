@@ -115,8 +115,8 @@ class GameInputFormState extends State<GameInputForm> {
       ..fields['game_time'] = _ctime.text
       ..fields['min_P'] = _cminP.text
       ..fields['max_P'] = _cmaxP.text
-      ..fields['game_how2'] = _clink.text
-      ..fields['game_count'] = _gameCount.toString();
+      ..fields['game_how2'] = _clink.text;
+      // ..fields['game_count'] = _gameCount.toString();
 
     // ถ้ามีรูปใหม่
     if (_selectedImage != null) {
@@ -281,39 +281,39 @@ class GameInputFormState extends State<GameInputForm> {
         const SizedBox(height: 20),
 
         // จำนวนชุด
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              onPressed: _gameCount > 1
-                  ? () {
-                      setState(() => _gameCount--);
-                      widget.onCountChanged?.call(_gameCount);
-                    }
-                  : null,
-              icon: const Icon(
-                FontAwesomeIcons.circleMinus,
-                color: colour_main,
-                size: 30,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Text('$_gameCount', style: const TextStyle(fontSize: 36)),
-            ),
-            IconButton(
-              onPressed: () {
-                setState(() => _gameCount++);
-                widget.onCountChanged?.call(_gameCount);
-              },
-              icon: const Icon(
-                FontAwesomeIcons.circlePlus,
-                color: colour_main,
-                size: 30,
-              ),
-            ),
-          ],
-        ),
+        // Row(
+        //   mainAxisAlignment: MainAxisAlignment.center,
+        //   children: [
+        //     IconButton(
+        //       onPressed: _gameCount > 1
+        //           ? () {
+        //               setState(() => _gameCount--);
+        //               widget.onCountChanged?.call(_gameCount);
+        //             }
+        //           : null,
+        //       icon: const Icon(
+        //         FontAwesomeIcons.circleMinus,
+        //         color: colour_main,
+        //         size: 30,
+        //       ),
+        //     ),
+        //     Padding(
+        //       padding: const EdgeInsets.symmetric(horizontal: 10),
+        //       child: Text('$_gameCount', style: const TextStyle(fontSize: 36)),
+        //     ),
+        //     IconButton(
+        //       onPressed: () {
+        //         setState(() => _gameCount++);
+        //         widget.onCountChanged?.call(_gameCount);
+        //       },
+        //       icon: const Icon(
+        //         FontAwesomeIcons.circlePlus,
+        //         color: colour_main,
+        //         size: 30,
+        //       ),
+        //     ),
+        //   ],
+        // ),
       ],
     );
   }

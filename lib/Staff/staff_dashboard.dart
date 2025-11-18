@@ -332,13 +332,13 @@ class GroupedGameList extends StatelessWidget {
               MaterialPageRoute(
                 builder: (_) => EditGame(
                   game: game,
-                  groupCount: groupCount,
+                  // groupCount: groupCount,
                   authToken: authToken, // ★ FIXED
-                  onCountChanged: (newCount) {
-                    final parent = context
-                        .findAncestorStateOfType<_StaffDashboardState>();
-                    parent?.adjustGroupCount(game.gameGroup, newCount);
-                  },
+                  // onCountChanged: (newCount) {
+                  //   final parent = context
+                  //       .findAncestorStateOfType<_StaffDashboardState>();
+                  //   parent?.adjustGroupCount(game.gameGroup, newCount);
+                  // },
                 ),
               ),
             );
