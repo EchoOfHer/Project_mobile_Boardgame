@@ -61,11 +61,13 @@ class GameCard extends StatelessWidget {
   final GameItem game;
   final VoidCallback? onStatusTap;
   final String authToken;
+  final VoidCallback? onEditPressed;
   const GameCard({
     super.key,
     required this.game,
     required this.onStatusTap,
     required this.authToken,
+    this.onEditPressed,
   });
 
   @override
@@ -129,8 +131,7 @@ class GameCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: isBorrowed
-                  ? null
+              onPressed: isBorrowed ? null
                   : () async {
                       final newStatus = game.status == 'Available'
                           ? 'Disabled'
@@ -149,6 +150,14 @@ class GameCard extends StatelessWidget {
                   ? 'Cannot change while borrowed'
                   : 'Toggle Available/Disabled',
             ),
+            const SizedBox(width: 8),
+
+    // เพิ่มปุ่ม Edit ตรงนี้
+    IconButton(
+      onPressed: onEditPressed,
+      icon: const Icon(Icons.edit, color: Colors.blue, size: 32),
+      tooltip: 'Edit Game',
+    ),
             const SizedBox(width: 20),
           ],
         ),
@@ -248,19 +257,6 @@ class GameCard extends StatelessWidget {
   }
 }
 
-({Color color, IconData icon}) _getStatusConfig(
-  String status,
-  bool isBorrowed,
-) {
-  if (isBorrowed || status == 'Borrowing')
-    return (color: Colors.grey.shade400, icon: Icons.lock_outline);
-  return switch (status) {
-    'Available' => (color: colour_available, icon: Icons.play_disabled),
-    'Disabled' => (color: colour_disable, icon: FontAwesomeIcons.play),
-    _ => (color: Colors.grey, icon: Icons.help),
-  };
-}
-
 class GroupedGameList extends StatelessWidget {
   final List<GameItem> games;
   final Function(int gameId) onStatusToggle;
@@ -312,38 +308,38 @@ class GroupedGameList extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                ElevatedButton(
-                  onPressed: () async {
-                    final updatedGame = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditGame(
-                          game: game,
-                          groupCount: groupCount,
-                          onCountChanged: (newCount) {
-                            final parent = context
-                                .findAncestorStateOfType<
-                                  _StaffDashboardState
-                                >();
-                            parent?.adjustGroupCount(game.gameGroup, newCount);
-                          },
-                        ),
-                      ),
-                    );
-                    if (updatedGame != null && context.mounted) {
-                      final parent = context
-                          .findAncestorStateOfType<_StaffDashboardState>();
-                      parent?.updateGame(updatedGame);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colour_borrow,
-                  ),
-                  child: const Text(
-                    'Edit',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
+                // ElevatedButton(
+                //   onPressed: () async {
+                //     final updatedGame = await Navigator.push(
+                //       context,
+                //       MaterialPageRoute(
+                //         builder: (_) => EditGame(
+                //           game: game,
+                //           groupCount: groupCount,
+                //           onCountChanged: (newCount) {
+                //             final parent = context
+                //                 .findAncestorStateOfType<
+                //                   _StaffDashboardState
+                //                 >();
+                //             parent?.adjustGroupCount(game.gameGroup, newCount);
+                //           },
+                //         ),
+                //       ),
+                //     );
+                //     if (updatedGame != null && context.mounted) {
+                //       final parent = context
+                //           .findAncestorStateOfType<_StaffDashboardState>();
+                //       parent?.updateGame(updatedGame);
+                //     }
+                //   },
+                //   style: ElevatedButton.styleFrom(
+                //     backgroundColor: colour_borrow,
+                //   ),
+                //   child: const Text(
+                //     'Edit',
+                //     style: TextStyle(color: Colors.white),
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -353,13 +349,38 @@ class GroupedGameList extends StatelessWidget {
       }
 
       children.add(
-        GameCard(
-          key: ValueKey(game.gameId),
-          game: game,
-          onStatusTap: () => onStatusToggle(game.gameId),
-          authToken: authToken,// ส่งต่อ
+  GameCard(
+    key: ValueKey(game.gameId),
+    game: game,
+    onStatusTap: () => onStatusToggle(game.gameId),
+    onEditPressed: () async {
+      // ดึงข้อมูลกลุ่มทั้งหมด
+      final group = games.where((g) => g.gameGroup == game.gameGroup).toList();
+      final groupCount = group.length;
+
+      final updatedGame = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EditGame(
+            game: game,
+            groupCount: groupCount,
+            onCountChanged: (newCount) {
+              // เรียกกลับไปที่ StaffDashboard
+              final parent = context.findAncestorStateOfType<_StaffDashboardState>();
+              parent?.adjustGroupCount(game.gameGroup, newCount);
+            },
+          ),
         ),
       );
+
+      if (updatedGame != null && context.mounted) {
+        final parent = context.findAncestorStateOfType<_StaffDashboardState>();
+        parent?.updateGame(updatedGame);
+      }
+    },
+    authToken: authToken,
+  ),
+);
 
       if (isLastInGroup) {
         children.add(
