@@ -7,11 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+
+// (นำเข้า 'url' จาก student_main ตามที่ทีมกำหนด)
 import 'student_main.dart'
     show colour_main, colour_disable, colour_available, colour_borrow, url;
 
-final String url = '10.0.2.2:3000';
+// (ลบ final url = '...' ที่ซ้ำซ้อนออก)
 
+// --- (โค้ดจากเวอร์ชันของทีม) ---
 class ThaiDate {
   static final _bangkok = tz.getLocation('Asia/Bangkok');
   static tz.TZDateTime today() {
@@ -26,6 +29,7 @@ class ThaiDate {
     return '${local.day}/${local.month.toString().padLeft(2, '0')}';
   }
 }
+// ------------------------------
 
 class BorrowGamePage extends StatefulWidget {
   final String gameName;
@@ -63,7 +67,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isRequesting = false;
-  bool _hasRequested = false;
+  bool _hasRequested = false; // (เปลี่ยนชื่อจาก _hasRequestedAnyGame)
 
   @override
   void initState() {
@@ -72,6 +76,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
     _checkActiveRequest();
   }
 
+  // (ฟังก์ชันจากเวอร์ชันของทีม - ดีมาก)
   Future<void> _checkActiveRequest() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
@@ -99,7 +104,11 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
     });
   }
 
+  //
+  // --- 🌟 นี่คือฟังก์ชันที่ MERGE แล้ว 🌟 ---
+  //
   Future<void> _handleBorrow() async {
+    // 1. ดึง ID ผู้ใช้จริง (จากเวอร์ชันทีม)
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
     if (userId == null) {
@@ -109,24 +118,40 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
       return;
     }
 
+    // 2. ตรวจสอบว่ากดได้หรือไม่
+    final bool canBorrow =
+        !_hasRequested &&
+        widget.currentStatus == 'Available' &&
+        _startDate != null &&
+        _endDate != null &&
+        !_isRequesting;
+
+    if (!canBorrow) return;
+
     setState(() {
       _isRequesting = true;
       _showPopup = true;
     });
 
     try {
+      // 3. เรียก Endpoint ที่ถูกต้อง (ตาม SQL ล่าสุด)
+      // (ต้องถามทีมว่า Endpoint คือ /borrow หรือ /request-borrowing)
       final res = await http.post(
-        Uri.parse('http://$url/request-borrowing'),
+        Uri.parse('http://$url/borrow'), // <--- (A) ใช้ Endpoint ที่ตรงกับ SQL
         headers: {'Content-Type': 'application/json'},
+
+        // 4. ส่ง Body ที่ถูกต้อง (ตาม SQL ล่าสุด)
         body: jsonEncode({
           'game_id': widget.gameId,
-          'student_id': userId,
-          'start_date': ThaiDate.ymd(_startDate!),
-          'end_date': ThaiDate.ymd(_endDate!),
+          'borrower_id': userId, // <--- (B) ใช้ 'borrower_id' และ ID จริง
+          'from_date': ThaiDate.ymd(_startDate!), // <--- (C) ใช้ 'from_date'
+          'return_date': ThaiDate.ymd(_endDate!), // <--- (D) ใช้ 'return_date'
+          'status': 'pending',
         }),
       );
 
-      if (res.statusCode == 200) {
+      // 5. จัดการผลลัพธ์ (จากเวอร์ชันทีม)
+      if (res.statusCode == 200 || res.statusCode == 201) {
         setState(() => _hasRequested = true);
         widget.onStatusChanged?.call();
       } else {
@@ -149,6 +174,9 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
       }
     }
   }
+  //
+  // --- 🌟 สิ้นสุดส่วนที่ MERGE 🌟 ---
+  //
 
   Future<void> _launchUrl(String? url) async {
     if (url == null || url.trim().isEmpty) {
@@ -181,6 +209,11 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (ส่วน UI ที่เหลือของคุณเหมือนเดิมทุกประการ) ...
+    // (คัดลอกโค้ดส่วน build() เดิมของคุณมาวางที่นี่ได้เลย)
+    //
+    // (ผมจะคัดลอกส่วน build() จากเวอร์ชัน 8e7... มาให้
+    // เพราะมันดูเหมือนจะเป็นเวอร์ชันที่อัปเดต UI ล่าสุดแล้ว)
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -405,7 +438,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
             ),
           ),
 
-          // SUCCESS POPUP (พื้นหลังขาว + มุมโค้ง กลับมาแล้ว!)
+          // SUCCESS POPUP
           if (_showPopup)
             Container(
               color: Colors.black54,
