@@ -138,7 +138,7 @@ class EditGame extends StatelessWidget {
               onPressed: () async {
                 final data = formKey.currentState?.getFormData();
                 if (data == null) return;
-
+                
                 final updateData = {
                   'game_name':
                       (data['game_name'] as String?)?.trim() ?? game.gameName,
