@@ -131,7 +131,8 @@ class GameCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: isBorrowed ? null
+              onPressed: isBorrowed
+                  ? null
                   : () async {
                       final newStatus = game.status == 'Available'
                           ? 'Disabled'
@@ -152,12 +153,12 @@ class GameCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-    // เพิ่มปุ่ม Edit ตรงนี้
-    IconButton(
-      onPressed: onEditPressed,
-      icon: const Icon(Icons.edit, color: Colors.blue, size: 32),
-      tooltip: 'Edit Game',
-    ),
+            // เพิ่มปุ่ม Edit ตรงนี้
+            IconButton(
+              onPressed: onEditPressed,
+              icon: const Icon(Icons.edit, color: Colors.blue, size: 32),
+              tooltip: 'Edit Game',
+            ),
             const SizedBox(width: 20),
           ],
         ),
@@ -225,23 +226,24 @@ class GameCard extends StatelessWidget {
 
   // --- อัปเดตสถานะไป Backend ---
   Future<bool> _updateGameStatus(int inventoryId, String newStatus) async {
-  try {
-    final response = await http.put(
-      Uri.parse('http://$url/staff/game/status/$inventoryId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $authToken', // ใช้ได้!
-      },
-      body: jsonEncode({'status': newStatus}),
-    );
+    try {
+      final response = await http.put(
+        Uri.parse('http://$url/staff/game/status/$inventoryId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken', // ใช้ได้!
+        },
+        body: jsonEncode({'status': newStatus}),
+      );
 
-    print("Update: ${response.statusCode} ${response.body}");
-    return response.statusCode == 200 && jsonDecode(response.body)['success'] == true;
-  } catch (e) {
-    print("Update error: $e");
-    return false;
+      print("Update: ${response.statusCode} ${response.body}");
+      return response.statusCode == 200 &&
+          jsonDecode(response.body)['success'] == true;
+    } catch (e) {
+      print("Update error: $e");
+      return false;
+    }
   }
-}
 
   ({Color color, IconData icon}) _getStatusConfig(
     String status,
@@ -349,38 +351,43 @@ class GroupedGameList extends StatelessWidget {
       }
 
       children.add(
-  GameCard(
-    key: ValueKey(game.gameId),
-    game: game,
-    onStatusTap: () => onStatusToggle(game.gameId),
-    onEditPressed: () async {
-      // ดึงข้อมูลกลุ่มทั้งหมด
-      final group = games.where((g) => g.gameGroup == game.gameGroup).toList();
-      final groupCount = group.length;
+        GameCard(
+          key: ValueKey(game.gameId),
+          game: game,
+          onStatusTap: () => onStatusToggle(game.gameId),
+          onEditPressed: () async {
+            // ดึงข้อมูลกลุ่มทั้งหมด
+            final group = games
+                .where((g) => g.gameGroup == game.gameGroup)
+                .toList();
+            final groupCount = group.length;
+            final String token = authToken;
+            final updatedGame = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => EditGame(
+                  game: game,
+                  groupCount: groupCount,
+                  authToken: token, // ส่ง token ไปด้วย
+                  onCountChanged: (newCount) {
+                    // เรียกกลับไปที่ StaffDashboard
+                    final parent = context
+                        .findAncestorStateOfType<_StaffDashboardState>();
+                    parent?.adjustGroupCount(game.gameGroup, newCount);
+                  },
+                ),
+              ),
+            );
 
-      final updatedGame = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EditGame(
-            game: game,
-            groupCount: groupCount,
-            onCountChanged: (newCount) {
-              // เรียกกลับไปที่ StaffDashboard
-              final parent = context.findAncestorStateOfType<_StaffDashboardState>();
-              parent?.adjustGroupCount(game.gameGroup, newCount);
-            },
-          ),
+            if (updatedGame != null && context.mounted) {
+              final parent = context
+                  .findAncestorStateOfType<_StaffDashboardState>();
+              parent?.updateGame(updatedGame);
+            }
+          },
+          authToken: authToken,
         ),
       );
-
-      if (updatedGame != null && context.mounted) {
-        final parent = context.findAncestorStateOfType<_StaffDashboardState>();
-        parent?.updateGame(updatedGame);
-      }
-    },
-    authToken: authToken,
-  ),
-);
 
       if (isLastInGroup) {
         children.add(
@@ -421,40 +428,40 @@ class _StaffDashboardState extends State<StaffDashboard> {
   }
 
   Future<void> fetchDashboardData() async {
-  if (!mounted) return;
-  setState(() => _isLoading = true);
+    if (!mounted) return;
+    setState(() => _isLoading = true);
 
- try {
-    print("Fetching dashboard...");
-    final response = await http.get(
-      Uri.parse('http://$url/staff/dashboard'),
-      headers: {
-        'Authorization': 'Bearer ${widget.authToken}', // เพิ่มบรรทัดนี้
-      },
-    );
+    try {
+      print("Fetching dashboard...");
+      final response = await http.get(
+        Uri.parse('http://$url/staff/dashboard'),
+        headers: {
+          'Authorization': 'Bearer ${widget.authToken}', // เพิ่มบรรทัดนี้
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print("Dashboard response: $data");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print("Dashboard response: $data");
 
-      if (data['success'] == true) {
-        final summary = data['summary'] ?? {};
-        setState(() {
-          borrowedCount = summary['pending_bookings'] ?? 0;
-          availableCount = summary['approved_bookings'] ?? 0;
-          disabledCount = summary['rejected_bookings'] ?? 0;
-        });
+        if (data['success'] == true) {
+          final summary = data['summary'] ?? {};
+          setState(() {
+            borrowedCount = summary['pending_bookings'] ?? 0;
+            availableCount = summary['approved_bookings'] ?? 0;
+            disabledCount = summary['rejected_bookings'] ?? 0;
+          });
+        }
       }
-    }
 
-    await fetchGames();
-  } catch (e) {
-    print("Dashboard ERROR: $e");
-    await fetchGames();
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
+      await fetchGames();
+    } catch (e) {
+      print("Dashboard ERROR: $e");
+      await fetchGames();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
-}
 
   Future<void> fetchGames() async {
     try {

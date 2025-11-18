@@ -1,22 +1,28 @@
 // lib/Staff_screens/EditGame.dart
 import 'package:flutter/material.dart';
 import 'package:boardgame_app/Staff/game_input_form.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:boardgame_app/Staff/staff_main.dart'
     show colour_available, colour_main, colour_available, colour_main;
 // import 'staff_dashboard.dart';
 import 'game_data.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+final String url = '10.0.2.2:3000';
+
 class EditGame extends StatelessWidget {
   final GameItem game;
   final int groupCount;
   final Function(int newCount) onCountChanged;
+  final String authToken;
 
   const EditGame({
     super.key,
     required this.game,
     required this.groupCount,
     required this.onCountChanged,
+    required this.authToken,
   });
 
   @override
@@ -131,82 +137,56 @@ class EditGame extends StatelessWidget {
               ),
               onPressed: () async {
                 final data = formKey.currentState?.getFormData();
-
                 if (data == null) return;
 
-                final updated = GameItem(
-                  gameId: game.gameId,
-                  gameName: data['game_name']?.toString() ?? game.gameName,
-                  gameGroup: data['game_name'],
-                  gameStyle: data['game_style']?.toString() ?? game.gameStyle,
-                  gTime:
-                      int.tryParse(data['game_time']?.toString() ?? '0') ?? 0,
-                  minP: int.tryParse(data['min_P']?.toString() ?? '0') ?? 0,
-                  maxP: int.tryParse(data['max_P']?.toString() ?? '0') ?? 0,
-                  picPath: game.picPath,
-                  g_link: data['game_how2']?.toString() ?? game.g_link,
-                  status: game.status,
-                );
+                final updateData = {
+                  'game_name':
+                      (data['game_name'] as String?)?.trim() ?? game.gameName,
+                  'style_id': 1, // เปลี่ยนตามจริงได้ในอนาคต
+                  'game_time':
+                      data['game_time']?.toString() ?? game.gTime.toString(),
+                  'game_min_player':
+                      data['min_P']?.toString() ?? game.minP.toString(),
+                  'game_max_player':
+                      data['max_P']?.toString() ?? game.maxP.toString(),
+                  'game_link_howto':
+                      data['game_how2']?.toString() ?? game.g_link,
+                  'total_copies':
+                      data['game_count']?.toString() ?? groupCount.toString(),
+                };
 
-                // Show Success Alert Dialog
-                await showDialog(
-                  context: context,
-                  barrierDismissible: false, // Must tap OK to close
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    icon: Icon(
-                      FontAwesomeIcons.circleCheck,
-                      color: colour_available,
-                      size: 60,
-                    ),
-                    title: const Text(
-                      'Edit Successful!',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    content: Text(
-                      'Game "${updated.gameName}" has been updated.',
-                      style: const TextStyle(fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
-                    actions: [
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(); // Close dialog
-                            Navigator.pop(
-                              context,
-                              updated,
-                            ); // Return updated game
-                          },
-                          style: TextButton.styleFrom(
-                            backgroundColor: colour_available,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 30,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'OK',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                try {
+                  final response = await http.put(
+                    Uri.http(url, '/api/staff/game/${game.gameId}'),
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer $authToken',
+                    },
+                    body: jsonEncode(updateData),
+                  );
+
+                  if (response.statusCode == 200) {
+                    final json = jsonDecode(response.body);
+                    if (json['success'] == true) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('แก้ไขข้อมูลเกมสำเร็จ!'),
+                          backgroundColor: Colors.green,
                         ),
-                      ),
-                    ],
-                  ),
-                );
+                      );
+                      Navigator.pop(context, true); // ส่ง flag กลับไปรีเฟรช
+                    }
+                  } else {
+                    throw Exception('Server error: ${response.body}');
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('ไม่สามารถแก้ไขได้: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: const Text(
                 'Confirm',
