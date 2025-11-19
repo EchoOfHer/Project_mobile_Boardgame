@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart'; // Required for date formatting
 import 'student_main.dart' show url;
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Color Definitions
 const Color colour_main = Color(0xFFFF8000);
@@ -70,7 +71,7 @@ class StudentCheckrequests extends StatefulWidget {
 
 class _StudentCheckrequestsState extends State<StudentCheckrequests> {
   late Future<List<BorrowItem>> _borrowFuture;
-
+  String? token;
   @override
   void initState() {
     super.initState();
@@ -97,8 +98,10 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
     try {
       final response = await http.put(
         uri,
-        // สำคัญ: ต้องกำหนด Headers เป็น application/json
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token', // เพิ่ม JWT
+        },
         body: json.encode({'status': newStatus}),
       );
 
@@ -130,27 +133,30 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
 
   // 🚀 API CALL: Fetch active requests
   Future<List<BorrowItem>> _fetchBorrowRequests() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
     final uri = Uri.http(url, '/api/check-request/${widget.userId}');
 
     try {
-      final response = await http.get(uri);
+      final response = await http.get(
+        uri,
+        headers: token != null
+            ? {'Authorization': 'Bearer $token'}
+            : {}, // เพิ่ม JWT
+      );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-
-        if (data['data'] == null || data['data'].isEmpty) {
-          return [];
-        }
+        if (data['data'] == null || data['data'].isEmpty) return [];
 
         final List<dynamic> jsonList = data['data'];
         return [BorrowItem.fromJson(jsonList.first)];
       } else {
-        throw Exception(
-          'Failed to load request: Status ${response.statusCode}',
-        );
+        throw Exception('Failed to load request: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching borrow requests: $e');
+      print('Error: $e');
       return [];
     }
   }
