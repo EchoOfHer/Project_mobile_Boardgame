@@ -1,39 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
+// import 'dart:io' show Platform; // ลบออก เพราะใช้ url จาก student_main
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'student_main.dart' show url; // ✅ นำเข้า url จากไฟล์หลัก
 
-// --- Color Definitions ---
+// --- Color Definitions (คงเดิมตามไฟล์ต้นฉบับเพื่อไม่ให้ UI เพี้ยน) ---
 const Color colour_main_orange = Color(0xFFE67E22);
 const Color colour_available_green = Color(0xFF486E5A);
 const Color colour_disable_red = Color(0xFFDD4430);
 
 // --- API Service ---
 class ApiService {
-  static String get baseUrl {
-    if (Platform.isIOS) {
-      return 'http://localhost:3000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
-    } else {
-      return 'http://192.168.1.123:3000';
-    }
-  }
-
+  // ไม่ต้องใช้ baseUrl แบบแยก Platform แล้ว ใช้ตัวแปร url กลางแทน
   static Future<List<Map<String, dynamic>>> fetchStudentHistory({
     required String token,
     String query = '',
   }) async {
-    final uri = Uri.parse(
-      '$baseUrl/borrow-history',
-    ).replace(queryParameters: {'q': query});
+    // ✅ ใช้ Uri.http กับตัวแปร url กลาง
+    final uri = Uri.http(url, '/borrow-history', {'q': query});
 
     final res = await http.get(
       uri,
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {'Authorization': 'Bearer $token'}, // ✅ มี JWT เรียบร้อย
     );
 
     if (res.statusCode != 200) {
@@ -64,6 +55,7 @@ class _StudentHistoryState extends State<StudentHistory> {
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
     try {
+      // รูปแบบวันที่ต้องตรงกับที่ Backend ส่งมา (เช่น "20 Nov 2025")
       return DateFormat('dd MMM yyyy', 'en_US').parse(dateStr);
     } catch (_) {
       return DateTime(1900);
@@ -80,6 +72,7 @@ class _StudentHistoryState extends State<StudentHistory> {
 
   Future<void> _loadAuthData() async {
     final prefs = await SharedPreferences.getInstance();
+    // ใช้ key 'auth_token' ให้ตรงกับไฟล์อื่นๆ
     _token = prefs.getString('auth_token');
   }
 
@@ -110,7 +103,9 @@ class _StudentHistoryState extends State<StudentHistory> {
             : 'Error: ${e.toString()}';
       });
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
