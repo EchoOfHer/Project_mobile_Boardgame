@@ -23,18 +23,17 @@ class ApiService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> fetchHistory({
+  static Future<List<Map<String, dynamic>>> fetchStudentHistory({
     required String token,
-    required dynamic borrowerId,
     String query = '',
   }) async {
-    final uri = Uri.parse('$baseUrl/borrow-history').replace(
-      queryParameters: {'borrower_id': borrowerId.toString(), 'q': query},
-    );
+    final uri = Uri.parse(
+      '$baseUrl/borrow-history',
+    ).replace(queryParameters: {'q': query});
 
     final res = await http.get(
       uri,
-      headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
@@ -48,8 +47,7 @@ class ApiService {
 
 // --- Main History Widget ---
 class StudentHistory extends StatefulWidget {
-  final int userId;
-  const StudentHistory({super.key, required this.userId});
+  const StudentHistory({super.key});
 
   @override
   State<StudentHistory> createState() => _StudentHistoryState();
@@ -63,35 +61,31 @@ class _StudentHistoryState extends State<StudentHistory> {
   String _error = '';
   String? _token;
 
-  // ✅ REVERTED: กลับมา Parse แค่ Date string
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
     try {
-      // Format expected from Node.js is '%d %b %Y' (e.g., 06 Nov 2025)
       return DateFormat('dd MMM yyyy', 'en_US').parse(dateStr);
     } catch (_) {
       return DateTime(1900);
     }
   }
 
-  // ✅ REVERTED: กลับมาใช้ borrowedDate ในการเรียงลำดับ
   void _sortHistory(List<Map<String, dynamic>> list) {
     list.sort((a, b) {
       final dateA = _parseDate(a['borrowedDate']);
       final dateB = _parseDate(b['borrowedDate']);
-      return dateB.compareTo(dateA); // Newest first (by date)
+      return dateB.compareTo(dateA);
     });
   }
 
   Future<void> _loadAuthData() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('auth_token');
-    print('DEBUG: loaded token = $_token');
   }
 
   Future<void> _fetch() async {
     await _loadAuthData();
-    if (_token == null || widget.userId == 0) {
+    if (_token == null) {
       setState(() {
         _error = 'Please log in again.';
         _loading = false;
@@ -103,9 +97,8 @@ class _StudentHistoryState extends State<StudentHistory> {
     _error = '';
 
     try {
-      final items = await ApiService.fetchHistory(
+      final items = await ApiService.fetchStudentHistory(
         token: _token!,
-        borrowerId: widget.userId,
         query: _search.text.trim(),
       );
       _sortHistory(items);
@@ -159,7 +152,7 @@ class _StudentHistoryState extends State<StudentHistory> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'History',
+                  'My History',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -249,7 +242,7 @@ class _StudentHistoryState extends State<StudentHistory> {
   }
 }
 
-// --- History Card Widget (Modified) ---
+// --- History Card Widget ---
 class HistoryCard extends StatelessWidget {
   final Map<String, dynamic> item;
   const HistoryCard({super.key, required this.item});
@@ -317,7 +310,6 @@ class HistoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // 🔑 MODIFIED: Show 'Approved by' for all except 'cancelled'
           if (status != 'cancelled')
             _row('Processed by:', item['approvedBy'] ?? '-'),
 

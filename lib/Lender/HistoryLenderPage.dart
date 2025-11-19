@@ -23,19 +23,17 @@ class ApiService {
     }
   }
 
-  // Fetch history for lender
-  static Future<List<Map<String, dynamic>>> fetchHistory({
+  static Future<List<Map<String, dynamic>>> fetchLenderHistory({
     required String token,
-    required dynamic lenderId,
     String query = '',
   }) async {
     final uri = Uri.parse(
       '$baseUrl/HistoryLenderPage',
-    ).replace(queryParameters: {'lender_id': lenderId.toString(), 'q': query});
+    ).replace(queryParameters: {'q': query});
 
     final res = await http.get(
       uri,
-      headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
@@ -49,8 +47,7 @@ class ApiService {
 
 // --- Main Lender History Widget ---
 class HistoryLenderPage extends StatefulWidget {
-  final int userId;
-  const HistoryLenderPage({super.key, required this.userId});
+  const HistoryLenderPage({super.key});
 
   @override
   State<HistoryLenderPage> createState() => _HistoryLenderPageState();
@@ -84,12 +81,11 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
   Future<void> _loadAuthData() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('auth_token');
-    print('DEBUG: loaded token = $_token');
   }
 
   Future<void> _fetch() async {
     await _loadAuthData();
-    if (_token == null || widget.userId == 0) {
+    if (_token == null) {
       setState(() {
         _error = 'Please log in again.';
         _loading = false;
@@ -101,9 +97,8 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
     _error = '';
 
     try {
-      final items = await ApiService.fetchHistory(
+      final items = await ApiService.fetchLenderHistory(
         token: _token!,
-        lenderId: widget.userId,
         query: _search.text.trim(),
       );
       _sortHistory(items);
@@ -157,7 +152,7 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'History',
+                  'Lender History',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -235,7 +230,7 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 16),
                           itemBuilder: (_, i) =>
-                              HistoryCard(item: _filtered[i]),
+                              LenderHistoryCard(item: _filtered[i]),
                         ),
                 ),
               ],
@@ -247,10 +242,10 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
   }
 }
 
-// --- History Card Widget ---
-class HistoryCard extends StatelessWidget {
+// --- Lender History Card Widget ---
+class LenderHistoryCard extends StatelessWidget {
   final Map<String, dynamic> item;
-  const HistoryCard({super.key, required this.item});
+  const LenderHistoryCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {

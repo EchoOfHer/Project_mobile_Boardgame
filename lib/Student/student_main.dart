@@ -101,9 +101,7 @@ class _StudentMainState extends State<StudentMain>
             const BrowseStudent(),
             // 🔑 PASS the retrieved user ID to StudentCheckrequests
             StudentCheckrequests(userId: _userId!),
-            StudentHistory(
-              userId: _userId!,
-            ), // You should pass it to History too!
+            StudentHistory(), // You should pass it to History too!
             const Center(child: Text('')), // Logout page
           ],
         ),
