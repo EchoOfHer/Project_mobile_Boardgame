@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:shared_preferences/shared_preferences.dart';
 final url = '10.0.2.2:3000';
 
 class Register extends StatefulWidget {
@@ -71,76 +71,71 @@ class _RegisterState extends State<Register> {
   }
 
   void _handleRegister() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true; // Start loading
-      });
+  if (_formKey.currentState!.validate()) {
+    setState(() => _isLoading = true);
 
-      final username = _usernameController.text.trim();
-      final password = _passwordController.text.trim();
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-      // IMPORTANT: Ensure your backend server is running and accessible.
-      // 10.0.2.2 is the special IP for the host machine (your computer) when running on the Android Emulator.
-      const String apiUrl = 'http://10.0.2.2:3000/api/register';
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:3000/api/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'username': username, 'password': password}),
+      );
 
-      try {
-        final response = await http.post(
-          Uri.parse(apiUrl),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({'username': username, 'password': password}),
-        );
+      final responseData = json.decode(response.body);
 
-        final responseData = json.decode(response.body);
+      if (response.statusCode == 201) {
+        // รับ token และข้อมูล user
+        final token = responseData['token'];
+        final userId = responseData['user_id'];
+        final role = responseData['role'];
+        final landingPage = responseData['landingPage'];
 
-        if (response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('ลงทะเบียนสำเร็จ! 🎉 ยินดีต้อนรับ $username'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          // Navigate back to the previous screen (Login)
-          Navigator.pop(context); 
-        } else if (response.statusCode == 409) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(responseData['message'] ?? 'Username นี้มีผู้ใช้แล้ว'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        } else if (response.statusCode == 400) {
-           // Explicitly handle 400 Bad Request from server (e.g., missing fields)
-           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(responseData['message'] ?? 'ข้อมูลไม่สมบูรณ์ (400)'),
-              backgroundColor: Colors.red.shade400,
-            ),
-          );
-        } else {
-          // Handle 500 Internal Server Error or other unexpected errors
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(responseData['message'] ?? 'เกิดข้อผิดพลาดในการลงทะเบียน (500)'),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-        }
-      } catch (e) {
-        // This usually catches network/connection errors
+        // เก็บ JWT และข้อมูลลง SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('jwt_token', token);
+        await prefs.setString('user_id', userId.toString());
+        await prefs.setString('username', username);
+        await prefs.setString('role', role);
+        await prefs.setBool('isLoggedIn', true);
+
+        // แสดงความสำเร็จ
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่ภายหลัง'),
-            backgroundColor: Colors.red.shade900,
+            content: Text('ลงทะเบียนสำเร็จ! ยินดีต้อนรับ $username 🎉'),
+            backgroundColor: Colors.green,
           ),
         );
-      } finally {
-        setState(() {
-          _isLoading = false; // Stop loading regardless of success/failure
-        });
+
+        // ไปหน้าหลักของ Student ทันที (เหมือน login)
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/student-main', // หรือชื่อ route ที่คุณตั้งไว้
+          (route) => false,
+        );
+
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(responseData['message'] ?? 'เกิดข้อผิดพลาด'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
-
+}
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;

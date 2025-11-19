@@ -81,11 +81,14 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   Future<void> _checkActiveRequest() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
-    if (userId == null) return;
+    final token = prefs.getString('auth_token',); // หรือ 'jwt_token' ตามที่คุณใช้ตอน login
+
+    if (userId == null || token == null) return;
 
     try {
       final res = await http.get(
         Uri.parse('http://$url/api/check-request/$userId'),
+        headers: {'Authorization': 'Bearer $token'}, // เพิ่มตรงนี้
       );
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
@@ -109,10 +112,11 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   // --- 🌟 นี่คือฟังก์ชันที่ MERGE แล้ว 🌟 ---
   //
   Future<void> _handleBorrow() async {
-    // 1. ดึง ID ผู้ใช้จริง (จากเวอร์ชันทีม)
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
-    if (userId == null) {
+    final token = prefs.getString('auth_token'); // ดึง token
+
+    if (userId == null || token == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Please log in again')));
@@ -135,22 +139,17 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
     });
 
     try {
-      // 3. เรียก Endpoint ที่ถูกต้อง (ตาม SQL ล่าสุด)
-      // (ต้องถามทีมว่า Endpoint คือ /borrow หรือ /request-borrowing)
       final res = await http.post(
-        Uri.parse(
-          'http://$url/request-borrowing',
-        ), // <--- (A) ใช้ Endpoint ที่ตรงกับ SQL
-        headers: {'Content-Type': 'application/json'},
-
-        // 4. ส่ง Body ที่ถูกต้อง (ตาม SQL ล่าสุด)
-        // (ใหม่) ส่วนที่ 4. ส่ง Body ที่ถูกต้อง (ตาม Express Route)
+        Uri.parse('http://$url/request-borrowing'), // แก้ตรงนี้
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
           'game_id': widget.gameId,
           'student_id': userId,
-          'start_date': ThaiDate.ymd(_startDate!), // ✅ แก้ไขตรงนี้
-          'end_date': ThaiDate.ymd(_endDate!), // ✅ แก้ไขตรงนี้
-          'status': 'pending', // (ไม่จำเป็นต้องส่ง แต่เก็บไว้ได้)
+          'start_date': ThaiDate.ymd(_startDate!),
+          'end_date': ThaiDate.ymd(_endDate!),
         }),
       );
 
