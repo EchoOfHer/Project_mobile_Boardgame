@@ -73,6 +73,8 @@ class GameCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBorrowed = game.status == 'Borrowed' || game.status == 'Borrowing';
+
+    // FIX: Retrieve the config which now includes iconColor
     final config = _getStatusConfig(game.status, isBorrowed);
 
     return Card(
@@ -121,9 +123,9 @@ class GameCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Status: ${game.status}',
+                    game.status,
                     style: TextStyle(
-                      color: config.color,
+                      color: config.color, // Keeps the text color consistent
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -150,7 +152,8 @@ class GameCard extends StatelessWidget {
 
                       onStatusTap?.call();
                     },
-              icon: Icon(config.icon, color: config.color, size: 40),
+              // FIX: Use config.iconColor to get Red/Green icons
+              icon: Icon(config.icon, color: config.iconColor, size: 40),
               tooltip: isBorrowed
                   ? 'Cannot change while borrowed'
                   : 'Toggle Available/Disabled',
@@ -242,16 +245,30 @@ class GameCard extends StatelessWidget {
     });
   }
 
-  ({Color color, IconData icon}) _getStatusConfig(
+  // FIX: Updated Return Type and Logic for specific Icon Colors
+  ({Color color, IconData icon, Color iconColor}) _getStatusConfig(
     String status,
     bool isBorrowed,
   ) {
-    if (isBorrowed || status == 'Borrowing')
-      return (color: Colors.grey.shade400, icon: Icons.lock_outline);
+    if (isBorrowed || status == 'Borrowing') {
+      return (
+        color: Colors.grey.shade400,
+        icon: Icons.lock_outline,
+        iconColor: Colors.grey,
+      );
+    }
     return switch (status) {
-      'Available' => (color: colour_available, icon: Icons.play_circle_fill),
-      'Disabled' => (color: colour_disable, icon: FontAwesomeIcons.ban),
-      _ => (color: Colors.grey, icon: Icons.help),
+      'Available' => (
+        color: colour_available,
+        icon: FontAwesomeIcons.ban,
+        iconColor: colour_disable, // Ban is Red
+      ),
+      'Disabled' => (
+        color: colour_disable,
+        icon: Icons.play_circle_fill,
+        iconColor: colour_available, // Play is Green
+      ),
+      _ => (color: Colors.grey, icon: Icons.help, iconColor: Colors.grey),
     };
   }
 }
@@ -289,11 +306,6 @@ class GroupedGameList extends StatelessWidget {
           i == games.length - 1 || games[i + 1].gameGroup != game.gameGroup;
 
       if (isNewGroup) {
-        final group = games
-            .where((g) => g.gameGroup == game.gameGroup)
-            .toList();
-        final groupCount = group.length;
-
         children.add(
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -322,24 +334,10 @@ class GroupedGameList extends StatelessWidget {
           onStatusTap: () => onStatusToggle(game.gameId),
           authToken: authToken,
           onEditPressed: () async {
-            final group = games
-                .where((g) => g.gameGroup == game.gameGroup)
-                .toList();
-            final groupCount = group.length;
-
             final updatedGame = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => EditGame(
-                  game: game,
-                  // groupCount: groupCount,
-                  authToken: authToken, // ★ FIXED
-                  // onCountChanged: (newCount) {
-                  //   final parent = context
-                  //       .findAncestorStateOfType<_StaffDashboardState>();
-                  //   parent?.adjustGroupCount(game.gameGroup, newCount);
-                  // },
-                ),
+                builder: (_) => EditGame(game: game, authToken: authToken),
               ),
             );
 
@@ -744,7 +742,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   GroupedGameList(
                     games: _filteredGames,
                     onStatusToggle: _toggleAvailableDisabled,
-                    authToken: widget.authToken, // ★ FIXED
+                    authToken: widget.authToken,
                   ),
                 ],
               ),
@@ -760,9 +758,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AddNewGame(
-                        authToken: widget.authToken, // ★ FIXED
-                      ),
+                      builder: (_) => AddNewGame(authToken: widget.authToken),
                     ),
                   );
 
