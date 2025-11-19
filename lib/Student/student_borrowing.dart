@@ -1,4 +1,3 @@
-// lib/Student/student_borrowing.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
@@ -8,16 +7,13 @@ import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
-// (นำเข้า 'url' จาก student_main ตามที่ทีมกำหนด)
+// นำเข้าตัวแปร url จาก student_main
 import 'student_main.dart'
     show colour_main, colour_disable, colour_available, colour_borrow, url;
 
-// (ลบ final url = '...' ที่ซ้ำซ้อนออก)
-final url = '10.0.2.2:3000';
-
-// --- (โค้ดจากเวอร์ชันของทีม) ---
 class ThaiDate {
   static final _bangkok = tz.getLocation('Asia/Bangkok');
+
   static tz.TZDateTime today() {
     final now = tz.TZDateTime.now(_bangkok);
     return tz.TZDateTime(_bangkok, now.year, now.month, now.day);
@@ -25,12 +21,12 @@ class ThaiDate {
 
   static String ymd(DateTime d) =>
       DateFormat('yyyy-MM-dd').format(tz.TZDateTime.from(d, _bangkok));
+
   static String dm(DateTime d) {
     final local = tz.TZDateTime.from(d, _bangkok);
     return '${local.day}/${local.month.toString().padLeft(2, '0')}';
   }
 }
-// ------------------------------
 
 class BorrowGamePage extends StatefulWidget {
   final String gameName;
@@ -68,7 +64,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isRequesting = false;
-  bool _hasRequested = false; // (เปลี่ยนชื่อจาก _hasRequestedAnyGame)
+  bool _hasRequested = false;
 
   @override
   void initState() {
@@ -77,20 +73,17 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
     _checkActiveRequest();
   }
 
-  // (ฟังก์ชันจากเวอร์ชันของทีม - ดีมาก)
   Future<void> _checkActiveRequest() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
-    final token = prefs.getString(
-      'auth_token',
-    ); // หรือ 'jwt_token' ตามที่คุณใช้ตอน login
+    final token = prefs.getString('auth_token');
 
     if (userId == null || token == null) return;
 
     try {
       final res = await http.get(
         Uri.parse('http://$url/api/check-request/$userId'),
-        headers: {'Authorization': 'Bearer $token'}, // เพิ่มตรงนี้
+        headers: {'Authorization': 'Bearer $token'},
       );
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
@@ -110,13 +103,10 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
     });
   }
 
-  //
-  // --- 🌟 นี่คือฟังก์ชันที่ MERGE แล้ว 🌟 ---
-  //
   Future<void> _handleBorrow() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
-    final token = prefs.getString('auth_token'); // ดึง token
+    final token = prefs.getString('auth_token');
 
     if (userId == null || token == null) {
       ScaffoldMessenger.of(
@@ -125,7 +115,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
       return;
     }
 
-    // 2. ตรวจสอบว่ากดได้หรือไม่
+    // ตรวจสอบเงื่อนไขก่อนส่ง
     final bool canBorrow =
         !_hasRequested &&
         widget.currentStatus == 'Available' &&
@@ -142,20 +132,20 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
 
     try {
       final res = await http.post(
-        Uri.parse('http://$url/request-borrowing'), // แก้ตรงนี้
+        Uri.parse('http://$url/request-borrowing'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $token', // แนบ JWT Token
         },
         body: jsonEncode({
           'game_id': widget.gameId,
-          'student_id': userId,
+          'student_id':
+              userId, // ส่งไปเผื่อไว้ (ถึงแม้ Backend จะดึงจาก Token แล้วก็ตาม)
           'start_date': ThaiDate.ymd(_startDate!),
           'end_date': ThaiDate.ymd(_endDate!),
         }),
       );
 
-      // 5. จัดการผลลัพธ์ (จากเวอร์ชันทีม)
       if (res.statusCode == 200 || res.statusCode == 201) {
         setState(() => _hasRequested = true);
         widget.onStatusChanged?.call();
@@ -179,9 +169,6 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
       }
     }
   }
-  //
-  // --- 🌟 สิ้นสุดส่วนที่ MERGE 🌟 ---
-  //
 
   Future<void> _launchUrl(String? url) async {
     if (url == null || url.trim().isEmpty) {
@@ -214,11 +201,6 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (ส่วน UI ที่เหลือของคุณเหมือนเดิมทุกประการ) ...
-    // (คัดลอกโค้ดส่วน build() เดิมของคุณมาวางที่นี่ได้เลย)
-    //
-    // (ผมจะคัดลอกส่วน build() จากเวอร์ชัน 8e7... มาให้
-    // เพราะมันดูเหมือนจะเป็นเวอร์ชันที่อัปเดต UI ล่าสุดแล้ว)
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -347,7 +329,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                     ],
                   ),
 
-                // Duration
+                // Duration Section
                 if (_showDuration)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -410,7 +392,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
 
                 const SizedBox(height: 30),
 
-                // Borrow Button
+                // Action Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -443,7 +425,7 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
             ),
           ),
 
-          // SUCCESS POPUP
+          // Success Popup
           if (_showPopup)
             Container(
               color: Colors.black54,
@@ -457,11 +439,11 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black26,
                         blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        offset: Offset(0, 10),
                       ),
                     ],
                   ),

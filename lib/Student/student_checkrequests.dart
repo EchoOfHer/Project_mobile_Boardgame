@@ -22,15 +22,14 @@ String _formatDate(dynamic dateInput) {
     if (dateStr.contains('T') ||
         dateStr.contains('+') ||
         dateStr.endsWith('Z')) {
-      // ถ้ามี Time Zone Indicator: แปลงเป็น Local Time (เพื่อแก้ปัญหา Offset จาก Express)
+      // ถ้ามี Time Zone Indicator: แปลงเป็น Local Time
       dateTime = DateTime.parse(dateStr).toLocal();
     } else {
-      // 2. ถ้ามีแค่ YYYY-MM-DD (จากคอลัมน์ DATE ใน MySQL):
-      // ตีความว่าเป็น Local Date (Non-UTC) ณ เวลา 00:00:00 เพื่อป้องกันการปัดวันที่ถอยหลัง
+      // 2. ถ้ามีแค่ YYYY-MM-DD
       dateTime = DateTime.parse(dateStr);
     }
 
-    // Format to DD Mon. (e.g., 12 Nov) <--- FIXED FORMAT
+    // Format to DD Mon. (e.g., 12 Nov)
     return DateFormat('dd MMM').format(dateTime);
   } catch (e) {
     return dateInput.toString();
@@ -59,8 +58,8 @@ class BorrowItem {
       gameInventoryStatus = json['game_inventory_status'] as String,
       howtoLink = json['howto_link'] as String;
 }
-// --- Widget Definition ---
 
+// --- Widget Definition ---
 class StudentCheckrequests extends StatefulWidget {
   final int userId;
   const StudentCheckrequests({super.key, required this.userId});
@@ -71,7 +70,7 @@ class StudentCheckrequests extends StatefulWidget {
 
 class _StudentCheckrequestsState extends State<StudentCheckrequests> {
   late Future<List<BorrowItem>> _borrowFuture;
-  String? token;
+
   @override
   void initState() {
     super.initState();
@@ -93,6 +92,10 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
     String newStatus,
     String actionName,
   ) async {
+    // 1. ดึง Token จากเครื่อง
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
     final uri = Uri.http(url, '/api/borrow/status/$borrowId');
 
     try {
@@ -100,41 +103,48 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
         uri,
         headers: {
           'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token', // เพิ่ม JWT
+          if (token != null) 'Authorization': 'Bearer $token', // ✅ เพิ่ม JWT
         },
         body: json.encode({'status': newStatus}),
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$actionName request success!')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$actionName request success!')),
+          );
+        }
         return true;
       } else {
         final data = json.decode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${data['message'] ?? 'Failed to update status'}'),
-            backgroundColor: colour_disable,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${data['message'] ?? 'Failed to update status'}'),
+              backgroundColor: colour_disable,
+            ),
+          );
+        }
         return false;
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Network error during $actionName: $e'),
-          backgroundColor: colour_disable,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Network error during $actionName: $e'),
+            backgroundColor: colour_disable,
+          ),
+        );
+      }
       return false;
     }
   }
 
   // 🚀 API CALL: Fetch active requests
   Future<List<BorrowItem>> _fetchBorrowRequests() async {
+    // 1. ดึง Token จากเครื่อง
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = prefs.getString('auth_token');
 
     final uri = Uri.http(url, '/api/check-request/${widget.userId}');
 
@@ -142,8 +152,8 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
       final response = await http.get(
         uri,
         headers: token != null
-            ? {'Authorization': 'Bearer $token'}
-            : {}, // เพิ่ม JWT
+            ? {'Authorization': 'Bearer $token'} // ✅ เพิ่ม JWT
+            : {},
       );
 
       if (response.statusCode == 200) {
@@ -153,7 +163,9 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
         final List<dynamic> jsonList = data['data'];
         return [BorrowItem.fromJson(jsonList.first)];
       } else {
-        throw Exception('Failed to load request: ${response.statusCode}');
+        // กรณี Token หมดอายุหรือ Error อื่นๆ
+        print('Failed to load request: ${response.statusCode}');
+        return [];
       }
     } catch (e) {
       print('Error: $e');
@@ -193,7 +205,7 @@ class _StudentCheckrequestsState extends State<StudentCheckrequests> {
                       return Center(
                         child: Text(
                           'Error: ${snapshot.error}',
-                          style: TextStyle(color: colour_disable),
+                          style: const TextStyle(color: colour_disable),
                         ),
                       );
                     } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
