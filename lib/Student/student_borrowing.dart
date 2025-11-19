@@ -81,7 +81,9 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
   Future<void> _checkActiveRequest() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('user_id');
-    final token = prefs.getString('auth_token',); // หรือ 'jwt_token' ตามที่คุณใช้ตอน login
+    final token = prefs.getString(
+      'auth_token',
+    ); // หรือ 'jwt_token' ตามที่คุณใช้ตอน login
 
     if (userId == null || token == null) return;
 
@@ -245,8 +247,8 @@ class _BorrowGamePageState extends State<BorrowGamePage> {
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: Image.asset(
-                      widget.imageAssetPath,
+                    child: Image.network(
+                      'http://$url/${widget.imageAssetPath}',
                       width: 275,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(

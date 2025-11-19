@@ -4,6 +4,8 @@ import '/lender/lender_main.dart'
     show colour_available, colour_disable, colour_main;
 import '/staff/game_data.dart'; // ← ต้อง import เพื่อใช้ gameList
 
+final String baseUrl = '10.0.2.2:3000';
+
 class RequestBorrowingLenderPage extends StatefulWidget {
   final String gameName;
   final String imageAssetPath;
@@ -157,8 +159,8 @@ class _RequestBorrowingLenderPageState
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(18),
-                        child: Image.asset(
-                          widget.imageAssetPath,
+                        child: Image.network(
+                          'http://$baseUrl/${widget.imageAssetPath}',
                           width: 275,
                           height: 275,
                           fit: BoxFit.cover,
