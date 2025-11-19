@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '/login/login.dart'; // ✅ Import เพื่อใช้ baseUrl
 
 // --- Color Definitions ---
 const Color colour_main_orange = Color(0xFFE67E22);
@@ -13,21 +12,15 @@ const Color colour_disable_red = Color(0xFFDD4430);
 
 // --- API Service ---
 class ApiService {
-  static String get baseUrl {
-    if (Platform.isIOS) {
-      return 'http://localhost:3000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
-    } else {
-      return 'http://192.168.1.123:3000';
-    }
-  }
+  // ❌ ลบ get baseUrl เดิมออก
+  // ✅ ใช้ baseUrl จาก login.dart
 
   // Fetch ALL history for STAFF
   static Future<List<Map<String, dynamic>>> fetchStaffHistory({
     required String token,
     String query = '',
   }) async {
+    // ✅ ใช้ baseUrl ตัวกลาง
     final uri = Uri.parse(
       '$baseUrl/StaffHistory',
     ).replace(queryParameters: {'q': query});
@@ -50,7 +43,10 @@ class ApiService {
 
 // --- STAFF HISTORY PAGE ---
 class StaffHistory extends StatefulWidget {
-  const StaffHistory({super.key});
+  final String authToken; // ★ 1. เพิ่มตัวแปรรับ Token
+
+  // ★ 2. รับค่าผ่าน Constructor
+  const StaffHistory({super.key, required this.authToken});
 
   @override
   State<StaffHistory> createState() => _StaffHistoryState();
@@ -63,7 +59,7 @@ class _StaffHistoryState extends State<StaffHistory> {
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
   String _error = '';
-  String? _token;
+  // ❌ ไม่ต้องประกาศ _token แล้ว
 
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
@@ -82,20 +78,10 @@ class _StaffHistoryState extends State<StaffHistory> {
     });
   }
 
-  Future<void> _loadAuthData() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('auth_token');
-  }
+  // ❌ ลบ _loadAuthData ออก
 
   Future<void> _fetch() async {
-    await _loadAuthData();
-    if (_token == null) {
-      setState(() {
-        _error = 'Please log in again.';
-        _loading = false;
-      });
-      return;
-    }
+    // ไม่ต้องเช็ค Token null เพราะรับมาจาก Parent แล้ว
 
     setState(() {
       _loading = true;
@@ -104,7 +90,7 @@ class _StaffHistoryState extends State<StaffHistory> {
 
     try {
       final items = await ApiService.fetchStaffHistory(
-        token: _token!,
+        token: widget.authToken, // ✅ ใช้ Token จาก widget โดยตรง
         query: _search.text.trim(),
       );
 
@@ -115,7 +101,7 @@ class _StaffHistoryState extends State<StaffHistory> {
         _error = e.toString();
       });
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

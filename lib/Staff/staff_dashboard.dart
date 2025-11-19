@@ -1,14 +1,18 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:boardgame_app/Staff/Add_New_Game.dart';
-import 'package:boardgame_app/Staff/EditGame.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+// Import หน้าที่เกี่ยวข้อง
+import 'Add_New_Game.dart';
+import 'EditGame.dart';
+import 'game_data.dart';
 import 'staff_main.dart'
     show colour_available, colour_borrow, colour_disable, colour_main;
-import 'game_data.dart';
+import '/login/login.dart'; // ✅ Import เพื่อใช้ baseUrl
 
-final String url = '10.0.2.2:3000';
+// ❌ ลบตัวแปร url แบบ Hardcode ออก
+// final String url = '10.0.2.2:3000';
 
 class StatusCard extends StatelessWidget {
   final String label;
@@ -73,9 +77,17 @@ class GameCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBorrowed = game.status == 'Borrowed' || game.status == 'Borrowing';
-
-    // FIX: Retrieve the config which now includes iconColor
     final config = _getStatusConfig(game.status, isBorrowed);
+
+    // ✅ จัดการ URL รูปภาพให้ใช้ baseUrl
+    String imageUrl = game.picPath;
+    if (!imageUrl.startsWith('http')) {
+      // ลบ slash นำหน้าออกถ้ามี
+      final cleanPath = imageUrl.startsWith('/')
+          ? imageUrl.substring(1)
+          : imageUrl;
+      imageUrl = '$baseUrl/$cleanPath';
+    }
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -86,7 +98,7 @@ class GameCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                game.picPath,
+                imageUrl,
                 width: 100,
                 height: 100,
                 fit: BoxFit.cover,
@@ -125,7 +137,7 @@ class GameCard extends StatelessWidget {
                   Text(
                     game.status,
                     style: TextStyle(
-                      color: config.color, // Keeps the text color consistent
+                      color: config.color,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -142,7 +154,7 @@ class GameCard extends StatelessWidget {
                           : 'Available';
 
                       final success = await _updateGameStatus(
-                        game.gameId,
+                        game.gameId, // ใช้ gameId (ซึ่งเก็บ Inventory ID ไว้)
                         newStatus,
                       );
 
@@ -152,7 +164,6 @@ class GameCard extends StatelessWidget {
 
                       onStatusTap?.call();
                     },
-              // FIX: Use config.iconColor to get Red/Green icons
               icon: Icon(config.icon, color: config.iconColor, size: 40),
               tooltip: isBorrowed
                   ? 'Cannot change while borrowed'
@@ -176,8 +187,9 @@ class GameCard extends StatelessWidget {
 
   Future<bool> _updateGameStatus(int inventoryId, String newStatus) async {
     try {
+      // ✅ ใช้ baseUrl และแนบ Token
       final response = await http.put(
-        Uri.parse('http://$url/staff/game/status/$inventoryId'),
+        Uri.parse('$baseUrl/staff/game/status/$inventoryId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
@@ -245,7 +257,6 @@ class GameCard extends StatelessWidget {
     });
   }
 
-  // FIX: Updated Return Type and Logic for specific Icon Colors
   ({Color color, IconData icon, Color iconColor}) _getStatusConfig(
     String status,
     bool isBorrowed,
@@ -261,12 +272,12 @@ class GameCard extends StatelessWidget {
       'Available' => (
         color: colour_available,
         icon: FontAwesomeIcons.ban,
-        iconColor: colour_disable, // Ban is Red
+        iconColor: colour_disable,
       ),
       'Disabled' => (
         color: colour_disable,
         icon: Icons.play_circle_fill,
-        iconColor: colour_available, // Play is Green
+        iconColor: colour_available,
       ),
       _ => (color: Colors.grey, icon: Icons.help, iconColor: Colors.grey),
     };
@@ -344,7 +355,7 @@ class GroupedGameList extends StatelessWidget {
             if (updatedGame != null && context.mounted) {
               final parent = context
                   .findAncestorStateOfType<_StaffDashboardState>();
-              parent?.updateGame(updatedGame);
+              parent?.fetchGames(); // Refresh data
             }
           },
         ),
@@ -379,6 +390,8 @@ class StaffDashboard extends StatefulWidget {
 
 class _StaffDashboardState extends State<StaffDashboard> {
   late List<GameItem> _filteredGames;
+  List<GameItem> localGameList = [];
+
   int borrowedCount = 0, availableCount = 0, disabledCount = 0;
   bool _isLoading = true;
 
@@ -395,8 +408,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
     setState(() => _isLoading = true);
 
     try {
+      // ✅ ใช้ baseUrl และ endpoint /api/status-summary เพื่อดึงจำนวน
       final response = await http.get(
-        Uri.parse('http://$url/staff/dashboard'),
+        Uri.parse('$baseUrl/api/status-summary'),
         headers: {'Authorization': 'Bearer ${widget.authToken}'},
       );
 
@@ -404,11 +418,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
         final data = jsonDecode(response.body);
 
         if (data['success'] == true) {
-          final summary = data['summary'] ?? {};
+          final d = data['data'];
           setState(() {
-            borrowedCount = summary['pending_bookings'] ?? 0;
-            availableCount = summary['approved_bookings'] ?? 0;
-            disabledCount = summary['rejected_bookings'] ?? 0;
+            borrowedCount = int.tryParse(d['borrowed'].toString()) ?? 0;
+            availableCount = int.tryParse(d['available'].toString()) ?? 0;
+            disabledCount = int.tryParse(d['disabled'].toString()) ?? 0;
           });
         }
       }
@@ -423,8 +437,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
   Future<void> fetchGames() async {
     try {
+      // ✅ ใช้ baseUrl
       final response = await http.get(
-        Uri.parse('http://$url/staff/games'),
+        Uri.parse('$baseUrl/staff/games'),
         headers: {'Authorization': 'Bearer ${widget.authToken}'},
       );
 
@@ -450,15 +465,17 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
           loaded.add(
             GameItem(
+              // ใช้ Inventory ID ใส่ใน gameId ตามโครงสร้างเดิม
               gameId: int.tryParse(ids[i]) ?? 0,
               gameName: json['gameName']?.toString() ?? 'Unknown',
               gameGroup: json['gameName']?.toString() ?? 'Unknown',
-              gameStyle: json['styleId'].toString(),
+              // รับค่า gameStyle ที่เป็น Text จาก API
+              gameStyle: json['gameStyle']?.toString() ?? 'Unknown',
               gTime: int.tryParse(json['gameTime'].toString()) ?? 60,
               minP: int.tryParse(json['minPlayers'].toString()) ?? 1,
               maxP: int.tryParse(json['maxPlayers'].toString()) ?? 1,
               g_link: json['howToLink'] ?? "",
-              picPath: "http://$url/${json['picPath']}",
+              picPath: json['picPath'] ?? '',
               status: _mapStatus(status),
             ),
           );
@@ -471,6 +488,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           ..addAll(loaded)
           ..sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
 
+        localGameList = List.from(gameList);
         _filteredGames = List.from(gameList);
         _updateStatusCounts();
       });
@@ -502,8 +520,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
   void _filterGames(String query) {
     setState(() {
       _filteredGames = query.isEmpty
-          ? List.from(gameList)
-          : gameList
+          ? List.from(localGameList)
+          : localGameList
                 .where(
                   (g) => g.gameName.toLowerCase().contains(query.toLowerCase()),
                 )
@@ -522,138 +540,23 @@ class _StaffDashboardState extends State<StaffDashboard> {
   }
 
   void updateGame(GameItem updatedGame) {
-    final oldGroup = gameList
-        .firstWhere((g) => g.gameId == updatedGame.gameId)
-        .gameGroup;
-
+    // Logic update ภายใน List เพื่อ refresh UI ทันที
+    // เนื่องจาก inventoryId ไม่ได้แยกชัดเจนใน GameItem (ใช้ gameId แทน)
+    // เราจะใช้วิธี reload ข้อมูลใหม่จาก server ผ่าน fetchGames ใน callback จะชัวร์กว่า
+    // แต่ถ้าจะ update local:
     setState(() {
-      for (int i = 0; i < gameList.length; i++) {
-        if (gameList[i].gameGroup == oldGroup) {
-          gameList[i] = GameItem(
-            gameId: gameList[i].gameId,
-            gameName: updatedGame.gameName,
-            gameGroup: updatedGame.gameGroup,
-            gameStyle: updatedGame.gameStyle,
-            gTime: updatedGame.gTime,
-            minP: updatedGame.minP,
-            maxP: updatedGame.maxP,
-            picPath: gameList[i].picPath,
-            g_link: updatedGame.g_link,
-            status: gameList[i].status,
-          );
-        }
+      final index = gameList.indexWhere((g) => g.gameId == updatedGame.gameId);
+      if (index != -1) {
+        gameList[index] = updatedGame;
       }
-
-      gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
-      _filteredGames = List.from(gameList);
-      _updateStatusCounts();
-    });
-  }
-
-  void adjustGroupCount(String groupName, int newCount) {
-    final currentGames = gameList
-        .where((g) => g.gameGroup == groupName)
-        .toList();
-    final currentCount = currentGames.length;
-    final borrowedCount = currentGames
-        .where((g) => g.status == 'Borrowed' || g.status == 'Borrowing')
-        .length;
-
-    if (newCount < borrowedCount) return;
-
-    if (newCount > currentCount) {
-      final maxId = gameList.isEmpty
-          ? 0
-          : gameList.map((g) => g.gameId).reduce((a, b) => a > b ? a : b);
-      final baseId = maxId + 1;
-
-      final first = currentGames.first;
-
-      final newItems = <GameItem>[];
-
-      for (int i = currentCount; i < newCount; i++) {
-        final newGame = GameItem(
-          gameId: baseId + (i - currentCount),
-          gameName: first.gameName,
-          gameGroup: groupName,
-          gameStyle: first.gameStyle,
-          gTime: first.gTime,
-          minP: first.minP,
-          maxP: first.maxP,
-          picPath: first.picPath,
-          g_link: first.g_link,
-          status: 'Available',
-        );
-        newItems.add(newGame);
-      }
-
-      final groupStartIndex = gameList.indexWhere(
-        (g) => g.gameGroup == groupName,
-      );
-      final insertIndex = groupStartIndex + currentCount;
-
-      gameList.insertAll(insertIndex, newItems);
-    } else if (newCount < currentCount) {
-      final toRemove = currentGames
-          .where((g) => g.status != 'Borrowed' && g.status != 'Borrowing')
-          .toList();
-
-      final removeCount = currentCount - newCount;
-      if (toRemove.length < removeCount) return;
-
-      toRemove.sort((a, b) => b.gameId.compareTo(a.gameId));
-
-      for (int i = 0; i < removeCount; i++) {
-        final idToRemove = toRemove[i].gameId;
-        gameList.removeWhere((g) => g.gameId == idToRemove);
-      }
-    }
-
-    setState(() {
       _filteredGames = List.from(gameList);
       _updateStatusCounts();
     });
   }
 
   void _addNewGames(Map newGameData) {
-    final count =
-        int.tryParse(newGameData['game_count']?.toString() ?? '1') ?? 1;
-
-    final maxId = gameList.isEmpty
-        ? 0
-        : gameList.map((g) => g.gameId).reduce((a, b) => a > b ? a : b);
-
-    final baseId = maxId + 1;
-
-    final String gameName = newGameData['game_name']?.toString() ?? 'Unknown';
-    final String link = newGameData['game_how2']?.toString() ?? '';
-    final String picPath =
-        'http://$url/image/${newGameData['game_imageP'] ?? 'default.jpg'}';
-
-    for (int i = 0; i < count; i++) {
-      gameList.add(
-        GameItem(
-          gameId: baseId + i,
-          gameName: gameName,
-          gameGroup: gameName,
-          gameStyle: newGameData['game_style']?.toString() ?? '',
-          gTime:
-              int.tryParse(newGameData['game_time']?.toString() ?? '60') ?? 60,
-          minP: int.tryParse(newGameData['min_P']?.toString() ?? '1') ?? 1,
-          maxP: int.tryParse(newGameData['max_P']?.toString() ?? '1') ?? 1,
-          picPath: picPath,
-          g_link: link,
-          status: 'Available',
-        ),
-      );
-    }
-
-    gameList.sort((a, b) => a.gameGroup.compareTo(b.gameGroup));
-
-    setState(() {
-      _filteredGames = List.from(gameList);
-      _updateStatusCounts();
-    });
+    // ฟังก์ชันนี้อาจไม่ได้ใช้แล้ว เพราะเรา refresh ข้อมูลใหม่จาก server เลย
+    // แต่เก็บไว้เผื่อ logic เดิม
   }
 
   @override
@@ -762,10 +665,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     ),
                   );
 
-                  if (result is Map &&
-                      result['game_name']?.toString().isNotEmpty == true) {
-                    _addNewGames(result);
-                    await fetchGames();
+                  if (result == true) {
+                    await fetchDashboardData();
                   }
                 },
                 child: const Icon(Icons.add, color: Colors.white),

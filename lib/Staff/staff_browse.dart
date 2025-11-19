@@ -1,16 +1,15 @@
-// lib/Staff/staff_browse_list.dart
 import 'package:flutter/material.dart';
-import 'request_borrowing_staff2.dart';
+// ★ FIXED: Hide 'baseUrl' from this import to avoid conflict with login.dart
+import 'request_borrowing_staff2.dart' hide baseUrl;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '/login/login.dart';
+import '/login/login.dart'; // ✅ Import เพื่อใช้ baseUrl (Primary source)
 import 'staff_main.dart' show colour_main;
 
-// NOTE: ใช้ URL เดียวกับ Lender (หรือแยกไฟล์ config ถ้าต้องการ)
-final String url = '10.0.2.2:3000';
 const Color colour_available = Colors.green;
 
+// Helper function to safely get values
 dynamic _get(dynamic item, String key) {
   if (item == null) return null;
   if (item is Map<String, dynamic>) return item[key];
@@ -46,7 +45,10 @@ dynamic _get(dynamic item, String key) {
 }
 
 class StaffBrowse extends StatefulWidget {
-  const StaffBrowse({super.key});
+  final String authToken; // ★ 1. เพิ่มตัวแปรรับ Token
+
+  // ★ 2. รับ authToken จาก Constructor
+  const StaffBrowse({super.key, required this.authToken});
 
   @override
   State<StaffBrowse> createState() => _StaffBrowseState();
@@ -85,16 +87,24 @@ class _StaffBrowseState extends State<StaffBrowse> {
         prefs.getString('name') ??
         'Staff';
 
-    setState(() {
-      _staffName = name.trim().isEmpty ? 'Staff' : name;
-    });
+    if (mounted) {
+      setState(() {
+        _staffName = name.trim().isEmpty ? 'Staff' : name;
+      });
+    }
   }
 
   Future<void> _fetchGames() async {
     if (_allGames.isEmpty && mounted) setState(() => _isLoading = true);
 
     try {
-      final response = await http.get(Uri.parse('http://$url/api/games'));
+      // ✅ ใช้ baseUrl จาก login.dart
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/games'),
+        // ใส่ Header Authorization ไว้ด้วย (แม้ API นี้อาจเป็น Public แต่ใส่ไว้ดีกว่า)
+        headers: {'Authorization': 'Bearer ${widget.authToken}'},
+      );
+
       if (response.statusCode == 200) {
         final List<dynamic> fetchedGames = json.decode(response.body);
         if (mounted) {
@@ -309,15 +319,8 @@ class _StaffBrowseState extends State<StaffBrowse> {
           final pic = _get(game, 'picPath') ?? '';
           final status = _get(game, 'status') ?? 'Available';
           final gameId = _get(game, 'game_id');
-          final gameGroup = _get(game, 'gameGroup') ?? '';
 
-          // นับจำนวนที่ยังว่างในกลุ่ม (สำหรับส่งไปหน้า detail)
-          final int remaining = _allGames.where((g) {
-            final gg = _get(g, 'gameGroup')?.toString() ?? '';
-            final st = _get(g, 'status')?.toString() ?? '';
-            return gg == gameGroup && st == 'Available';
-          }).length;
-
+          // ใช้ baseUrl แทน url ใน URL รูปภาพ
           return GestureDetector(
             onTap: () {
               Navigator.push(
@@ -346,7 +349,7 @@ class _StaffBrowseState extends State<StaffBrowse> {
 }
 
 // -------------------------------------------------------------------
-// GameCard เดียวกันกับ Lender (แสดง status badge + grayscale เมื่อไม่ว่าง)
+// GameCard
 class GameCard extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -457,8 +460,9 @@ class GameCard extends StatelessWidget {
         child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
       );
     } else {
+      // ✅ ใช้ baseUrl จาก login.dart
       imageWidget = Image.network(
-        'http://$url/$imagePath',
+        '$baseUrl/$imagePath',
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(

@@ -1,5 +1,3 @@
-// lib/Staff_screens/AddNewGame.dart
-
 import 'dart:io';
 import 'dart:convert';
 
@@ -9,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import 'staff_main.dart' show colour_available, colour_main;
+import '/login/login.dart'; // ✅ Import เพื่อใช้ baseUrl
 
 class AddNewGame extends StatefulWidget {
   final String authToken;
@@ -23,18 +22,48 @@ class _AddNewGameState extends State<AddNewGame> {
   final ImagePicker _picker = ImagePicker();
   File? _imageFile;
 
+  // Controllers
   final TextEditingController _cname = TextEditingController();
-  final TextEditingController _cstyle = TextEditingController();
+  // final TextEditingController _cstyle = TextEditingController(); // ไม่ใช้แล้วเพราะเปลี่ยนเป็น Dropdown
   final TextEditingController _ctime = TextEditingController();
   final TextEditingController _cminP = TextEditingController();
   final TextEditingController _cmaxP = TextEditingController();
   final TextEditingController _clink = TextEditingController();
 
+  // State for Dropdown
+  List<dynamic> _styleList = [];
+  String? _selectedStyleName; // เก็บชื่อสไตล์ที่เลือกเพื่อส่งไป Backend
+  bool _isLoadingStyles = true;
+
   bool _isLoading = false;
 
-  static const String _baseURL = 'http://10.0.2.2:3000';
+  @override
+  void initState() {
+    super.initState();
+    _fetchStyles();
+  }
 
-  // ALL FIELDS ARE REQUIRED – NO EXCEPTIONS
+  // ดึงรายชื่อ Style มาใส่ Dropdown
+  Future<void> _fetchStyles() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/game_styles'));
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _styleList = jsonDecode(response.body);
+            _isLoadingStyles = false;
+          });
+        }
+      } else {
+        debugPrint('Failed to fetch styles: ${response.statusCode}');
+        if (mounted) setState(() => _isLoadingStyles = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching styles: $e');
+      if (mounted) setState(() => _isLoadingStyles = false);
+    }
+  }
+
   bool _validateForm() {
     // 1. Game Name
     if (_cname.text.trim().isEmpty) {
@@ -48,9 +77,9 @@ class _AddNewGameState extends State<AddNewGame> {
       return false;
     }
 
-    // 3. Game Style
-    if (_cstyle.text.trim().isEmpty) {
-      _showSnackBar('Game style is required', Colors.red);
+    // 3. Game Style (Check Dropdown)
+    if (_selectedStyleName == null) {
+      _showSnackBar('Please select a game style', Colors.red);
       return false;
     }
 
@@ -109,14 +138,16 @@ class _AddNewGameState extends State<AddNewGame> {
 
     setState(() => _isLoading = true);
 
-    final uri = Uri.parse('$_baseURL/api/add_game');
+    // ✅ ใช้ baseUrl จาก login.dart
+    final uri = Uri.parse('$baseUrl/api/add_game');
     final request = http.MultipartRequest('POST', uri);
 
+    // ✅ แนบ Token
     request.headers['Authorization'] = 'Bearer ${widget.authToken}';
 
     request.fields.addAll({
       'game_name': _cname.text.trim(),
-      'game_style': _cstyle.text.trim(),
+      'game_style': _selectedStyleName!, // ส่งชื่อสไตล์ที่เลือกไป
       'game_time': _ctime.text.trim(),
       'min_P': _cminP.text.trim(),
       'max_P': _cmaxP.text.trim(),
@@ -130,37 +161,32 @@ class _AddNewGameState extends State<AddNewGame> {
     try {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      final data = jsonDecode(response.body);
+
+      dynamic data;
+      try {
+        data = jsonDecode(response.body);
+      } catch (e) {
+        data = {};
+      }
 
       if (response.statusCode == 201) {
-        final newGameData = {
-          'game_id': data['game_id'],
-          'game_name': _cname.text.trim(),
-          'game_style': _cstyle.text.trim(),
-          'game_time': int.parse(_ctime.text.trim()),
-          'game_min_player': int.parse(_cminP.text.trim()),
-          'game_max_player': int.parse(_cmaxP.text.trim()),
-          'game_link_howto': _clink.text.trim(),
-          'game_pic_path': data['pic_path'] ?? 'default.jpg',
-          'total_copies': 1,
-          'available_copies': 1,
-        };
-
         if (mounted) {
-          Navigator.pop(context, newGameData);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Game added successfully!'),
               backgroundColor: Colors.green,
             ),
           );
+          // ✅ ส่งค่า true กลับไป
+          Navigator.pop(context, true);
         }
       } else {
-        _showSnackBar(data['message'] ?? 'Failed to add game', Colors.red);
+        final msg = data['message'] ?? 'Failed to add game';
+        _showSnackBar(msg, Colors.red);
       }
     } catch (e) {
       debugPrint('Error: $e');
-      _showSnackBar('Cannot connect to server', Colors.red);
+      _showSnackBar('Cannot connect to server: $e', Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -183,7 +209,7 @@ class _AddNewGameState extends State<AddNewGame> {
   @override
   void dispose() {
     _cname.dispose();
-    _cstyle.dispose();
+    // _cstyle.dispose();
     _ctime.dispose();
     _cminP.dispose();
     _cmaxP.dispose();
@@ -207,7 +233,7 @@ class _AddNewGameState extends State<AddNewGame> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -224,7 +250,7 @@ class _AddNewGameState extends State<AddNewGame> {
                         border: Border.all(color: colour_main, width: 3),
                       ),
                       child: _imageFile == null
-                          ? Column(
+                          ? const Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
@@ -246,55 +272,82 @@ class _AddNewGameState extends State<AddNewGame> {
                     ),
                   ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Center(
                   child: ElevatedButton.icon(
                     onPressed: _pickImage,
-                    icon: Icon(Icons.photo_library, color: Colors.white),
+                    icon: const Icon(Icons.photo_library, color: Colors.white),
                     label: Text(
                       _imageFile == null ? 'Select Cover' : 'Change Cover',
-                      style: TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colour_main,
                     ),
                   ),
                 ),
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-                Text('Game Name *', style: TextStyle(fontSize: 18)),
-                SizedBox(height: 8),
+                const Text('Game Name *', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _cname,
                   decoration: _inputDecoration('Required'),
                 ),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Game Style *', style: TextStyle(fontSize: 18)),
-                          SizedBox(height: 8),
-                          TextField(
-                            controller: _cstyle,
-                            decoration: _inputDecoration('Required'),
+                          const Text(
+                            'Game Style *',
+                            style: TextStyle(fontSize: 18),
                           ),
+                          const SizedBox(height: 8),
+                          // ★ เปลี่ยน TextField เป็น DropdownButtonFormField
+                          _isLoadingStyles
+                              ? const LinearProgressIndicator(
+                                  color: colour_main,
+                                )
+                              : DropdownButtonFormField<String>(
+                                  value: _selectedStyleName,
+                                  isExpanded: true,
+                                  items: _styleList
+                                      .map<DropdownMenuItem<String>>((style) {
+                                        return DropdownMenuItem<String>(
+                                          value: style['style_name']
+                                              .toString(), // ส่งชื่อ
+                                          child: Text(
+                                            style['style_name'].toString(),
+                                          ),
+                                        );
+                                      })
+                                      .toList(),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _selectedStyleName = val;
+                                    });
+                                  },
+                                  decoration: _inputDecoration('Select Style'),
+                                  validator: (v) =>
+                                      v == null ? 'Required' : null,
+                                ),
                         ],
                       ),
                     ),
-                    SizedBox(width: 15),
+                    const SizedBox(width: 15),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Play Time (min) *',
                             style: TextStyle(fontSize: 18),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           TextField(
                             controller: _ctime,
                             keyboardType: TextInputType.number,
@@ -309,9 +362,9 @@ class _AddNewGameState extends State<AddNewGame> {
                   ],
                 ),
 
-                SizedBox(height: 20),
-                Text('Players *', style: TextStyle(fontSize: 18)),
-                SizedBox(height: 8),
+                const SizedBox(height: 20),
+                const Text('Players *', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
@@ -324,7 +377,7 @@ class _AddNewGameState extends State<AddNewGame> {
                         decoration: _inputDecoration('Min'),
                       ),
                     ),
-                    Padding(
+                    const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text('-', style: TextStyle(fontSize: 24)),
                     ),
@@ -341,16 +394,16 @@ class _AddNewGameState extends State<AddNewGame> {
                   ],
                 ),
 
-                SizedBox(height: 20),
-                Text('How to Play URL *', style: TextStyle(fontSize: 18)),
-                SizedBox(height: 8),
+                const SizedBox(height: 20),
+                const Text('How to Play URL *', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _clink,
                   keyboardType: TextInputType.url,
                   decoration: _inputDecoration('Required – https://...'),
                 ),
 
-                SizedBox(height: 50),
+                const SizedBox(height: 50),
 
                 Center(
                   child: SizedBox(
@@ -359,14 +412,14 @@ class _AddNewGameState extends State<AddNewGame> {
                       onPressed: _isLoading ? null : _saveNewGame,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colour_main,
-                        padding: EdgeInsets.symmetric(vertical: 18),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: _isLoading
-                          ? CircularProgressIndicator(color: Colors.white)
-                          : Text(
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
                               'Confirm Add Game',
                               style: TextStyle(
                                 fontSize: 20,
@@ -376,7 +429,7 @@ class _AddNewGameState extends State<AddNewGame> {
                     ),
                   ),
                 ),
-                SizedBox(height: 50),
+                const SizedBox(height: 50),
               ],
             ),
           ),
@@ -385,7 +438,7 @@ class _AddNewGameState extends State<AddNewGame> {
           if (_isLoading)
             Container(
               color: Colors.black54,
-              child: Center(
+              child: const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
@@ -396,22 +449,22 @@ class _AddNewGameState extends State<AddNewGame> {
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
-      contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey[600]),
       filled: true,
       fillColor: Colors.grey[50],
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colour_main),
+        borderSide: const BorderSide(color: colour_main),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colour_main),
+        borderSide: const BorderSide(color: colour_main),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colour_main, width: 2),
+        borderSide: const BorderSide(color: colour_main, width: 2),
       ),
     );
   }

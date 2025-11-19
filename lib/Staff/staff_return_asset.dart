@@ -1,25 +1,14 @@
-// lib/Staff/StaffReturnAsset.dart (FIXED for Network Connection)
-
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'staff_main.dart' show colour_main, colour_available;
-
-// ----------------------------
-// ✅ FIXED BASE URL CONFIGURATION
-// ----------------------------
-// We define the FULL URL prefix to avoid issues with Uri.http/Uri.parse.
-const String _hostIP = '10.0.2.2';
-const int serverPort = 3000;
-
-// FINAL BASE URL with protocol and port included
-// e.g., 'http://10.0.2.2:3000'
-final String apiBaseUrl = 'http://$_hostIP:$serverPort';
+import '/login/login.dart'; // ✅ Import เพื่อใช้ baseUrl
 
 class StaffReturnAsset extends StatefulWidget {
-  const StaffReturnAsset({super.key});
+  final String authToken; // ★ 1. เพิ่มตัวแปรรับ Token
+
+  // ★ 2. รับค่าผ่าน Constructor
+  const StaffReturnAsset({super.key, required this.authToken});
 
   @override
   State<StaffReturnAsset> createState() => _StaffReturnAssetState();
@@ -32,7 +21,6 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   @override
   void initState() {
     super.initState();
-    // Use Future.microtask to delay fetch and ensure context/mounted is ready
     Future.microtask(() => fetchReturningList());
   }
 
@@ -49,28 +37,22 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   // GET returning list
   // ----------------------------
   Future<void> fetchReturningList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString("auth_token");
-
-    if (token == null) {
-      return _handleError("Authentication failed. Please log in.");
-    }
-
-    // ✅ Use Uri.parse with the full, final URL
-    final urlString = "$apiBaseUrl/api/staff/returning-list";
+    // ❌ ไม่ต้องโหลด Token เองแล้ว
+    // ✅ ใช้ baseUrl จาก login.dart
+    final urlString = "$baseUrl/api/staff/returning-list";
     print("Fetching Returning List from: $urlString");
 
     try {
       final response = await http.get(
         Uri.parse(urlString),
-        headers: {"Authorization": "Bearer $token"},
+        // ✅ ใช้ widget.authToken
+        headers: {"Authorization": "Bearer ${widget.authToken}"},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
-            // Ensure data is accessed safely
             returningList = data["data"] ?? [];
             isLoading = false;
           });
@@ -91,18 +73,15 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   // PUT confirm return
   // ----------------------------
   Future<void> confirmReturn(int borrowId, String gameName) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString("auth_token");
-
-    if (token == null) return;
-
-    final urlString = "$apiBaseUrl/api/staff/confirm-return/$borrowId";
+    // ✅ ใช้ baseUrl จาก login.dart
+    final urlString = "$baseUrl/api/staff/confirm-return/$borrowId";
 
     try {
       final response = await http.put(
         Uri.parse(urlString),
         headers: {
-          "Authorization": "Bearer $token",
+          // ✅ ใช้ widget.authToken
+          "Authorization": "Bearer ${widget.authToken}",
           "Content-Type": "application/json",
         },
       );
@@ -110,7 +89,6 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
       if (response.statusCode == 200) {
         showReturnPopup(gameName);
         if (mounted) {
-          // Remove the item immediately for quick UI feedback
           setState(() {
             returningList.removeWhere((item) => item['borrow_id'] == borrowId);
           });
@@ -127,7 +105,7 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   }
 
   // ----------------------------
-  // POPUP (Remains the same)
+  // POPUP
   // ----------------------------
   void showReturnPopup(String name) {
     showDialog(
@@ -145,7 +123,7 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.loop, size: 60, color: colour_available),
+                const Icon(Icons.loop, size: 60, color: colour_available),
                 const SizedBox(height: 10),
                 Text(
                   name,
@@ -175,7 +153,7 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
   }
 
   // ----------------------------
-  // UI (Remains the same, added RefreshIndicator)
+  // UI
   // ----------------------------
   @override
   Widget build(BuildContext context) {
@@ -229,9 +207,6 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
     );
   }
 
-  // ----------------------------
-  // Card UI (Fixed Image URL construction)
-  // ----------------------------
   Widget buildGameCard(dynamic item) {
     return Card(
       elevation: 3,
@@ -243,9 +218,9 @@ class _StaffReturnAssetState extends State<StaffReturnAsset> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              // ✅ Fixed Image URL: uses the full apiBaseUrl
               child: Image.network(
-                "$apiBaseUrl/${item['game_pic_path']}",
+                // ✅ ใช้ baseUrl
+                "$baseUrl/${item['game_pic_path']}",
                 width: 100,
                 height: 100,
                 fit: BoxFit.cover,
