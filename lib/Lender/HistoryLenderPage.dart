@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// ✅ Import login เพื่อใช้ baseUrl ตัวกลาง
+import '/login/login.dart';
 
 // --- Color Definitions ---
 const Color colour_main_orange = Color(0xFFE67E22);
@@ -13,20 +13,14 @@ const Color colour_disable_red = Color(0xFFDD4430);
 
 // --- API Service ---
 class ApiService {
-  static String get baseUrl {
-    if (Platform.isIOS) {
-      return 'http://localhost:3000';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
-    } else {
-      return 'http://192.168.1.123:3000';
-    }
-  }
+  // ❌ ลบ get baseUrl เดิมออก
+  // ✅ ใช้ baseUrl จากไฟล์ login.dart แทน
 
   static Future<List<Map<String, dynamic>>> fetchLenderHistory({
     required String token,
     String query = '',
   }) async {
+    // ✅ ใช้ baseUrl ตัวกลาง
     final uri = Uri.parse(
       '$baseUrl/HistoryLenderPage',
     ).replace(queryParameters: {'q': query});
@@ -47,7 +41,13 @@ class ApiService {
 
 // --- Main Lender History Widget ---
 class HistoryLenderPage extends StatefulWidget {
-  const HistoryLenderPage({super.key});
+  // ★ 1. เพิ่มตัวแปรรับ Token
+  final String authToken;
+
+  const HistoryLenderPage({
+    super.key,
+    required this.authToken, // ★ 2. บังคับรับค่า
+  });
 
   @override
   State<HistoryLenderPage> createState() => _HistoryLenderPageState();
@@ -59,7 +59,7 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
   List<Map<String, dynamic>> _filtered = [];
   bool _loading = true;
   String _error = '';
-  String? _token;
+  // ❌ ไม่ต้องประกาศ _token แล้ว ใช้ widget.authToken
 
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return DateTime(1900);
@@ -78,27 +78,16 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
     });
   }
 
-  Future<void> _loadAuthData() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('auth_token');
-  }
+  // ❌ ลบ _loadAuthData ออก ไม่จำเป็นต้องโหลดซ้ำ
 
   Future<void> _fetch() async {
-    await _loadAuthData();
-    if (_token == null) {
-      setState(() {
-        _error = 'Please log in again.';
-        _loading = false;
-      });
-      return;
-    }
-
+    // ไม่ต้องเช็ค Token null เพราะรับมาจาก Parent แล้ว
     setState(() => _loading = true);
     _error = '';
 
     try {
       final items = await ApiService.fetchLenderHistory(
-        token: _token!,
+        token: widget.authToken, // ✅ ส่ง Token จาก widget โดยตรง
         query: _search.text.trim(),
       );
       _sortHistory(items);
@@ -110,7 +99,9 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
             : 'Error: ${e.toString()}';
       });
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -128,7 +119,8 @@ class _HistoryLenderPageState extends State<HistoryLenderPage> {
   @override
   void initState() {
     super.initState();
-    _loadAuthData().then((_) => _fetch());
+    // เรียก _fetch ได้เลย ไม่ต้องรอโหลด Token
+    _fetch();
     _search.addListener(_onSearchChange);
   }
 

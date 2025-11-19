@@ -70,9 +70,13 @@ class _LoginState extends State<Login> {
             nextPage = const StudentMain();
             break;
           case 'lender':
-            nextPage = const LenderMain();
+            // ★ FIXED: ส่ง authToken ไปยัง LenderMain
+            // ลบ const ออก เพราะเรากำลังส่งค่าตัวแปรเข้าไป
+            nextPage = LenderMain(authToken: data['token'] ?? '');
             break;
           case 'staff':
+            // หมายเหตุ: ถ้า StaffMain มีการแก้ให้รับ Token ด้วย ก็ต้องแก้ตรงนี้เหมือนกัน
+            // แต่ตอนนี้ขอแก้แค่ LenderMain ตามที่คุยกันก่อนครับ
             nextPage = const StaffMain();
             break;
           default:

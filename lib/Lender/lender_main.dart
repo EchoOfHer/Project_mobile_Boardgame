@@ -11,10 +11,13 @@ const colour_main = Color(0xFFFF8000);
 const colour_available = Color(0xFF729382);
 const colour_disable = Color(0xFFFF7C7C);
 const colour_borrow = Color(0xFFEFA34B);
-final url = '10.0.2.2:3000'; // ✅ ตัด http:// ออกให้เหมือน StudentMain
+final url = '10.0.2.2:3000';
 
 class LenderMain extends StatefulWidget {
-  const LenderMain({super.key});
+  final String authToken; // ★ 1. รับ Token จากหน้า Login
+
+  // ★ 2. บังคับให้ส่ง authToken เข้ามา
+  const LenderMain({super.key, required this.authToken});
 
   @override
   State<LenderMain> createState() => _LenderMainState();
@@ -25,7 +28,6 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
   final int _tabCount = 4;
 
   int? _lenderId;
-  String? _authToken; // ✅ เก็บ token ที่ได้จาก login
 
   @override
   void initState() {
@@ -34,17 +36,13 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
     _loadUserId();
   }
 
-  /// ✅ โหลด user_id และ auth_token จาก SharedPreferences
   Future<void> _loadUserId() async {
     final prefs = await SharedPreferences.getInstance();
-
     final lenderId = prefs.getInt('user_id');
-    final token = prefs.getString('auth_token');
 
     if (mounted) {
       setState(() {
         _lenderId = lenderId;
-        _authToken = token;
       });
     }
   }
@@ -57,7 +55,7 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    if (_lenderId == null || _authToken == null) {
+    if (_lenderId == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator(color: colour_main)),
       );
@@ -95,19 +93,21 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             const BrowseLender(), // Tab 1
+            // ★ 3. ส่ง Token ไปหน้า Requests
             SeeLenderRequests(
               lenderId: _lenderId!,
-              authToken: _authToken!,
+              authToken: widget.authToken,
             ), // Tab 2
-            HistoryLenderPage(), // Tab 3
-            const Center(child: Text('')), // Tab 4 (logout)
+            // ★ 4. ส่ง Token ไปหน้า History
+            HistoryLenderPage(authToken: widget.authToken), // Tab 3
+
+            const Center(child: Text('')), // Tab 4 (placeholder)
           ],
         ),
       ),
     );
   }
 
-  /// ✅ Popup logout
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -116,9 +116,9 @@ class _LenderMainState extends State<LenderMain> with TickerProviderStateMixin {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.logout, size: 60, color: colour_disable),
+            const Icon(Icons.logout, size: 60, color: colour_disable),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               "Log Out",
               style: TextStyle(
                 fontSize: 22,
